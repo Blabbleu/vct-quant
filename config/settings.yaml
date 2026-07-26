@@ -1,0 +1,10 @@
+vlrgg:
+  base_url: https://vlrggapi.vercel.app
+  request_delay_seconds: 1.0
+
+kaggle:
+  dataset: ryanluong1/valorant-champion-tour-2021-2023-data
+
+paths:
+  data_dir: data
+  db_path: data/vct.duckdb

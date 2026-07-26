@@ -1,0 +1,30 @@
+# Environments
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+
+# Secrets
+.env
+
+# Data & artifacts (rebuildable from raw sources / pipelines)
+data/**
+!data/**/
+!data/**/.gitkeep
+models/*
+!models/.gitkeep
+*.duckdb
+*.duckdb.wal
+
+# Notebooks
+.ipynb_checkpoints/
+
+# OS / editor
+Thumbs.db
+.vscode/
+
+# Superseded old skeleton — safe to delete (schema preserved in
+# sql/schema.postgres.sql, client code in src/vct_quant/ingest/vlrgg.py)
+vlr-esports-data/
+setup_project.ps1
