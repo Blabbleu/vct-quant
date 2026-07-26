@@ -23,8 +23,3 @@ models/*
 # OS / editor
 Thumbs.db
 .vscode/
-
-# Superseded old skeleton — safe to delete (schema preserved in
-# sql/schema.postgres.sql, client code in src/vct_quant/ingest/vlrgg.py)
-vlr-esports-data/
-setup_project.ps1
