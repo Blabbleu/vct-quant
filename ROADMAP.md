@@ -52,34 +52,47 @@ rating that follows.
 **Exit criterion:** `match`, `match_team`, `match_map` populated; unresolved-entity
 rate measured and consciously accepted.
 
-## Phase 2 — Establish chronology
+## Phase 2 — Establish chronology ✅ done
 
 The corpus has **no date column anywhere**. Elo and walk-forward validation both
-depend on time ordering, so this must be settled explicitly rather than assumed.
+depend on time ordering, so this had to be settled explicitly rather than assumed.
 
-Use **ascending vlr.gg `Match ID`** as the ordering key. This was verified: per-year
-ID ranges are strictly increasing with zero overlap across all six years. Persist
-an explicit sequence column rather than relying on incidental row order.
+**Ascending vlr.gg `Match ID` is the ordering key** (per-year ID ranges are
+strictly increasing with zero overlap across all six years). No separate sequence
+column was added — `match.match_id` already *is* that column, persisted and a
+primary key. What changed instead:
 
-Consequences to accept up front:
+* `features/build.py::match_sequence` is the single ordered read of the canonical
+  tables (`ORDER BY match_id`), returning `match_id, team_a, team_b, score_a`.
+  Nothing downstream relies on incidental row order. Unresolved teams fall back to
+  a `name:` key so the 2.8% NULL `team_id` rows stay distinct entities instead of
+  merging into one.
+* `walk_forward_splits` now cuts by **rank**, not by value, so it accepts any
+  sortable key. Its old `pd.to_datetime` would have read match_ids as nanoseconds
+  and silently produced garbage. Side benefit: every test window holds the same
+  number of matches regardless of how clumped the key is.
 
-* Walk-forward cutoffs become ID/Year quantiles, not calendar dates. `walk_forward_splits`
-  currently calls `pd.to_datetime(dates)` — either feed it a synthetic monotonic
-  date derived from Match ID, or generalize it to accept any sortable key.
-* Genuinely time-based features (rest days, layoff decay, roster-change recency)
-  are **out of scope** until dates are backfilled from vlrggapi.
+Still out of scope until dates are backfilled from vlrggapi: genuinely time-based
+features (rest days, layoff decay, roster-change recency).
 
-## Phase 3 — Thin end-to-end slice ⭐ mostly validated
+## Phase 3 — Thin end-to-end slice ✅ done
 
-Already smoke-tested: sequential Elo over the loaded corpus scores **0.6449 log
-loss, 0.2267 Brier, 62.6% accuracy** against a 0.6931 coin-flip floor, and the
-top teams by final rating (Paper Rex, Gambit, OpTic, LEVIATÁN, DRX, G2, FNATIC)
-are genuinely elite — good evidence the entity resolution and ordering are sound.
+**Benchmark: 0.6487 walk-forward log loss, 0.2285 Brier, 61.9% accuracy** over
+6,316 scored matches in 5 folds (coin flip = 0.6931). Reproduce with
+`python scripts/benchmark_elo.py`. This is the number every later model must beat.
 
-What remains is to run it through `walk_forward_splits` proper (the smoke test
-was prequential over the whole history) and commit the result as the benchmark.
-Calibration is already informative: the 0.6-0.8 bucket predicts 0.67 but wins
-0.79, i.e. Elo is underconfident, so K-factor tuning is the first lever.
+Per fold: 0.6480 / 0.6401 / 0.6633 / 0.6322 / 0.6601 — no fold degrades badly, so
+the ordering is not hiding a regime break.
+
+Elo is **underconfident across the whole range**: every bucket from 0.1 to 0.8
+wins more often than predicted, worst at 0.5-0.6 (predicts 0.54, wins 0.64).
+K-factor tuning is the obvious first lever, and a Platt scaler fit on training
+folds should recover most of the rest.
+
+The earlier prequential smoke test scored 0.6449 over the whole history; the
+honest walk-forward number being only 0.004 worse is expected, not suspicious.
+Top teams by final rating (Paper Rex, Gambit, OpTic, LEVIATÁN, DRX, G2, FNATIC)
+are genuinely elite — good evidence entity resolution and ordering are sound.
 
 *Original plan retained below.*
 
@@ -128,11 +141,19 @@ Guard against the year-skew documented in CLAUDE.md: 2021 contributes 53% of all
 map rows and is dominated by lower-tier qualifier play. Weight by recency or
 tournament tier, or subset deliberately.
 
-## Phase 6 — Forward prediction
+## Phase 6 — Forward prediction — unblocked
 
-Currently **blocked**: vlrggapi returned HTTP 402 across its whole deployment on
-2026-07-25. Unblock by self-hosting `github.com/axsddlr/vlrggapi` and repointing
-`vlrgg.base_url`.
+The hosted vlrggapi's HTTP 402 was worked around by self-hosting on
+`http://127.0.0.1:3001` (already set as `vlrgg.base_url`). Verified live
+2026-07-27: `results` (50), `upcoming` (33), `match/details`, and `rankings` all
+return, and all 83 feed rows parse to a match_id.
+
+`match/details` carries a real `date` field ("Monday, July 27 11:00 AM EDT Patch
+13.01") plus numeric team IDs — so this is also the path that backfills real
+timestamps and lifts the Phase 2 ordering restrictions.
+
+Note the feed is shallow: `results` returns only the most recent ~50 matches per
+page, so backfilling history means paging, not one call.
 
 Then: ingest upcoming matches, resolve them onto existing team IDs, apply current
 ratings, emit probabilities. This is also what backfills real match timestamps and

@@ -16,10 +16,16 @@ def normalize_name(name: str) -> str:
     return re.sub(r"\s+", " ", name).strip().lower()
 
 
+_VLR_ID_RE = re.compile(r"(?:vlr\.gg/|^/?)(?:team/|player/|event/)?(\d+)")
+
+
 def vlr_id_from_url(url: str) -> int | None:
     """Extract the numeric vlr.gg entity ID from a URL like
-    https://www.vlr.gg/team/2593/fnatic or /player/9/tenz."""
-    m = re.search(r"vlr\.gg/(?:team|player|event)/(\d+)", url)
-    if m is None:
-        m = re.search(r"^/?(?:team|player|event)/(\d+)", url)
+    https://www.vlr.gg/team/2593/fnatic or /player/9/tenz.
+
+    Matches are the exception: their URL carries a bare ID with no typed
+    segment (https://www.vlr.gg/716578/slug), and the vlrggapi upcoming feed
+    drops the host too ("716578/contra-vs-bestia-..."), so both parse.
+    """
+    m = _VLR_ID_RE.search(url)
     return int(m.group(1)) if m else None

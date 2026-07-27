@@ -13,20 +13,26 @@ import pandas as pd
 
 
 def walk_forward_splits(
-    dates: pd.Series, n_splits: int = 5, min_train_frac: float = 0.5
+    order: pd.Series, n_splits: int = 5, min_train_frac: float = 0.5
 ) -> Iterator[tuple[np.ndarray, np.ndarray]]:
-    """Yield (train_mask, test_mask) boolean arrays over `dates`.
+    """Yield (train_mask, test_mask) boolean arrays over any sortable key.
+
+    `order` is dates where they exist, and ascending vlr.gg match_id for the
+    Kaggle corpus, which carries no date column at all. Cuts are by rank, not
+    by value, so the key only has to be comparable — and every test window
+    holds the same number of matches regardless of how clumped the key is.
 
     The first min_train_frac of the timeline is always training data; the
     remainder is cut into n_splits consecutive test windows, each trained on
     all data strictly before it.
     """
-    dates = pd.to_datetime(dates)
-    t0, t1 = dates.min(), dates.max()
-    start = t0 + (t1 - t0) * min_train_frac
-    cuts = pd.date_range(start=start, end=t1, periods=n_splits + 1)
+    # ponytail: rank ties broken by row position; matches on the same day (or
+    # sharing a match_id, which cannot happen — it is a PK) land in whichever
+    # window their row order puts them.
+    rank = pd.Series(order).rank(method="first").to_numpy()
+    cuts = np.linspace(len(rank) * min_train_frac, len(rank), n_splits + 1)
     for lo, hi in zip(cuts[:-1], cuts[1:]):
-        train = (dates < lo).to_numpy()
-        test = ((dates >= lo) & (dates <= hi)).to_numpy()
+        train = rank <= lo
+        test = (rank > lo) & (rank <= hi)
         if train.any() and test.any():
             yield train, test

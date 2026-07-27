@@ -121,11 +121,14 @@ filter by tournament tier, or subset by year deliberately.
   Do *not* leave blank `KAGGLE_USERNAME=`/`KAGGLE_KEY=` in `.env` — the client
   copies every `KAGGLE_*` env var over whatever it read from the token file and
   treats present-but-empty as valid credentials, turning working auth into a 401.
-* **vlrggapi is unofficial and fragile** — it returned HTTP 402 (host over spending
-  limit) across the whole deployment on 2026-07-25. Fallback is self-hosting
-  `github.com/axsddlr/vlrggapi` and repointing `vlrgg.base_url` in
-  `config/settings.yaml`. Every fetch is written verbatim to `data/raw/vlrgg/`
-  before parsing so ingestion stays replayable when the API changes shape.
+* **vlrggapi is unofficial and fragile** — the hosted deployment returned HTTP 402
+  (host over spending limit) on 2026-07-25. It is now **self-hosted on
+  `http://127.0.0.1:3001`** (`github.com/axsddlr/vlrggapi`), which is what
+  `vlrgg.base_url` in `config/settings.yaml` points at; start that server before
+  any `vct ingest-vlrgg`. Verified working 2026-07-27 for `results`, `upcoming`,
+  `match/details`, `rankings`. Every fetch is written verbatim to
+  `data/raw/vlrgg/` before parsing so ingestion stays replayable when the API
+  changes shape. Note `results` pages ~50 matches at a time.
 * **Riot API is a dead end for pro matches** — VCT is played on the esports
   tournament realm, which is not public, and VAL-MATCH-V1 needs an approved
   production key. `ingest/riot.py` is a deliberate placeholder for ranked-queue
@@ -145,11 +148,17 @@ NULL `team_id` and 3.8% of player rows a NULL `player_id`, in both cases because
 the name maps to two distinct vlr.gg IDs and guessing would merge two entities.
 The text name is always retained.
 
-Sequential Elo over this data scores **0.6449 log loss / 62.6% accuracy**
-(coin flip is 0.6931). That is the number to beat. It is somewhat underconfident
-in the 0.6-0.8 bucket, so K-factor tuning is the obvious first improvement.
+Walk-forward Elo scores **0.6487 log loss / 0.2285 Brier / 61.9% accuracy** over
+5 folds (coin flip is 0.6931) — `python scripts/benchmark_elo.py`. That is the
+number to beat. It is underconfident across the whole range (every bucket from
+0.1 to 0.8 wins more than predicted), so K-factor tuning and a Platt scaler fit
+on training folds are the obvious first improvements.
 
-Stubs with TODOs — the actual remaining work: `features/rolling.py`,
-`features/build.py` (the point-in-time feature matrix →
-`data/processed/features.parquet`, one row per match with label `1` if team_a
-won), and `load_vlrgg_match_results` in `etl/normalize.py`.
+`features/build.py::match_sequence` is the one ordered read of the canonical
+tables — `ORDER BY match_id`, the chronological key. Use it rather than querying
+`match` directly, and never rely on incidental row order.
+
+Stubs with TODOs — the actual remaining work: `features/rolling.py`, the rest of
+`features/build.py` (join rolling form onto Elo → `data/processed/features.parquet`,
+one row per match with label `1` if team_a won), and `load_vlrgg_match_results`
+in `etl/normalize.py`.
