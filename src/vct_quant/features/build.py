@@ -11,6 +11,11 @@ import duckdb
 import pandas as pd
 
 from .. import db
+from ..config import PROCESSED_DIR
+from .ratings import compute_elo
+
+# Margin-aware Elo won the variant comparison at this K — see CLAUDE.md.
+BEST_K = 48.0
 
 # The corpus has no date column anywhere, so ascending vlr.gg match_id is the
 # chronological key (verified: per-year ID ranges are strictly increasing with
@@ -79,5 +84,94 @@ def match_sequence(con: duckdb.DuckDBPyConnection | None = None) -> pd.DataFrame
             con.close()
 
 
-# TODO: join rolling form (features.rolling) onto the Elo columns and write
-#       parquet to PROCESSED_DIR.
+_ROSTERS_SQL = """
+SELECT mm.match_id, mt.team_number,
+       list(DISTINCT coalesce(CAST(s.player_id AS VARCHAR),
+                              'h:' || lower(trim(s.player_handle)))) AS roster
+FROM match_map_player_stat s
+JOIN match_map mm ON mm.match_map_id = s.match_map_id
+JOIN match_team mt ON mt.match_id = mm.match_id AND mt.team_number = s.team_number
+GROUP BY 1, 2
+"""
+
+
+def _roster_churn(df: pd.DataFrame, con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
+    """Fraction of each side's roster that is new since that team's last match.
+
+    Uses who *lined up* for this match, which is known before it starts, but not
+    anything about how it went — so this is pre-match information, not leakage.
+    NaN for a team's first ever appearance, since there is nothing to compare to.
+    """
+    r = con.execute(_ROSTERS_SQL).df()
+    rosters = {(int(m), int(t)): frozenset(x) for m, t, x in r.itertuples(index=False)}
+
+    last: dict = {}
+    out = {1: [], 2: []}
+    for match_id, team_a, team_b in zip(df.match_id, df.team_a, df.team_b):
+        for team, side in ((team_a, 1), (team_b, 2)):
+            current, previous = rosters.get((int(match_id), side)), last.get(team)
+            out[side].append(
+                len(current - previous) / len(current)
+                if current and previous
+                else float("nan")
+            )
+            if current:
+                last[team] = current
+    return pd.DataFrame({"churn_a": out[1], "churn_b": out[2]}, index=df.index)
+
+
+def build_features(con: duckdb.DuckDBPyConnection | None = None) -> pd.DataFrame:
+    """One row per match, every feature computed from data available before it.
+
+    Elo is pre-match by construction (`compute_elo` records the rating it used
+    *before* applying the result). Churn and match counts are lagged explicitly.
+    Label is 1 if team_a won; the 75 Bo2 draws are dropped, having no binary
+    outcome.
+    """
+    owned = con is None
+    con = con or db.connect(read_only=True)
+    try:
+        df = match_sequence(con).reset_index(drop=True)
+        churn = _roster_churn(df, con)
+    finally:
+        if owned:
+            con.close()
+
+    # Margin-aware Elo at K=48 — the winning configuration, see CLAUDE.md.
+    signal = (df.maps_a / (df.maps_a + df.maps_b)).to_numpy()
+    elo = pd.DataFrame(
+        compute_elo(zip(df.match_id, df.team_a, df.team_b, signal), k=BEST_K)[0]
+    )
+
+    out = pd.DataFrame(
+        {
+            "match_id": df.match_id,
+            "year": df.year,
+            "team_a": df.team_a,
+            "team_b": df.team_b,
+            "elo_diff": elo.elo_a_pre - elo.elo_b_pre,
+            "elo_p_a_win": elo.p_a_win,
+            "churn_a": churn.churn_a,
+            "churn_b": churn.churn_b,
+            # How many matches each side has played before this one. Elo cannot
+            # express its own uncertainty, so a 1500 rating means both "average"
+            # and "never seen" -- this separates the two.
+            "n_prior_a": df.groupby("team_a").cumcount(),
+            "n_prior_b": df.groupby("team_b").cumcount(),
+            "label": df.score_a,
+        }
+    )
+    return out[out.label != 0.5].reset_index(drop=True)
+
+
+def main() -> None:
+    features = build_features()
+    PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
+    path = PROCESSED_DIR / "features.parquet"
+    features.to_parquet(path, index=False)
+    print(f"{len(features):,} rows x {features.shape[1]} cols -> {path}")
+    print(features.describe().round(3).to_string())
+
+
+if __name__ == "__main__":
+    main()
