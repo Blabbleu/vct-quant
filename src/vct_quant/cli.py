@@ -16,6 +16,7 @@ def main() -> None:
     )
     sub.add_parser("download-kaggle", help="Download/refresh the Kaggle VCT dataset")
     sub.add_parser("inspect-kaggle", help="List Kaggle CSVs and their columns")
+    sub.add_parser("load-kaggle", help="Load Kaggle CSVs into the canonical tables")
 
     args = parser.parse_args()
 
@@ -42,6 +43,10 @@ def main() -> None:
         from .etl import normalize
 
         normalize.inspect_kaggle()
+    elif args.cmd == "load-kaggle":
+        from .etl import normalize
+
+        print(normalize.load_kaggle())
 
 
 if __name__ == "__main__":

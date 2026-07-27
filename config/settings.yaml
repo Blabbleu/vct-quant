@@ -1,5 +1,5 @@
 vlrgg:
-  base_url: https://vlrggapi.vercel.app
+  base_url: http://127.0.0.1:3001
   request_delay_seconds: 1.0
 
 kaggle:
