@@ -16,13 +16,14 @@ left NULL rather than fabricated.
 """
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import duckdb
 import pandas as pd
 
-from ..config import RAW_KAGGLE_DIR
+from ..config import RAW_KAGGLE_DIR, RAW_VLRGG_DIR
 from ..db import connect
 from ..ingest.kaggle import list_csvs
 
@@ -464,4 +465,132 @@ def load_kaggle(con: duckdb.DuckDBPyConnection | None = None,
     return report
 
 
-# TODO: load_vlrgg_match_results(con) parsing data/raw/vlrgg/match_results_*.json
+def _vlrgg_event_matches() -> pd.DataFrame:
+    """Every completed match harvested by scripts/backfill_vlrgg.py.
+
+    Two quirks in this feed, both verified against the harvest:
+      * the scraper appends "Today"/"Yesterday" to the date string, and one row
+        carries a Dec 31 1969 epoch-0 sentinel;
+      * a Bo1 reports the ROUND score (13-3), exactly as the Kaggle corpus does
+        — 18,147 of 72,495 rows. A series is never won by more than 3 maps.
+    """
+    rows: list[dict] = []
+    for path in sorted(RAW_VLRGG_DIR.glob("event_matches_*.json")):
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        for seg in payload.get("data", {}).get("segments", []):
+            rows.append(seg)
+    if not rows:
+        return pd.DataFrame()
+
+    d = pd.DataFrame(rows)
+    d = d[d["status"].str.lower() == "completed"]
+    # A later harvest of an ongoing event supersedes an earlier one.
+    d = d.drop_duplicates("match_id", keep="last")
+
+    date = pd.to_datetime(
+        d["date"].astype(str).str.replace(r"(Yesterday|Today)$", "", regex=True),
+        format="%a, %B %d, %Y",
+        errors="coerce",
+    )
+    d = d.assign(
+        match_id=pd.to_numeric(d["match_id"], errors="coerce"),
+        completed_at=date.where(date > "2010-01-01"),
+        score_a=pd.to_numeric([t.get("score") for t in d["team1"]], errors="coerce"),
+        score_b=pd.to_numeric([t.get("score") for t in d["team2"]], errors="coerce"),
+        name_a=[t.get("name") for t in d["team1"]],
+        name_b=[t.get("name") for t in d["team2"]],
+    )
+    return d.dropna(subset=["match_id"]).astype({"match_id": "int64"})
+
+
+def load_vlrgg_match_results(con: duckdb.DuckDBPyConnection | None = None) -> LoadReport:
+    """Merge the vlrggapi event harvest into `match` + `match_team`.
+
+    Additive, not a replace: matches already loaded from Kaggle keep their rows
+    and only gain `completed_at`, which is the first real timestamp this project
+    has had. New matches are inserted whole. Safe to re-run.
+    """
+    report = LoadReport()
+    owned = con is None
+    con = con or connect()
+    try:
+        d = _vlrgg_event_matches()
+        if d.empty:
+            return report
+
+        known = {r[0] for r in con.execute("SELECT match_id FROM match").fetchall()}
+        existing = d[d["match_id"].isin(known)]
+        fresh = d[~d["match_id"].isin(known)]
+
+        # Backfill dates onto rows the Kaggle load already owns.
+        dated = existing.dropna(subset=["completed_at"])[["match_id", "completed_at"]]
+        if not dated.empty:
+            con.register("_dates", dated)
+            try:
+                con.execute("""
+                    UPDATE match SET completed_at = _dates.completed_at
+                    FROM _dates WHERE match.match_id = _dates.match_id
+                """)
+            finally:
+                con.unregister("_dates")
+            report.note("match dates backfilled", len(dated))
+
+        report.drop("matches missing a date", int(d["completed_at"].isna().sum()))
+        if fresh.empty:
+            return report
+
+        best = fresh[["score_a", "score_b"]].max(axis=1)
+        # See the docstring: >3 means this is a Bo1's round score.
+        round_score = best > 3
+        report.drop("Bo1 rows storing round scores", int(round_score.sum()))
+
+        known_events = {r[0] for r in con.execute("SELECT event_id FROM event").fetchall()}
+        won_a = fresh["score_a"] > fresh["score_b"]
+
+        _insert(con, "match", pd.DataFrame({
+            "match_id": fresh["match_id"],
+            # These events were never loaded, so the FK would fail; the event
+            # name is kept as text either way.
+            "event_id": pd.Series([pd.NA] * len(fresh), index=fresh.index, dtype="Int64"),
+            "event_name": fresh["event_series"].astype(str),
+            "status": "completed",
+            "completed_at": fresh["completed_at"],
+            # date_raw stays the YEAR, matching what the Kaggle load writes —
+            # features.build reads the year back out of it.
+            "date_raw": fresh["completed_at"].dt.year.astype("Int64").astype(str),
+            "best_of": _int((2 * best - 1).where(best > 0).mask(round_score, 1)),
+            "vlr_url": fresh["url"].astype(str),
+        }), report)
+
+        team_map = _unambiguous(
+            con.execute("SELECT name, team_id FROM team").df(), "name", "team_id"
+        )
+
+        def side(num: int, name_col: str, score_col: str) -> pd.DataFrame:
+            won = won_a if num == 1 else ~won_a
+            return pd.DataFrame({
+                "match_id": fresh["match_id"],
+                "team_number": num,
+                "team_id": _int(fresh[name_col].map(team_map)),
+                "team_name": fresh[name_col].astype(str),
+                "series_score": _int(
+                    fresh[score_col].mask(round_score, won.astype(int))
+                ),
+                # Bo2 draws are real; a draw is not a loss for either side.
+                "is_winner": won.where(fresh["score_a"] != fresh["score_b"]),
+            })
+
+        mt = pd.concat([side(1, "name_a", "score_a"),
+                        side(2, "name_b", "score_b")], ignore_index=True)
+        # UNIQUE (match_id, team_id): both sides resolving to one ID means the
+        # resolution is wrong, so drop the IDs and keep the names.
+        have = mt.dropna(subset=["team_id"])
+        clash = set(have[have.duplicated(["match_id", "team_id"], keep=False)]["match_id"])
+        if clash:
+            mt.loc[mt["match_id"].isin(clash), "team_id"] = pd.NA
+            report.drop("match_team team_id clashes", len(clash))
+        _insert(con, "match_team", mt, report)
+    finally:
+        if owned:
+            con.close()
+    return report

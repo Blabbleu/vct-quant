@@ -120,6 +120,19 @@ def _roster_churn(df: pd.DataFrame, con: duckdb.DuckDBPyConnection) -> pd.DataFr
     return pd.DataFrame({"churn_a": out[1], "churn_b": out[2]}, index=df.index)
 
 
+def margin_signal(df: pd.DataFrame) -> "pd.Series":
+    """The training signal that won the variant comparison: share of maps won.
+
+    Falls back to the binary result wherever the map score is missing (forfeits,
+    and vlrggapi rows with no score). This matters more than it looks: a single
+    NaN fed to `compute_elo` propagates into both teams' ratings and then across
+    every opponent they ever meet, silently, without raising — one missing row
+    turns the whole benchmark into NaN.
+    """
+    total = df.maps_a + df.maps_b
+    return (df.maps_a / total).where(total > 0).fillna(df.score_a)
+
+
 def build_features(con: duckdb.DuckDBPyConnection | None = None) -> pd.DataFrame:
     """One row per match, every feature computed from data available before it.
 
@@ -138,7 +151,7 @@ def build_features(con: duckdb.DuckDBPyConnection | None = None) -> pd.DataFrame
             con.close()
 
     # Margin-aware Elo at K=48 — the winning configuration, see CLAUDE.md.
-    signal = (df.maps_a / (df.maps_a + df.maps_b)).to_numpy()
+    signal = margin_signal(df).to_numpy()
     elo = pd.DataFrame(
         compute_elo(zip(df.match_id, df.team_a, df.team_b, signal), k=BEST_K)[0]
     )

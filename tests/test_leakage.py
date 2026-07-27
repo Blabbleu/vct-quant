@@ -41,3 +41,22 @@ def test_churn_never_sees_the_outcome():
     used = set(src.co_names) | set(src.co_varnames)
     assert not {"score_a", "label", "maps_a", "maps_b", "is_winner"} & used
     assert "score_a" in _MATCH_SEQUENCE_SQL  # sanity: the column does exist
+
+
+def test_margin_signal_never_returns_nan():
+    """A single NaN here propagates through every rating that touches those two
+    teams, and compute_elo will not raise -- it just returns NaN everywhere."""
+    import pandas as pd
+
+    from vct_quant.features.build import margin_signal
+
+    df = pd.DataFrame({
+        "maps_a": [2.0, None, 0.0, 1.0],
+        "maps_b": [0.0, 1.0, 0.0, None],   # row 2 is a forfeit: no maps played
+        "score_a": [1.0, 0.0, 1.0, 1.0],
+    })
+    out = margin_signal(df)
+    assert out.notna().all(), out.tolist()
+    assert out.iloc[0] == 1.0            # 2-0 sweep
+    assert out.iloc[1] == 0.0            # missing score -> binary result
+    assert out.iloc[2] == 1.0            # 0-0 forfeit -> binary result

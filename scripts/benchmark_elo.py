@@ -9,7 +9,7 @@ import pandas as pd
 
 from vct_quant.eval import metrics
 from vct_quant.eval.backtest import walk_forward_splits
-from vct_quant.features.build import match_sequence
+from vct_quant.features.build import margin_signal, match_sequence
 from vct_quant.features.ratings import compute_elo
 
 BEST_K = 48.0
@@ -22,7 +22,7 @@ def main(n_splits: int = 5) -> None:
     # binary win, at K=48. A 2-1 win by a heavy favourite then scores below its
     # own expectation and costs that team rating -- plain Elo cannot express that.
     # Round-level share and margin-weighted K were both tried and both lost.
-    signal = (df.maps_a / (df.maps_a + df.maps_b)).to_numpy()
+    signal = margin_signal(df).to_numpy()
     elo = pd.DataFrame(
         compute_elo(zip(df.match_id, df.team_a, df.team_b, signal), k=BEST_K)[0]
     )
