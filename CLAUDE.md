@@ -150,9 +150,23 @@ The text name is always retained.
 
 Walk-forward Elo scores **0.6487 log loss / 0.2285 Brier / 61.9% accuracy** over
 5 folds (coin flip is 0.6931) — `python scripts/benchmark_elo.py`. That is the
-number to beat. It is underconfident across the whole range (every bucket from
-0.1 to 0.8 wins more than predicted), so K-factor tuning and a Platt scaler fit
-on training folds are the obvious first improvements.
+number to beat.
+
+**K and the 400-point scale are both exhausted — do not retune them.** Swept
+2026-07-27 on a 2023-24 validation holdout (`scripts/tune_k.py`): K bottoms at 28
+(0.6474 vs 0.6475 at K=32) and the scale at 500 (0.6447 vs 0.6475), and neither
+survives a paired significance test (t = 1.03 for the scale, and the K difference
+is 0.0001). Elo's defaults were already right for this data.
+
+The "Elo is underconfident" note this file used to carry was an **artifact of
+evaluating on the pooled folds**, which are 92% 2021-22 low-tier qualifier play.
+On 2023-24 matches calibration is near-perfect: mean predicted 0.537 vs actual
+0.533. Watch for this generally — the pooled-fold evaluation answers a question
+about 2021, not about modern VCT.
+
+When comparing two models on the same matches, use the **paired** per-match
+difference (SE ≈ 0.003 on 765 matches), not the standard error of either score
+(≈ 0.013). The unpaired figure is five times too loose and will hide real gains.
 
 `features/build.py::match_sequence` is the one ordered read of the canonical
 tables — `ORDER BY match_id`, the chronological key. Use it rather than querying

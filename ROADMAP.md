@@ -84,10 +84,11 @@ features (rest days, layoff decay, roster-change recency).
 Per fold: 0.6480 / 0.6401 / 0.6633 / 0.6322 / 0.6601 — no fold degrades badly, so
 the ordering is not hiding a regime break.
 
-Elo is **underconfident across the whole range**: every bucket from 0.1 to 0.8
-wins more often than predicted, worst at 0.5-0.6 (predicts 0.54, wins 0.64).
-K-factor tuning is the obvious first lever, and a Platt scaler fit on training
-folds should recover most of the rest.
+The apparent underconfidence in this table (every bucket from 0.1 to 0.8 winning
+more than predicted) is an artifact of the folds being 92% 2021-22 qualifier
+play. On a 2023-24 holdout Elo is well calibrated — mean predicted 0.537 vs
+actual 0.533 — and both K and the 400-point scale were swept and found already
+optimal. See CLAUDE.md; don't re-tune them.
 
 The earlier prequential smoke test scored 0.6449 over the whole history; the
 honest walk-forward number being only 0.004 worse is expected, not suspicious.

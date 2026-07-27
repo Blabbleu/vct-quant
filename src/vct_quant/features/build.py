@@ -21,6 +21,10 @@ ORDER_KEY = "match_id"
 _MATCH_SEQUENCE_SQL = """
 SELECT
     m.match_id,
+    -- The Kaggle load parks the year in date_raw (there is no real date column
+    -- anywhere in the corpus). TRY_CAST so a future vlrggapi load, which writes
+    -- a real date string here, yields NULL rather than blowing up.
+    TRY_CAST(m.date_raw AS INTEGER) AS year,
     -- team_id is NULL for ~2.8% of rows (a name mapping to two vlr.gg IDs).
     -- Falling back to the name keeps those teams distinct; keying on the raw
     -- NULL would merge every unresolved team into one.
@@ -30,7 +34,11 @@ SELECT
     b.team_name AS team_b_name,
     -- Bo2 draws are real (75 matches): is_winner is NULL on both sides, which
     -- falls through to 0.5 rather than being scored as a loss for team A.
-    CASE WHEN a.is_winner THEN 1.0 WHEN b.is_winner THEN 0.0 ELSE 0.5 END AS score_a
+    CASE WHEN a.is_winner THEN 1.0 WHEN b.is_winner THEN 0.0 ELSE 0.5 END AS score_a,
+    -- Maps won by each side. score_a is the *label* (who won); these carry how
+    -- convincingly, which Elo currently throws away.
+    a.series_score AS maps_a,
+    b.series_score AS maps_b
 FROM match m
 JOIN match_team a ON a.match_id = m.match_id AND a.team_number = 1
 JOIN match_team b ON b.match_id = m.match_id AND b.team_number = 2
