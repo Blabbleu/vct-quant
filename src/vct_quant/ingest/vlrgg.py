@@ -63,6 +63,28 @@ def fetch_team(team_id: int | str, save: bool = True) -> dict:
     return data
 
 
+def fetch_events(page: int = 1, save: bool = True) -> dict:
+    """One page of the event listing (~50-72 events, newest first)."""
+    data = _get("/v2/events", {"page": page})
+    if save:
+        save_raw(data, f"events_page{page:03d}")
+    return data
+
+
+def fetch_event_matches(event_id: int | str, save: bool = True) -> dict:
+    """Every match of one event, with a real `date` per match.
+
+    This is the backfill workhorse: the Kaggle corpus carries no dates at all,
+    and one call here returns date, status, both team names, scores and winner
+    for a whole event — so a season costs a few dozen requests rather than one
+    per match.
+    """
+    data = _get("/v2/events/matches", {"event_id": event_id})
+    if save:
+        save_raw(data, f"event_matches_{event_id}")
+    return data
+
+
 def fetch_rankings(region: str, save: bool = True) -> dict:
     data = _get("/v2/rankings", {"region": region})
     if save:
