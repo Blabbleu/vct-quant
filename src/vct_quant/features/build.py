@@ -38,10 +38,27 @@ SELECT
     -- Maps won by each side. score_a is the *label* (who won); these carry how
     -- convincingly, which Elo currently throws away.
     a.series_score AS maps_a,
-    b.series_score AS maps_b
+    b.series_score AS maps_b,
+    -- Rounds won across every map of the series. Finer-grained than maps, and
+    -- it puts a Bo1 on the same footing as a Bo3 sweep (~0.68 round share each)
+    -- instead of the 1.0 a map-count fraction would give it. NULL for the 41
+    -- forfeits, which have no map rows at all.
+    r.rounds_a,
+    r.rounds_b
 FROM match m
 JOIN match_team a ON a.match_id = m.match_id AND a.team_number = 1
 JOIN match_team b ON b.match_id = m.match_id AND b.team_number = 2
+LEFT JOIN (
+    SELECT mm.match_id,
+           sum(sa.total_rounds) AS rounds_a,
+           sum(sb.total_rounds) AS rounds_b
+    FROM match_map mm
+    JOIN match_map_team_score sa
+      ON sa.match_map_id = mm.match_map_id AND sa.team_number = 1
+    JOIN match_map_team_score sb
+      ON sb.match_map_id = mm.match_map_id AND sb.team_number = 2
+    GROUP BY mm.match_id
+) r ON r.match_id = m.match_id
 ORDER BY m.match_id
 """
 

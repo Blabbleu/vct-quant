@@ -148,15 +148,44 @@ NULL `team_id` and 3.8% of player rows a NULL `player_id`, in both cases because
 the name maps to two distinct vlr.gg IDs and guessing would merge two entities.
 The text name is always retained.
 
-Walk-forward Elo scores **0.6487 log loss / 0.2285 Brier / 61.9% accuracy** over
-5 folds (coin flip is 0.6931) — `python scripts/benchmark_elo.py`. That is the
-number to beat.
+**The current model is margin-aware Elo: feed `maps_a / (maps_a + maps_b)` as the
+score, at K=48.** It scores **0.6368 log loss / 0.2231 Brier / 63.0% accuracy**
+over 5 walk-forward folds (coin flip is 0.6931) — `python scripts/benchmark_elo.py`.
+That is the number to beat.
 
-**K and the 400-point scale are both exhausted — do not retune them.** Swept
-2026-07-27 on a 2023-24 validation holdout (`scripts/tune_k.py`): K bottoms at 28
-(0.6474 vs 0.6475 at K=32) and the scale at 500 (0.6447 vs 0.6475), and neither
-survives a paired significance test (t = 1.03 for the scale, and the K difference
-is 0.0001). Elo's defaults were already right for this data.
+Why the fractional score beats a binary one: a 93%-favourite that wins 2-1 scores
+0.667 against its own 0.93 expectation, so it *loses* rating. 261 of 7,423 match
+winners (2.1%) lose rating this way. Plain Elo cannot express "won, but that was
+bad news"; a margin-weighted K cannot either, since the winner always gains.
+
+Four training signals were compared on a 2023-24 validation holdout, each at its
+own best K, paired per-match t-test (`scripts/margin_elo.py`):
+
+| signal | best K | log loss | vs binary |
+| --- | --- | --- | --- |
+| binary win/loss | 32 | 0.6475 | — |
+| **map share** | **48** | **0.6342** | **t = +3.20** |
+| margin-weighted K | 24 | 0.6425 | loses to map share, t = −2.19 |
+| round share | 248 | 0.6441 | t = +0.30, i.e. nothing |
+
+**Round-level detail is worse than map-level**, not better: individual rounds are
+mostly noise, and averaging 40 of them washes out more signal than it adds.
+
+**Retune K whenever the training signal changes.** A signal's spread *is* the
+learning rate — mean |signal − 0.5| is 0.497 for binary but 0.146 for round share,
+so running round share at K=32 is secretly running Elo at K≈9. Comparing variants
+at a shared K measures the confound, not the variant.
+
+**Do not retune K or the 400-point scale for the binary signal — that is done.**
+K bottoms at 28 (0.6474 vs 0.6475 at K=32) and the scale at 500 (0.6447), neither
+surviving a paired test (t = 1.03 for the scale; K differs by 0.0001).
+
+**Season regression does not help.** Regressing ratings toward 1500 at each year
+boundary was swept from carry=1.0 (keep everything) to 0.0 (full reset): carry=0.9
+gains nothing (t = 0.71) and a full reset is significantly *worse* (t = −2.25).
+Rosters do turn over, but Elo at K=48 re-learns faster than a reset can help, and
+org-level strength persists across roster changes. Detecting *actual* roster
+turnover per team is the version of this idea still worth trying.
 
 The "Elo is underconfident" note this file used to carry was an **artifact of
 evaluating on the pooled folds**, which are 92% 2021-22 low-tier qualifier play.

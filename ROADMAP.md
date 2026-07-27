@@ -117,10 +117,20 @@ Elo can't clear that comfortably, something in ETL or ordering is wrong.
 Only now, with a benchmark to measure against. Fill in `features/rolling.py`, then
 assemble in `features/build.py` → `data/processed/features.parquet`.
 
-Candidates, roughly by expected value:
+**Elo variants are done — see CLAUDE.md for the numbers.** Margin of victory as a
+fractional score won (0.6487 → 0.6368 walk-forward, K=48). K tuning, the rating
+scale, round-level margin, margin-weighted K, and per-season regression were all
+tried and all rejected on a paired significance test. Don't redo them.
 
-* Elo variants: K-factor tuning, map-level Elo, margin-of-victory scaling, a
-  per-season regression-toward-the-mean carry.
+The remaining candidates, roughly by expected value:
+
+* **Roster turnover** — how many of a team's five players are new since their last
+  match, from `match_map_player_stat.player_id`. This is where player data beats
+  the win-loss record, because Elo cannot see a roster change at all. The
+  year-boundary proxy for this failed; detect the actual changes.
+* Map-level Elo (a separate rating per map — `match_map` is loaded and unused).
+* Glicko instead of Elo: carrying a rating *uncertainty* per team would handle the
+  71 unseen teams in the 2025 holdout and the weaker evidence of a Bo1.
 * Team map win rates and pick/ban tendencies (`agents/`, `matches/draft_phase.csv`).
 * Rolling player form from `match_map_player_stat` (rating, ACS, KAST over last N maps).
 * Head-to-head record.

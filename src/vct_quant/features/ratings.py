@@ -6,6 +6,7 @@ leak the match's own outcome.
 """
 from __future__ import annotations
 
+from itertools import repeat
 from typing import Hashable, Iterable
 
 DEFAULT_K = 32.0
@@ -27,18 +28,29 @@ def update(
 
 def compute_elo(
     matches: Iterable[tuple[Hashable, Hashable, Hashable, float]],
-    k: float = DEFAULT_K,
+    k: float | Iterable[float] = DEFAULT_K,
     base: float = DEFAULT_BASE,
+    initial: dict | None = None,
 ) -> tuple[list[dict], dict]:
     """Run Elo over (match_id, team_a, team_b, score_a) tuples that MUST be in
     chronological order.
 
+    `k` is either one value for every match, or a sequence of per-match values
+    aligned with `matches` — the latter lets a match's own weight vary, e.g.
+    updating harder on a dominant win than a narrow one.
+
+    `initial` seeds the ratings instead of starting everyone at `base`. Use it to
+    run a season at a time, regressing the previous season's ratings toward the
+    mean in between — rosters turn over, so a year-old rating describes a team
+    that no longer exists. It is copied, not mutated.
+
     Returns (rows, final_ratings) where each row carries the pre-match ratings
     and the model's win probability for team A.
     """
-    ratings: dict = {}
+    ks = repeat(float(k)) if isinstance(k, (int, float)) else iter(k)
+    ratings: dict = dict(initial or {})
     rows: list[dict] = []
-    for match_id, team_a, team_b, score_a in matches:
+    for (match_id, team_a, team_b, score_a), k in zip(matches, ks):
         ra = ratings.get(team_a, base)
         rb = ratings.get(team_b, base)
         rows.append(

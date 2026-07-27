@@ -21,3 +21,21 @@ def test_compute_elo_is_point_in_time():
     assert rows[1]["elo_a_pre"] > rows[1]["elo_b_pre"]
     assert rows[1]["p_a_win"] > 0.5
     assert final["A"] > final["B"]
+
+
+def test_compute_elo_accepts_per_match_k():
+    ms = [("m1", "A", "B", 1.0), ("m2", "C", "D", 1.0)]
+    # A big K on the first match must move A further than the small K moves C.
+    _, final = compute_elo(ms, k=[64.0, 8.0])
+    assert final["A"] - 1500 == 8 * (final["C"] - 1500)
+    # A scalar k must still behave exactly as before.
+    assert compute_elo(ms, k=32.0)[1] == compute_elo(ms, k=[32.0, 32.0])[1]
+
+
+def test_compute_elo_initial_ratings_are_seeded_not_mutated():
+    seed = {"A": 1700.0}
+    rows, final = compute_elo([("m1", "A", "B", 1.0)], initial=seed)
+    assert rows[0]["elo_a_pre"] == 1700.0  # seeded, not the 1500 default
+    assert rows[0]["elo_b_pre"] == 1500.0  # unseeded teams still fall back
+    assert final["A"] > 1700.0
+    assert seed == {"A": 1700.0}  # caller's dict untouched

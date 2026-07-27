@@ -12,15 +12,19 @@ from vct_quant.eval.backtest import walk_forward_splits
 from vct_quant.features.build import match_sequence
 from vct_quant.features.ratings import compute_elo
 
+BEST_K = 48.0
+
 
 def main(n_splits: int = 5) -> None:
     df = match_sequence()
+    # The winning configuration, found by scripts/margin_elo.py and tune_k.py on a
+    # 2023-24 validation holdout: feed Elo the *share of maps won* rather than a
+    # binary win, at K=48. A 2-1 win by a heavy favourite then scores below its
+    # own expectation and costs that team rating -- plain Elo cannot express that.
+    # Round-level share and margin-weighted K were both tried and both lost.
+    signal = (df.maps_a / (df.maps_a + df.maps_b)).to_numpy()
     elo = pd.DataFrame(
-        compute_elo(
-            df[["match_id", "team_a", "team_b", "score_a"]].itertuples(
-                index=False, name=None
-            )
-        )[0]
+        compute_elo(zip(df.match_id, df.team_a, df.team_b, signal), k=BEST_K)[0]
     )
     y_all = df.score_a.to_numpy()
     # Bo2 draws carry no binary label; Elo still learns from them (score 0.5),
