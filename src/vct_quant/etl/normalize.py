@@ -27,6 +27,7 @@ import pandas as pd
 from ..config import RAW_KAGGLE_DIR, RAW_VLRGG_DIR
 from ..db import connect
 from ..ingest.kaggle import list_csvs
+from .entity_resolution import normalize_name, vlr_id_from_url
 from .events import competition_tier
 
 MATCH_KEY = ["Tournament", "Stage", "Match Type", "Match Name"]
@@ -497,6 +498,83 @@ def _vlrgg_events() -> pd.DataFrame:
         "logo_url": d["thumb"].astype("string"),
         "vlr_url": d["url_path"].astype("string"),
     })
+
+
+def official_upcoming(
+    payload: dict, con: duckdb.DuckDBPyConnection | None = None
+) -> pd.DataFrame:
+    """Normalize only official Tier-1 fixtures from an upcoming-feed payload."""
+    columns = [
+        "match_id", "scheduled_at", "event_id", "event_name", "event_series",
+        "team_a_id", "team_a_key", "team_a_name",
+        "team_b_id", "team_b_key", "team_b_name",
+        "vlr_url", "time_until_match",
+    ]
+    rows = payload.get("data", {}).get("segments", [])
+    if not rows:
+        return pd.DataFrame(columns=columns)
+
+    d = pd.DataFrame(rows)
+    scheduled = pd.to_datetime(d["unix_timestamp"], utc=True, errors="coerce")
+    tier = [
+        competition_tier(name, when.year if pd.notna(when) else None)
+        for name, when in zip(d["match_event"], scheduled)
+    ]
+    d = d[pd.Series(tier, index=d.index).eq(1)].copy()
+    if d.empty:
+        return pd.DataFrame(columns=columns)
+
+    owned = con is None
+    con = con or connect(read_only=True)
+    try:
+        teams = con.execute("""
+            SELECT team_id, name FROM team
+            UNION ALL
+            SELECT team_id, team_name FROM match_team WHERE team_id IS NOT NULL
+        """).df()
+        teams["key"] = teams["name"].map(normalize_name)
+        team_ids = _unambiguous(teams, "key", "team_id")
+
+        events = con.execute(
+            "SELECT event_id, name FROM event WHERE tier = 1"
+        ).df()
+        events["key"] = events["name"].map(normalize_name)
+        event_ids = _unambiguous(events, "key", "event_id")
+    finally:
+        if owned:
+            con.close()
+
+    page = d["match_page"].astype(str)
+    team_a_id = _int(d["team1"].map(
+        lambda name: team_ids.get(normalize_name(name))
+    ))
+    team_b_id = _int(d["team2"].map(
+        lambda name: team_ids.get(normalize_name(name))
+    ))
+    out = pd.DataFrame({
+        "match_id": _int(page.map(vlr_id_from_url)),
+        "scheduled_at": scheduled.loc[d.index],
+        "event_id": _int(d["match_event"].map(
+            lambda name: event_ids.get(normalize_name(name))
+        )),
+        "event_name": d["match_event"].astype(str),
+        "event_series": d["match_series"].astype(str),
+        "team_a_id": team_a_id,
+        "team_a_key": [
+            str(int(team_id)) if pd.notna(team_id) else f"name:{normalize_name(name)}"
+            for team_id, name in zip(team_a_id, d["team1"])
+        ],
+        "team_a_name": d["team1"].astype(str),
+        "team_b_id": team_b_id,
+        "team_b_key": [
+            str(int(team_id)) if pd.notna(team_id) else f"name:{normalize_name(name)}"
+            for team_id, name in zip(team_b_id, d["team2"])
+        ],
+        "team_b_name": d["team2"].astype(str),
+        "vlr_url": "https://www.vlr.gg/" + page.str.lstrip("/"),
+        "time_until_match": d["time_until_match"].astype(str),
+    })
+    return out.dropna(subset=["match_id", "scheduled_at"]).reset_index(drop=True)
 
 
 def _upsert_vlrgg_events(

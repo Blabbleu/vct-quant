@@ -14,7 +14,7 @@ import pandas as pd
 
 from .. import db
 from ..config import PROCESSED_DIR
-from .ratings import compute_elo
+from .ratings import DEFAULT_BASE, compute_elo, expected_score
 
 # Margin-aware Elo won the variant comparison at this K — see CLAUDE.md.
 BEST_K = 48.0
@@ -262,6 +262,36 @@ def build_features(con: duckdb.DuckDBPyConnection | None = None) -> pd.DataFrame
         }
     )
     return out[out.label != 0.5].reset_index(drop=True)
+
+
+def predict_upcoming(
+    fixtures: pd.DataFrame, history: pd.DataFrame | None = None
+) -> pd.DataFrame:
+    """Attach current margin-aware Elo probabilities to normalized fixtures."""
+    history = match_sequence() if history is None else history
+    _, ratings = compute_elo(
+        zip(
+            history.match_id,
+            history.team_a,
+            history.team_b,
+            margin_signal(history),
+        ),
+        k=elo_k(history.tier),
+    )
+    counts = pd.concat([history.team_a, history.team_b]).value_counts()
+    out = fixtures.copy()
+    out["elo_a"] = out.team_a_key.map(lambda key: ratings.get(key, DEFAULT_BASE))
+    out["elo_b"] = out.team_b_key.map(lambda key: ratings.get(key, DEFAULT_BASE))
+    out["p_team_a_win"] = [
+        expected_score(a, b) for a, b in zip(out.elo_a, out.elo_b)
+    ]
+    out["p_team_b_win"] = 1 - out.p_team_a_win
+    out["rating_matches_a"] = out.team_a_key.map(counts).fillna(0).astype(int)
+    out["rating_matches_b"] = out.team_b_key.map(counts).fillna(0).astype(int)
+    out["ratings_through_match_id"] = (
+        int(history.match_id.max()) if not history.empty else pd.NA
+    )
+    return out
 
 
 def main() -> None:

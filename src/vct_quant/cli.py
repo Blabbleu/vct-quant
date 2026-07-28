@@ -32,10 +32,28 @@ def main() -> None:
 
         if args.what == "results":
             data = vlrgg.fetch_match_results()
+            segments = data.get("data", {}).get("segments", [])
+            print(f"Fetched {len(segments)} results entries -> data/raw/vlrgg/")
         else:
             data = vlrgg.fetch_upcoming_matches()
-        segments = data.get("data", {}).get("segments", [])
-        print(f"Fetched {len(segments)} {args.what} entries -> data/raw/vlrgg/")
+            from .config import PROCESSED_DIR
+            from .etl.normalize import official_upcoming
+            from .features.build import predict_upcoming
+
+            fixtures = predict_upcoming(official_upcoming(data))
+            PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
+            path = PROCESSED_DIR / "upcoming_tier1.parquet"
+            fixtures.to_parquet(path, index=False)
+            total = len(data.get("data", {}).get("segments", []))
+            print(f"Fetched {total} upcoming entries; retained {len(fixtures)} Tier-1 -> {path}")
+            if not fixtures.empty:
+                display = fixtures[[
+                    "scheduled_at", "event_name", "team_a_name",
+                    "p_team_a_win", "team_b_name", "p_team_b_win",
+                ]].copy()
+                display["p_team_a_win"] = display.p_team_a_win.map("{:.1%}".format)
+                display["p_team_b_win"] = display.p_team_b_win.map("{:.1%}".format)
+                print(display.to_string(index=False))
     elif args.cmd == "download-kaggle":
         from .ingest import kaggle
 

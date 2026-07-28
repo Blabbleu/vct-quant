@@ -163,9 +163,13 @@ The hosted vlrggapi's HTTP 402 was worked around by self-hosting on
 return, and all 83 feed rows parse to a match_id.
 
 The historical event harvest and `vct load-vlrgg` are done: 81,875 canonical
-matches, 72,342 with real dates. Next: ingest upcoming matches, resolve them onto
-existing team IDs, replay current ratings, and emit raw Elo probabilities for
-Tier-1 fixtures.
+matches, 72,342 with real dates. `vct ingest-vlrgg --what upcoming` now preserves
+the raw feed and writes only official Tier-1 fixtures to
+`data/processed/upcoming_tier1.parquet`, including canonical team/event IDs and
+stable fallback team keys. It replays the validated margin-aware Elo through
+the latest completed official matches and attaches both teams' win
+probabilities. Next: decide whether the product surface should be a CLI report,
+small API, or dashboard.
 
 ## Cross-cutting
 
