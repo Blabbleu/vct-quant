@@ -1,7 +1,7 @@
 # Roadmap
 
 Sequenced by dependency and by what actually de-risks the project earliest.
-Grounded in the data as it exists on disk today (verified 2026-07-25), not the
+Grounded in the data as it exists on disk today (verified 2026-07-28), not the
 dataset description.
 
 ## Phase 0 — Foundation ✅ done
@@ -54,8 +54,8 @@ rate measured and consciously accepted.
 
 ## Phase 2 — Establish chronology ✅ done
 
-The corpus has **no date column anywhere**. Elo and walk-forward validation both
-depend on time ordering, so this had to be settled explicitly rather than assumed.
+The Kaggle corpus has **no date column anywhere**. Elo and walk-forward
+validation both depend on time ordering, so this had to be settled explicitly.
 
 **Ascending vlr.gg `Match ID` is the ordering key** (per-year ID ranges are
 strictly increasing with zero overlap across all six years). No separate sequence
@@ -72,28 +72,18 @@ primary key. What changed instead:
   and silently produced garbage. Side benefit: every test window holds the same
   number of matches regardless of how clumped the key is.
 
-Still out of scope until dates are backfilled from vlrggapi: genuinely time-based
-features (rest days, layoff decay, roster-change recency).
+The vlrggapi event backfill now supplies real dates for 72,342 of 81,875 matches
+and validates the proxy (`corr(match_id, completed_at) = 0.9956`). Keep match ID
+as the universal ordering key; use `completed_at` for elapsed-time features.
 
 ## Phase 3 — Thin end-to-end slice ✅ done
 
-**Benchmark: 0.6487 walk-forward log loss, 0.2285 Brier, 61.9% accuracy** over
-6,316 scored matches in 5 folds (coin flip = 0.6931). Reproduce with
-`python scripts/benchmark_elo.py`. This is the number every later model must beat.
+On the expanded corpus, margin-aware Elo scores **0.6235 walk-forward log loss,
+0.2174 Brier, and 64.2% accuracy** over 39,924 matches in 5 folds (coin flip =
+0.6931). Reproduce with `python scripts/benchmark_elo.py`.
 
-Per fold: 0.6480 / 0.6401 / 0.6633 / 0.6322 / 0.6601 — no fold degrades badly, so
-the ordering is not hiding a regime break.
-
-The apparent underconfidence in this table (every bucket from 0.1 to 0.8 winning
-more than predicted) is an artifact of the folds being 92% 2021-22 qualifier
-play. On a 2023-24 holdout Elo is well calibrated — mean predicted 0.537 vs
-actual 0.533 — and both K and the 400-point scale were swept and found already
-optimal. See CLAUDE.md; don't re-tune them.
-
-The earlier prequential smoke test scored 0.6449 over the whole history; the
-honest walk-forward number being only 0.004 worse is expected, not suspicious.
-Top teams by final rating (Paper Rex, Gambit, OpTic, LEVIATÁN, DRX, G2, FNATIC)
-are genuinely elite — good evidence entity resolution and ordering are sound.
+Per fold: 0.6164 / 0.6253 / 0.6189 / 0.6241 / 0.6328. Raw Elo is underconfident
+on the expanded corpus, which motivates the logistic calibration in Phase 5.
 
 *Original plan retained below.*
 
@@ -112,22 +102,22 @@ tells you whether anything downstream is actually adding value.
 Sanity floor: also score an always-predict-0.5 baseline (log loss ≈ 0.693). If
 Elo can't clear that comfortably, something in ETL or ordering is wrong.
 
-## Phase 4 — Feature engineering
+## Phase 4 — Feature engineering ✅ thin matrix done
 
-Only now, with a benchmark to measure against. Fill in `features/rolling.py`, then
-assemble in `features/build.py` → `data/processed/features.parquet`.
+`features/build.py` now emits 79,904 point-in-time rows with Elo, prior-match
+counts, and roster churn to `data/processed/features.parquet`.
 
-**Elo variants are done — see CLAUDE.md for the numbers.** Margin of victory as a
-fractional score won (0.6487 → 0.6368 walk-forward, K=48). K tuning, the rating
-scale, round-level margin, margin-weighted K, and per-season regression were all
-tried and all rejected on a paired significance test. Don't redo them.
+**Elo variants are done — see CLAUDE.md for the Kaggle-only experiment.** Margin
+of victory as a fractional score won (0.6487 → 0.6368 walk-forward, K=48). K
+tuning, the rating scale, round-level margin, margin-weighted K, and per-season
+regression were all tried and rejected on a paired significance test.
 
-The remaining candidates, roughly by expected value:
+Roster churn is implemented, but the event backfill has no player rows, so it is
+available for only 10,840 team-A and 10,368 team-B observations. Keep it out of
+the broad baseline rather than discarding ~87% of the match corpus.
 
-* **Roster turnover** — how many of a team's five players are new since their last
-  match, from `match_map_player_stat.player_id`. This is where player data beats
-  the win-loss record, because Elo cannot see a roster change at all. The
-  year-boundary proxy for this failed; detect the actual changes.
+Remaining candidates, roughly by expected value:
+
 * Map-level Elo (a separate rating per map — `match_map` is loaded and unused).
 * Glicko instead of Elo: carrying a rating *uncertainty* per team would handle the
   71 unseen teams in the 2025 holdout and the weaker evidence of a Bo1.
@@ -141,40 +131,32 @@ most likely way this project produces impressive-and-wrong results is leakage in
 this phase**, because rolling aggregates over a match's own outcome are easy to
 write by accident and produce beautiful backtests.
 
-## Phase 5 — Models beyond baseline
+## Phase 5 — Calibrated baseline ✅ done
 
-Logistic regression on Elo diff first (`models/baseline.py` already trains it).
-Then gradient boosting on the wider feature matrix. Judge on walk-forward log loss
-*and* calibration, not accuracy — and apply calibration (Platt / isotonic) fit
-only on training folds.
+Logistic regression trained on 30,501 matches from 2022–2023 and evaluated on
+14,199 matches from 2024 scores **0.6110 log loss / 0.2113 Brier**, beating raw
+Elo's **0.6192 / 0.2151** on identical matches (`t = 7.53`). Reproduce with
+`python scripts/benchmark_baseline.py`.
 
-Guard against the year-skew documented in CLAUDE.md: 2021 contributes 53% of all
-map rows and is dominated by lower-tier qualifier play. Weight by recency or
-tournament tier, or subset deliberately.
+Do not add gradient boosting until a broader non-Elo feature exists; otherwise it
+only adds machinery around the same signal.
 
-## Phase 6 — Forward prediction — unblocked
+## Phase 6 — Forward prediction — next
 
 The hosted vlrggapi's HTTP 402 was worked around by self-hosting on
 `http://127.0.0.1:3001` (already set as `vlrgg.base_url`). Verified live
 2026-07-27: `results` (50), `upcoming` (33), `match/details`, and `rankings` all
 return, and all 83 feed rows parse to a match_id.
 
-`match/details` carries a real `date` field ("Monday, July 27 11:00 AM EDT Patch
-13.01") plus numeric team IDs — so this is also the path that backfills real
-timestamps and lifts the Phase 2 ordering restrictions.
-
-Note the feed is shallow: `results` returns only the most recent ~50 matches per
-page, so backfilling history means paging, not one call.
-
-Then: ingest upcoming matches, resolve them onto existing team IDs, apply current
-ratings, emit probabilities. This is also what backfills real match timestamps and
-lifts the Phase 2 restrictions.
+The historical event harvest and `vct load-vlrgg` are done: 81,875 canonical
+matches, 72,342 with real dates. Next: ingest upcoming matches, resolve them onto
+existing team IDs, replay current ratings, and emit probabilities through the
+calibrated logistic baseline.
 
 ## Cross-cutting
 
 * **Tests worth having**: a leakage regression test (assert no feature for match
   *i* changes when match *i*'s outcome is flipped) is worth more than broad
   coverage elsewhere.
-* **Move `data/` out of OneDrive** before it tries to sync 1.3 GB.
 * **DuckDB is single-writer** — keep notebooks on `read_only=True` while the
   pipeline runs.

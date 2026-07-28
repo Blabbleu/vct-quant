@@ -20,6 +20,16 @@ CLI (`vct`, defined in `cli.py`):
 | `vct inspect-kaggle` | Print every Kaggle CSV with its columns. Run this before writing any loader. |
 | `vct load-kaggle` | Kaggle CSVs → canonical tables. Idempotent (clears first); prints a `LoadReport` of inserts and unresolved rows. |
 | `vct ingest-vlrgg [--what results\|upcoming]` | Fetch live match feed → `data/raw/vlrgg/`. |
+| `vct load-vlrgg` | Merge harvested event matches into `match` / `match_team`; safe to re-run. |
+
+Build and benchmark:
+
+```powershell
+python -m vct_quant.features.build
+python scripts/backfill_vlrgg.py --pages 12
+python scripts/benchmark_elo.py
+python scripts/benchmark_baseline.py
+```
 
 ### Venv landmine
 
@@ -59,19 +69,16 @@ residual cases only.
 (DuckDB has no identity columns); `sql/schema.postgres.sql` is the reference
 original, not applied anywhere.
 
-### The dataset has no timestamps
+### Chronology
 
 There is **no date or match-time column anywhere in the Kaggle corpus** — only a
-`Year` column in `all_ids/all_matches_games_ids.csv`. This directly conflicts with
-two things the codebase assumes:
+`Year` column in `all_ids/all_matches_games_ids.csv`. The vlrggapi event harvest
+now backfills real dates for 72,342 of 81,875 canonical matches.
 
-* `eval/backtest.py::walk_forward_splits` takes a `dates` Series.
-* `features/ratings.py::compute_elo` requires matches in chronological order.
-
-**Use ascending vlr.gg `Match ID` as the chronological proxy.** vlr.gg assigns IDs
-sequentially, and this was verified against the data: per-year ID ranges are
-strictly increasing with zero overlap across 2021–2026. Anything needing real
-elapsed time (rest days, layoff decay) requires backfilling dates from vlrggapi.
+**Continue using ascending vlr.gg `Match ID` as the universal ordering key.**
+It covers the undated Kaggle tail and is strongly validated by the backfill:
+`corr(match_id, completed_at) = 0.9956`. Use `completed_at` only for genuinely
+elapsed-time features such as rest days.
 
 ### Two traps in the match CSVs
 
@@ -91,12 +98,13 @@ Also note **Bo2 is a real format** — 75 matches genuinely drew (74 at 1-1, one
 2-2). `is_winner` is NULL for those, not False; exclude them from binary training
 or score them as 0.5.
 
-### Coverage is heavily skewed by year
+### Detail coverage differs by source
 
-Of 27,450 map rows across 12,677 matches, **2021 alone contributes 14,489 (53%)**,
-while 2023 has just 830. The early years include far more low-tier qualifier play.
-Training naively across the whole corpus lets 2021 qualifiers dominate; weight,
-filter by tournament tier, or subset by year deliberately.
+The event backfill expands match-level coverage to 81,875 matches but does not
+carry map or player rows. Those remain Kaggle-only: 27,416 maps and 272,991
+player-map rows across the original 12,672 matches. Consequently roster churn is
+present for only 10,840 team-A and 10,368 team-B feature rows; do not silently
+drop the other ~87% when training a match-level model.
 
 ## Ground rules
 
@@ -133,33 +141,35 @@ filter by tournament tier, or subset by year deliberately.
   tournament realm, which is not public, and VAL-MATCH-V1 needs an approved
   production key. `ingest/riot.py` is a deliberate placeholder for ranked-queue
   form signals only.
-* The repo lives inside OneDrive; `data/` is 1.3 GB. Exclude it and `.venv/` from
-  sync.
-
 ## Implementation status
 
-Working: `config`, `db`, `ingest/{kaggle,vlrgg}`, `features/ratings.py` (Elo),
-`eval/{backtest,metrics}`, `etl/entity_resolution.py` helpers, and the full
-Kaggle path in `etl/normalize.py`.
+Working: `config`, `db`, both ingest/load paths, point-in-time Elo and roster
+churn, the 79,904-row feature matrix, walk-forward evaluation, and logistic
+calibration of Elo.
 
-The database is loaded: 12,672 matches, 27,416 maps, 272,991 player-map stat
-rows, 3,947 teams. Unresolved rates are low — 2.8% of `match_team` rows have a
-NULL `team_id` and 3.8% of player rows a NULL `player_id`, in both cases because
-the name maps to two distinct vlr.gg IDs and guessing would merge two entities.
-The text name is always retained.
+The database is loaded: 81,875 matches (72,342 dated), 27,416 maps, and 272,991
+player-map stat rows. The vlrggapi load is additive and idempotent: Kaggle rows
+gain dates, while new event matches are inserted with their two teams.
 
-**The current model is margin-aware Elo: feed `maps_a / (maps_a + maps_b)` as the
-score, at K=48.** It scores **0.6368 log loss / 0.2231 Brier / 63.0% accuracy**
-over 5 walk-forward folds (coin flip is 0.6931) — `python scripts/benchmark_elo.py`.
-That is the number to beat.
+**The current model is logistic calibration of margin-aware Elo.** Train on the
+2022–2023 Elo differences and score the untouched 2024 holdout:
+**0.6110 log loss / 0.2113 Brier**, versus raw Elo's **0.6192 / 0.2151** on the
+same 14,199 matches (`t = 7.53`). Reproduce with
+`python scripts/benchmark_baseline.py`.
+
+Raw margin-aware Elo still feeds `maps_a / (maps_a + maps_b)` at K=48. Across
+the expanded corpus its five-fold walk-forward score is **0.6235 log loss /
+0.2174 Brier / 64.2% accuracy** over 39,924 matches; reproduce with
+`python scripts/benchmark_elo.py`.
 
 Why the fractional score beats a binary one: a 93%-favourite that wins 2-1 scores
 0.667 against its own 0.93 expectation, so it *loses* rating. 261 of 7,423 match
 winners (2.1%) lose rating this way. Plain Elo cannot express "won, but that was
 bad news"; a margin-weighted K cannot either, since the winner always gains.
 
-Four training signals were compared on a 2023-24 validation holdout, each at its
-own best K, paired per-match t-test (`scripts/margin_elo.py`):
+Four training signals were compared on the earlier Kaggle-only 2023-24
+validation holdout, each at its own best K, paired per-match t-test
+(`scripts/margin_elo.py`):
 
 | signal | best K | log loss | vs binary |
 | --- | --- | --- | --- |
@@ -184,24 +194,23 @@ surviving a paired test (t = 1.03 for the scale; K differs by 0.0001).
 boundary was swept from carry=1.0 (keep everything) to 0.0 (full reset): carry=0.9
 gains nothing (t = 0.71) and a full reset is significantly *worse* (t = −2.25).
 Rosters do turn over, but Elo at K=48 re-learns faster than a reset can help, and
-org-level strength persists across roster changes. Detecting *actual* roster
-turnover per team is the version of this idea still worth trying.
+org-level strength persists across roster changes. Actual roster turnover is now
+implemented, but its source coverage is too sparse for the broad baseline.
 
-The "Elo is underconfident" note this file used to carry was an **artifact of
-evaluating on the pooled folds**, which are 92% 2021-22 low-tier qualifier play.
-On 2023-24 matches calibration is near-perfect: mean predicted 0.537 vs actual
-0.533. Watch for this generally — the pooled-fold evaluation answers a question
-about 2021, not about modern VCT.
+The old Kaggle-only finding that Elo was well calibrated does not transfer to the
+expanded vlrggapi corpus. The fixed 2024 holdout is the current comparison, and
+the logistic layer materially corrects raw Elo there.
 
-When comparing two models on the same matches, use the **paired** per-match
-difference (SE ≈ 0.003 on 765 matches), not the standard error of either score
-(≈ 0.013). The unpaired figure is five times too loose and will hide real gains.
+When comparing two models on the same matches, use the **paired** per-match loss
+difference, not the standard error of either aggregate score. The baseline
+benchmark reports this paired t-statistic.
 
 `features/build.py::match_sequence` is the one ordered read of the canonical
 tables — `ORDER BY match_id`, the chronological key. Use it rather than querying
 `match` directly, and never rely on incidental row order.
 
-Stubs with TODOs — the actual remaining work: `features/rolling.py`, the rest of
-`features/build.py` (join rolling form onto Elo → `data/processed/features.parquet`,
-one row per match with label `1` if team_a won), and `load_vlrgg_match_results`
-in `etl/normalize.py`.
+The next product slice is forward prediction: ingest upcoming matches, resolve
+their teams, replay current ratings, and emit calibrated probabilities.
+`features/rolling.py` remains a placeholder; add another rolling signal only
+when its source coverage is broad enough to evaluate without discarding most of
+the corpus.

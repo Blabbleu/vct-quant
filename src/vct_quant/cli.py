@@ -50,6 +50,8 @@ def main() -> None:
         print(normalize.load_kaggle())
 
     elif args.cmd == "load-vlrgg":
+        from .etl import normalize
+
         print(normalize.load_vlrgg_match_results())
 
 

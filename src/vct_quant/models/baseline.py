@@ -1,4 +1,4 @@
-"""Baseline model: logistic regression on Elo difference (+ a few form terms).
+"""Baseline model: logistic calibration of the pre-match Elo difference.
 
 This is the benchmark every fancier model must beat on walk-forward log loss
 and calibration — in esports prediction, well-tuned Elo is hard to beat.

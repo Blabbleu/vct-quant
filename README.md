@@ -18,7 +18,12 @@ pip install -e ".[dev]"
 vct init-db          # create data/vct.duckdb from sql/schema.sql
 vct download-kaggle  # needs %USERPROFILE%\.kaggle\kaggle.json
 vct inspect-kaggle   # see the CSV layout before writing ETL loaders
-vct ingest-vlrgg     # fetch latest results into data/raw/vlrgg/
+vct load-kaggle      # load the historical corpus
+python scripts/backfill_vlrgg.py --pages 12
+vct load-vlrgg       # merge the harvested vlr.gg event matches
+vct ingest-vlrgg     # fetch the latest shallow results feed
+python -m vct_quant.features.build
+python scripts/benchmark_baseline.py
 ```
 
 ## Pipeline
@@ -60,5 +65,3 @@ tests/
 
 * DuckDB: single-writer. One pipeline process at a time; notebooks should
   connect `read_only=True`.
-* The project lives in OneDrive — consider excluding `data/` and `.venv/`
-  from sync ("Free up space"), or moving the repo out entirely.
