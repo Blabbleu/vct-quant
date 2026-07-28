@@ -21,9 +21,12 @@ vct inspect-kaggle   # see the CSV layout before writing ETL loaders
 vct load-kaggle      # load the historical corpus
 python scripts/backfill_vlrgg.py --pages 12
 vct load-vlrgg       # merge the harvested vlr.gg event matches
+python scripts/backfill_promoted_details.py  # Tier-2 player form for promoted teams
+vct load-vlrgg-details
 vct ingest-vlrgg     # fetch the latest shallow results feed
 python -m vct_quant.features.build
 python scripts/benchmark_baseline.py
+python scripts/benchmark_gradient_boosting.py
 ```
 
 ## Pipeline

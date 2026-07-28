@@ -18,6 +18,7 @@ def main() -> None:
     sub.add_parser("inspect-kaggle", help="List Kaggle CSVs and their columns")
     sub.add_parser("load-kaggle", help="Load Kaggle CSVs into the canonical tables")
     sub.add_parser("load-vlrgg", help="Merge the vlrggapi event harvest into match/match_team")
+    sub.add_parser("load-vlrgg-details", help="Load harvested maps and player stats")
 
     args = parser.parse_args()
 
@@ -53,6 +54,10 @@ def main() -> None:
         from .etl import normalize
 
         print(normalize.load_vlrgg_match_results())
+    elif args.cmd == "load-vlrgg-details":
+        from .etl import normalize
+
+        print(normalize.load_vlrgg_match_details())
 
 
 if __name__ == "__main__":

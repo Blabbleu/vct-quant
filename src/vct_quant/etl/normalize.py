@@ -690,3 +690,160 @@ def load_vlrgg_match_results(con: duckdb.DuckDBPyConnection | None = None) -> Lo
         if owned:
             con.close()
     return report
+
+
+def _vlrgg_match_details() -> list[dict]:
+    """Latest raw match-detail payload per match."""
+    latest: dict[int, Path] = {}
+    for path in sorted(RAW_VLRGG_DIR.glob("match_details_*.json")):
+        match = re.match(r"match_details_(\d+)_", path.name)
+        if match:
+            latest[int(match.group(1))] = path
+
+    details: list[dict] = []
+    for match_id, path in latest.items():
+        data = json.loads(path.read_text(encoding="utf-8")).get("data", {})
+        segments = data.get("segments") or [data]
+        details.extend(
+            detail for detail in segments if int(detail.get("match_id", 0)) == match_id
+        )
+    return details
+
+
+def load_vlrgg_match_details(
+    con: duckdb.DuckDBPyConnection | None = None,
+) -> LoadReport:
+    """Load harvested match maps, scores, and player stats. Safe to re-run."""
+    report = LoadReport()
+    owned = con is None
+    con = con or connect()
+    try:
+        details = _vlrgg_match_details()
+        known = {row[0] for row in con.execute("SELECT match_id FROM match").fetchall()}
+        loaded = {
+            row[0]
+            for row in con.execute("""
+                SELECT DISTINCT mm.match_id
+                FROM match_map mm
+                JOIN match_map_player_stat s USING (match_map_id)
+            """).fetchall()
+        }
+        report.drop(
+            "details whose match is absent",
+            sum(int(detail["match_id"]) not in known for detail in details),
+        )
+        report.drop(
+            "details already loaded",
+            sum(int(detail["match_id"]) in loaded for detail in details),
+        )
+        report.drop(
+            "details without maps",
+            sum(not detail.get("maps") for detail in details),
+        )
+        details = [
+            detail for detail in details
+            if int(detail["match_id"]) in known
+            and int(detail["match_id"]) not in loaded
+            and detail.get("maps")
+        ]
+        if not details:
+            return report
+
+        team_ids = {
+            (int(match_id), int(team_number)): team_id
+            for match_id, team_number, team_id in con.execute(
+                "SELECT match_id, team_number, team_id FROM match_team"
+            ).fetchall()
+        }
+        player_ids = _unambiguous(
+            con.execute("SELECT handle, player_id FROM player").df(),
+            "handle",
+            "player_id",
+        )
+        maps: list[dict] = []
+        scores: list[dict] = []
+        stats: list[dict] = []
+
+        for detail in details:
+            match_id = int(detail["match_id"])
+            for map_number, game_map in enumerate(detail.get("maps", []), 1):
+                # Detail payloads expose map order but not vlr.gg game IDs.
+                match_map_id = -(match_id * 10 + map_number)
+                maps.append({
+                    "match_map_id": match_map_id,
+                    "match_id": match_id,
+                    "map_number": map_number,
+                    "map_name": re.sub(
+                        r"PICK$", "", str(game_map.get("map_name", "")), flags=re.I
+                    ).strip(),
+                    "picked_by_raw": game_map.get("picked_by") or None,
+                    "duration_seconds": _duration_seconds(
+                        pd.Series([game_map.get("duration")])
+                    ).iloc[0],
+                    "status": detail.get("status"),
+                })
+
+                for team_number, key in ((1, "team1"), (2, "team2")):
+                    scores.append({
+                        "match_map_id": match_map_id,
+                        "team_number": team_number,
+                        "team_id": team_ids.get((match_id, team_number)),
+                        "total_rounds": game_map.get("score", {}).get(key),
+                        "attack_rounds": game_map.get("score_t", {}).get(key),
+                        "defense_rounds": game_map.get("score_ct", {}).get(key),
+                        "overtime_rounds": game_map.get("score_ot", {}).get(key),
+                    })
+                    for slot, player in enumerate(
+                        game_map.get("players", {}).get(key, []), 1
+                    ):
+                        stats.append({
+                            "match_map_id": match_map_id,
+                            "team_number": team_number,
+                            "player_slot": slot,
+                            "player_id": player_ids.get(player.get("name")),
+                            "player_handle": player.get("name"),
+                            "agent_name": player.get("agent"),
+                            "rating": player.get("rating"),
+                            "acs": player.get("acs"),
+                            "kills": player.get("kills"),
+                            "deaths": player.get("deaths"),
+                            "assists": player.get("assists"),
+                            "kill_death_diff": player.get("kd_diff"),
+                            "kast_pct": player.get("kast"),
+                            "adr": player.get("adr"),
+                            "headshot_pct": player.get("hs_pct"),
+                            "first_kills": player.get("fk"),
+                            "first_deaths": player.get("fd"),
+                            "first_kill_diff": player.get("fk_diff"),
+                        })
+
+        map_df = pd.DataFrame(maps)
+        score_df = pd.DataFrame(scores)
+        stat_df = pd.DataFrame(stats)
+        for col in (
+            "total_rounds", "attack_rounds", "defense_rounds", "overtime_rounds"
+        ):
+            score_df[col] = _int(score_df[col])
+        for col in (
+            "kills", "deaths", "assists", "kill_death_diff",
+            "first_kills", "first_deaths", "first_kill_diff",
+        ):
+            stat_df[col] = _int(stat_df[col])
+        for col in ("rating", "acs", "adr"):
+            stat_df[col] = _num(stat_df[col])
+        for col in ("kast_pct", "headshot_pct"):
+            stat_df[col] = _pct(stat_df[col])
+
+        con.execute("BEGIN")
+        try:
+            _insert(con, "match_map", map_df, report)
+            _insert(con, "match_map_team_score", score_df, report)
+            _insert(con, "match_map_player_stat", stat_df, report)
+            con.execute("COMMIT")
+        except Exception:
+            con.execute("ROLLBACK")
+            raise
+    finally:
+        if owned:
+            con.close()
+    return report

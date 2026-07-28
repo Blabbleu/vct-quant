@@ -21,7 +21,11 @@ _session = requests.Session()
 
 
 def _get(path: str, params: dict | None = None) -> dict:
-    resp = _session.get(f"{BASE_URL}{path}", params=params, timeout=30)
+    for attempt in range(4):
+        resp = _session.get(f"{BASE_URL}{path}", params=params, timeout=30)
+        if resp.status_code != 429 or attempt == 3:
+            break
+        time.sleep(float(resp.headers.get("Retry-After", 60)) + 1)
     resp.raise_for_status()
     time.sleep(REQUEST_DELAY_S)  # be polite: unofficial API on shared hosting
     return resp.json()

@@ -67,3 +67,22 @@ def test_tier_two_results_do_not_move_shared_elo():
 
     out = elo_k(pd.Series([1, 2]))
     assert out.tolist() == [BEST_K, BEST_K * TIER_2_WEIGHT]
+
+
+def test_player_form_excludes_the_current_match():
+    from vct_quant.features.build import _player_form_from_stats
+
+    matches = pd.DataFrame({"match_id": [1, 2, 3]})
+    stats = pd.DataFrame({
+        "match_id": [1, 1, 2, 2, 3, 3],
+        "tier": [2, 2, 1, 1, 1, 1],
+        "team_number": [1, 2, 1, 2, 1, 2],
+        "player_key": ["a", "b", "a", "b", "a", "b"],
+        "rating": [1.2, 0.8, 1.4, 0.6, 1.0, 1.0],
+    })
+    before = _player_form_from_stats(matches, stats)
+    stats.loc[stats.match_id.eq(2), "rating"] = [0.1, 1.9]
+    after = _player_form_from_stats(matches, stats)
+
+    pd.testing.assert_series_equal(before.loc[1], after.loc[1])
+    assert not before.loc[2].equals(after.loc[2])

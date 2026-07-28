@@ -113,9 +113,13 @@ of victory as a fractional score won (0.6487 → 0.6368 walk-forward, K=48). K
 tuning, the rating scale, round-level margin, margin-weighted K, and per-season
 regression were all tried and rejected on a paired significance test.
 
-Player-map statistics cover 11,829 of 11,948 Tier-1 matches, but none of the
-14,864 Tier-2 matches added by the event backfill. Tier-2 player-form collection
-is therefore the missing input for assessing newly promoted teams.
+Player-map statistics cover 11,829 of 11,948 Tier-1 matches. A targeted,
+resumable detail harvest selects 159 unique matches: the final 20 Tier-2
+matches available for nine teams that played Ascension and subsequently
+appeared in Tier 1. Including valid history captured during the initial cohort
+pass, Tier-2 player stats cover 203 playable matches / 506 maps. The feature
+matrix includes prior-player form, coverage, and the share of that history
+coming from Tier 2.
 
 Remaining candidates, roughly by expected value:
 
@@ -144,6 +148,12 @@ from both 2024 and 2025. Every positive weight lost, including for teams with
 Ascension history, because the mostly isolated rating pools are not directly
 comparable. Tier-2 rows remain available for future roster/player features, but
 their team results do not move shared Elo.
+
+Untuned histogram gradient boosting with Elo, roster, experience, and
+leakage-safe player-form features was also rejected. Trained through 2024 and
+tested on 2025, it scored **0.6957 log loss / 0.2447 Brier** versus raw Elo's
+**0.6485 / 0.2286**. On the 105 matches involving an Ascension-promoted team,
+boosting scored **0.5990 / 0.2029** versus Elo's **0.5568 / 0.1881**.
 
 ## Phase 6 — Forward prediction — next
 

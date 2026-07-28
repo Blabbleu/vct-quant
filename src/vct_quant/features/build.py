@@ -7,6 +7,8 @@ written to data/processed/features.parquet.
 """
 from __future__ import annotations
 
+from collections import defaultdict, deque
+
 import duckdb
 import pandas as pd
 
@@ -127,6 +129,67 @@ def _roster_churn(df: pd.DataFrame, con: duckdb.DuckDBPyConnection) -> pd.DataFr
     return pd.DataFrame({"churn_a": out[1], "churn_b": out[2]}, index=df.index)
 
 
+_PLAYER_STATS_SQL = """
+SELECT mm.match_id, e.tier, s.team_number,
+       coalesce(CAST(s.player_id AS VARCHAR),
+                'h:' || lower(trim(s.player_handle))) AS player_key,
+       CAST(s.rating AS DOUBLE) AS rating
+FROM match_map_player_stat s
+JOIN match_map mm USING (match_map_id)
+JOIN match m USING (match_id)
+JOIN event e USING (event_id)
+WHERE e.tier IN (1, 2)
+ORDER BY mm.match_id, mm.map_number, s.team_number, s.player_slot
+"""
+
+
+def _player_form_from_stats(
+    matches: pd.DataFrame, stats: pd.DataFrame, window: int = 20
+) -> pd.DataFrame:
+    """Lineup form from prior maps only; current-match stats update history last."""
+    by_match = {
+        int(match_id): group
+        for match_id, group in stats.groupby("match_id", sort=False)
+    }
+    history: dict[str, deque] = defaultdict(lambda: deque(maxlen=window))
+    out = defaultdict(list)
+
+    for match_id in matches.match_id:
+        current = by_match.get(int(match_id), stats.iloc[:0])
+        for side, suffix in ((1, "a"), (2, "b")):
+            roster = current.loc[
+                current.team_number.eq(side), "player_key"
+            ].drop_duplicates()
+            prior = [list(history[player]) for player in roster if history[player]]
+            out[f"player_form_{suffix}"].append(
+                sum(sum(rating for rating, _ in rows) / len(rows) for rows in prior)
+                / len(prior)
+                if prior else float("nan")
+            )
+            out[f"player_form_coverage_{suffix}"].append(
+                len(prior) / len(roster) if len(roster) else float("nan")
+            )
+            observations = [item for rows in prior for item in rows]
+            out[f"player_form_t2_share_{suffix}"].append(
+                sum(tier == 2 for _, tier in observations) / len(observations)
+                if observations else float("nan")
+            )
+
+        # Update only after both pre-match feature rows have been recorded.
+        for row in current.dropna(subset=["rating"]).itertuples(index=False):
+            history[row.player_key].append((float(row.rating), int(row.tier)))
+
+    result = pd.DataFrame(out, index=matches.index)
+    result["player_form_diff"] = result.player_form_a - result.player_form_b
+    return result
+
+
+def _player_form(
+    matches: pd.DataFrame, con: duckdb.DuckDBPyConnection
+) -> pd.DataFrame:
+    return _player_form_from_stats(matches, con.execute(_PLAYER_STATS_SQL).df())
+
+
 def margin_signal(df: pd.DataFrame) -> "pd.Series":
     """The training signal that won the variant comparison: share of maps won.
 
@@ -158,6 +221,7 @@ def build_features(con: duckdb.DuckDBPyConnection | None = None) -> pd.DataFrame
     try:
         df = match_sequence(con).reset_index(drop=True)
         churn = _roster_churn(df, con)
+        player_form = _player_form(df, con)
     finally:
         if owned:
             con.close()
@@ -182,6 +246,13 @@ def build_features(con: duckdb.DuckDBPyConnection | None = None) -> pd.DataFrame
             "elo_p_a_win": elo.p_a_win,
             "churn_a": churn.churn_a,
             "churn_b": churn.churn_b,
+            "player_form_a": player_form.player_form_a,
+            "player_form_b": player_form.player_form_b,
+            "player_form_diff": player_form.player_form_diff,
+            "player_form_coverage_a": player_form.player_form_coverage_a,
+            "player_form_coverage_b": player_form.player_form_coverage_b,
+            "player_form_t2_share_a": player_form.player_form_t2_share_a,
+            "player_form_t2_share_b": player_form.player_form_t2_share_b,
             # How many matches each side has played before this one. Elo cannot
             # express its own uncertainty, so a 1500 rating means both "average"
             # and "never seen" -- this separates the two.

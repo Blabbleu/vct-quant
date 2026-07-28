@@ -230,7 +230,11 @@ benchmark reports this paired t-statistic.
 tables — `ORDER BY match_id`, the chronological key. Use it rather than querying
 `match` directly, and never rely on incidental row order.
 
-The next research input for promoted teams is Tier-2 player/roster history; the
-event backfill currently has only match-level results. For the product slice,
-ingest upcoming official Tier-1 matches, resolve their teams, replay ratings,
-and emit raw Elo probabilities.
+Tier-2 player/roster history is now backfilled around the final 20 matches of
+nine teams that played Ascension and later appeared in Tier 1. The corrected
+cohort selects 159 unique details; 203 playable Tier-2 matches / 506 maps are
+available including valid history from the initial cohort pass. Leakage-safe
+prior-player form is in the feature matrix. Default histogram gradient boosting
+lost to raw Elo both overall and on the promoted cohort, so raw Elo remains the
+production baseline. For the product slice, ingest upcoming official Tier-1
+matches, resolve their teams, replay ratings, and emit raw Elo probabilities.
