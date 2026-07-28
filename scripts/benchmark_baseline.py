@@ -1,4 +1,4 @@
-"""Compare logistic calibration of Elo against raw Elo on a modern holdout.
+"""Reproduce the rejected logistic calibration experiment on Tier 1.
 
     python scripts/benchmark_baseline.py
 
@@ -19,8 +19,8 @@ TEST_YEAR = 2024
 
 def main() -> None:
     df = build_features()
-    train = df.year.isin(TRAIN_YEARS)
-    test = df.year.eq(TEST_YEAR)
+    train = df.year.isin(TRAIN_YEARS) & df.tier.eq(1)
+    test = df.year.eq(TEST_YEAR) & df.tier.eq(1)
 
     model = train_baseline(
         df.loc[train, ["elo_diff"]].to_numpy(),

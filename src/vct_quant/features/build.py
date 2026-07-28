@@ -16,6 +16,11 @@ from .ratings import compute_elo
 
 # Margin-aware Elo won the variant comparison at this K — see CLAUDE.md.
 BEST_K = 48.0
+# Tier-2 team-result Elo was tested at 0/.25/.5/.75/1 on Tier-1 matches from
+# both 2024 and 2025. Every positive weight lost, including on promoted-team
+# matches, because the mostly isolated rating pools are not directly comparable.
+# Keep Tier-2 rows for roster/player-form features, but do not move shared Elo.
+TIER_2_WEIGHT = 0.0
 
 # The corpus has no date column anywhere, so ascending vlr.gg match_id is the
 # chronological key (verified: per-year ID ranges are strictly increasing with
@@ -26,6 +31,7 @@ ORDER_KEY = "match_id"
 _MATCH_SEQUENCE_SQL = """
 SELECT
     m.match_id,
+    e.tier,
     -- The Kaggle load parks the year in date_raw (there is no real date column
     -- anywhere in the corpus). TRY_CAST so a future vlrggapi load, which writes
     -- a real date string here, yields NULL rather than blowing up.
@@ -51,6 +57,7 @@ SELECT
     r.rounds_a,
     r.rounds_b
 FROM match m
+JOIN event e ON e.event_id = m.event_id AND e.tier IN (1, 2)
 JOIN match_team a ON a.match_id = m.match_id AND a.team_number = 1
 JOIN match_team b ON b.match_id = m.match_id AND b.team_number = 2
 LEFT JOIN (
@@ -133,6 +140,11 @@ def margin_signal(df: pd.DataFrame) -> "pd.Series":
     return (df.maps_a / total).where(total > 0).fillna(df.score_a)
 
 
+def elo_k(tiers: pd.Series, tier_2_weight: float = TIER_2_WEIGHT) -> "pd.Series":
+    """Per-tier Elo K; Tier 2 defaults to the validated zero team-result weight."""
+    return tiers.map({1: BEST_K, 2: BEST_K * tier_2_weight})
+
+
 def build_features(con: duckdb.DuckDBPyConnection | None = None) -> pd.DataFrame:
     """One row per match, every feature computed from data available before it.
 
@@ -150,16 +162,20 @@ def build_features(con: duckdb.DuckDBPyConnection | None = None) -> pd.DataFrame
         if owned:
             con.close()
 
-    # Margin-aware Elo at K=48 — the winning configuration, see CLAUDE.md.
+    # Replay both official tiers, with Tier 2 at its validated zero Elo weight.
     signal = margin_signal(df).to_numpy()
     elo = pd.DataFrame(
-        compute_elo(zip(df.match_id, df.team_a, df.team_b, signal), k=BEST_K)[0]
+        compute_elo(
+            zip(df.match_id, df.team_a, df.team_b, signal),
+            k=elo_k(df.tier),
+        )[0]
     )
 
     out = pd.DataFrame(
         {
             "match_id": df.match_id,
             "year": df.year,
+            "tier": df.tier,
             "team_a": df.team_a,
             "team_b": df.team_b,
             "elo_diff": elo.elo_a_pre - elo.elo_b_pre,

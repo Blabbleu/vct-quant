@@ -18,3 +18,7 @@ def test_schema_applies_cleanly():
                      "match_map_player_stat", "harvest_run"):
         assert expected in tables
     assert len(tables) >= 25
+    event_columns = {
+        r[1] for r in con.execute("PRAGMA table_info('event')").fetchall()
+    }
+    assert "tier" in event_columns

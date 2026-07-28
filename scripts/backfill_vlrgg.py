@@ -23,11 +23,8 @@ import re
 import sys
 
 from vct_quant.config import RAW_VLRGG_DIR
+from vct_quant.etl.events import competition_tier
 from vct_quant.ingest import vlrgg
-
-# Tiers worth having. Everything else on vlr.gg is regional amateur play that the
-# Kaggle corpus never covered either.
-DEFAULT_FILTER = r"vct|champions|masters|challengers|game changers|vcl|ascension"
 
 
 def already_have(event_id: str) -> bool:
@@ -37,7 +34,10 @@ def already_have(event_id: str) -> bool:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--pages", type=int, default=12, help="event listing pages to walk")
-    ap.add_argument("--filter", default=DEFAULT_FILTER, help="regex on event title; '' for all")
+    ap.add_argument(
+        "--filter",
+        help="regex on event title; default is official VCT Tier 1/2, '' means all",
+    )
     ap.add_argument("--force", action="store_true", help="refetch events already on disk")
     args = ap.parse_args()
 
@@ -52,7 +52,12 @@ def main() -> int:
             continue
         if not segments:
             break
-        keep = [s for s in segments if pattern is None or pattern.search(s["title"])]
+        if args.filter is None:
+            keep = [s for s in segments if competition_tier(s["title"]) is not None]
+        elif pattern is None:  # --filter '' means everything
+            keep = segments
+        else:
+            keep = [s for s in segments if pattern.search(s["title"])]
         events.extend(keep)
         print(f"page {page:>3}: {len(segments):>3} events, {len(keep):>3} kept")
 

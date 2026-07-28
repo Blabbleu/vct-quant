@@ -1,5 +1,9 @@
+import json
+
 import pandas as pd
 
+from vct_quant.etl import normalize
+from vct_quant.etl.events import competition_tier
 from vct_quant.etl.normalize import _duration_seconds, _pct, _unambiguous
 
 
@@ -33,3 +37,43 @@ def test_unambiguous_drops_names_with_two_ids():
 def test_unambiguous_ignores_nonpositive_ids():
     df = pd.DataFrame({"Player": ["a", "b"], "Player ID": [0.0, 5.0]})
     assert _unambiguous(df, "Player", "Player ID") == {"b": 5}
+
+
+def test_competition_tiers_are_season_aware():
+    assert competition_tier("VCT 2026: Americas Stage 2") == 1
+    assert competition_tier("Valorant Masters Toronto 2025") == 1
+    assert competition_tier("Champions Tour North America Stage 2: Challengers", 2022) == 1
+    assert competition_tier("Challengers League Brazil: Split 1", 2023) == 2
+    assert competition_tier("VCT 2025: Americas Ascension") == 2
+    assert competition_tier("Nerd Street Summer Championship 2022") is None
+    assert competition_tier("VCT OFF//SEASON Spotlight Series 2024: Americas") is None
+    assert competition_tier("Game Changers 2025: Championship Seoul") is None
+
+
+def test_vlrgg_match_keeps_its_event_id_and_title(tmp_path, monkeypatch):
+    monkeypatch.setattr(normalize, "RAW_VLRGG_DIR", tmp_path)
+    event = {
+        "event_id": "42", "title": "VCT 2026: Americas Stage 2",
+        "status": "completed", "region": "na", "dates": "Jul 1—2",
+        "prize": "$1", "thumb": "logo", "url_path": "/event/42",
+    }
+    match = {
+        "match_id": "99", "url": "/99/a-vs-b", "date": "Wed, July 01, 2026",
+        "status": "Completed", "event_series": "Grand Final",
+        "team1": {"name": "A", "score": "2"},
+        "team2": {"name": "B", "score": "1"},
+    }
+    (tmp_path / "events_page001_test.json").write_text(
+        json.dumps({"data": {"segments": [event]}})
+    )
+    (tmp_path / "event_matches_42_test.json").write_text(
+        json.dumps({"data": {"segments": [match]}})
+    )
+
+    events = normalize._vlrgg_events()
+    matches = normalize._vlrgg_event_matches(events)
+
+    assert events.iloc[0][["event_id", "tier"]].tolist() == [42, 1]
+    assert matches.iloc[0][["event_id", "event_name", "event_series"]].tolist() == [
+        42, "VCT 2026: Americas Stage 2", "Grand Final",
+    ]

@@ -17,6 +17,7 @@ left NULL rather than fabricated.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -26,6 +27,7 @@ import pandas as pd
 from ..config import RAW_KAGGLE_DIR, RAW_VLRGG_DIR
 from ..db import connect
 from ..ingest.kaggle import list_csvs
+from .events import competition_tier
 
 MATCH_KEY = ["Tournament", "Stage", "Match Type", "Match Name"]
 
@@ -209,9 +211,14 @@ def load_entities(con: duckdb.DuckDBPyConnection, report: LoadReport) -> dict:
         .drop_duplicates("Tournament ID", keep="first")
         .assign(event_id=lambda d: d["Tournament ID"].astype("int64"),
                 name=lambda d: d["Tournament"].astype(str),
+                tier=lambda d: pd.Series(
+                    [competition_tier(n, int(y)) for n, y in zip(d["Tournament"], d["Year"])],
+                    index=d.index,
+                    dtype="Int64",
+                ),
                 # The only temporal signal in the corpus; no real dates exist.
                 dates_raw=lambda d: d["Year"].astype(str))
-        [["event_id", "name", "dates_raw"]]
+        [["event_id", "name", "tier", "dates_raw"]]
     )
     _insert(con, "event", events, report)
 
@@ -465,7 +472,78 @@ def load_kaggle(con: duckdb.DuckDBPyConnection | None = None,
     return report
 
 
-def _vlrgg_event_matches() -> pd.DataFrame:
+def _vlrgg_events() -> pd.DataFrame:
+    """Event IDs and titles from the paged vlrggapi event listing."""
+    rows: list[dict] = []
+    for path in sorted(RAW_VLRGG_DIR.glob("events_page*.json")):
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        rows.extend(payload.get("data", {}).get("segments", []))
+    if not rows:
+        return pd.DataFrame()
+
+    d = pd.DataFrame(rows).drop_duplicates("event_id", keep="last")
+    return pd.DataFrame({
+        "event_id": _int(d["event_id"]),
+        "name": d["title"].astype(str),
+        "tier": pd.Series(
+            [competition_tier(name) for name in d["title"]],
+            index=d.index,
+            dtype="Int64",
+        ),
+        "status": d["status"].astype("string"),
+        "region_code": d["region"].astype("string"),
+        "dates_raw": d["dates"].astype("string"),
+        "prize_pool_raw": d["prize"].astype("string"),
+        "logo_url": d["thumb"].astype("string"),
+        "vlr_url": d["url_path"].astype("string"),
+    })
+
+
+def _upsert_vlrgg_events(
+    con: duckdb.DuckDBPyConnection, events: pd.DataFrame, report: LoadReport
+) -> None:
+    if events.empty:
+        return
+    cols = list(events.columns)
+    quoted = ", ".join(f'"{c}"' for c in cols)
+    updates = ", ".join(
+        f'"{c}" = excluded."{c}"' for c in cols if c != "event_id"
+    )
+    con.register("_events", events)
+    try:
+        con.execute(
+            f"""INSERT INTO event ({quoted}) SELECT {quoted} FROM _events
+                ON CONFLICT (event_id) DO UPDATE SET {updates}"""
+        )
+    finally:
+        con.unregister("_events")
+    report.note("event metadata upserted", len(events))
+
+
+def _classify_stored_events(
+    con: duckdb.DuckDBPyConnection, report: LoadReport
+) -> None:
+    """Apply the same scope rules to Kaggle events not present in API pages."""
+    d = con.execute("SELECT event_id, name, dates_raw FROM event").df()
+    year = pd.to_numeric(d["dates_raw"], errors="coerce")
+    d["tier"] = pd.Series(
+        [
+            competition_tier(name, int(y) if pd.notna(y) else None)
+            for name, y in zip(d["name"], year)
+        ],
+        dtype="Int64",
+    )
+    con.register("_event_tiers", d[["event_id", "tier"]])
+    try:
+        con.execute("""UPDATE event SET tier = _event_tiers.tier
+                       FROM _event_tiers
+                       WHERE event.event_id = _event_tiers.event_id""")
+    finally:
+        con.unregister("_event_tiers")
+    report.note("official events classified", int(d["tier"].notna().sum()))
+
+
+def _vlrgg_event_matches(events: pd.DataFrame | None = None) -> pd.DataFrame:
     """Every completed match harvested by scripts/backfill_vlrgg.py.
 
     Two quirks in this feed, both verified against the harvest:
@@ -478,7 +556,10 @@ def _vlrgg_event_matches() -> pd.DataFrame:
     for path in sorted(RAW_VLRGG_DIR.glob("event_matches_*.json")):
         payload = json.loads(path.read_text(encoding="utf-8"))
         for seg in payload.get("data", {}).get("segments", []):
-            rows.append(seg)
+            rows.append({
+                **seg,
+                "event_id": int(re.search(r"event_matches_(\d+)_", path.name).group(1)),
+            })
     if not rows:
         return pd.DataFrame()
 
@@ -500,7 +581,16 @@ def _vlrgg_event_matches() -> pd.DataFrame:
         name_a=[t.get("name") for t in d["team1"]],
         name_b=[t.get("name") for t in d["team2"]],
     )
-    return d.dropna(subset=["match_id"]).astype({"match_id": "int64"})
+    d = d.dropna(subset=["match_id"]).astype({"match_id": "int64"})
+    events = _vlrgg_events() if events is None else events
+    if events.empty:
+        d["event_name"] = pd.NA
+        return d
+    return d.merge(
+        events[["event_id", "name"]].rename(columns={"name": "event_name"}),
+        on="event_id",
+        how="left",
+    )
 
 
 def load_vlrgg_match_results(con: duckdb.DuckDBPyConnection | None = None) -> LoadReport:
@@ -514,15 +604,23 @@ def load_vlrgg_match_results(con: duckdb.DuckDBPyConnection | None = None) -> Lo
     owned = con is None
     con = con or connect()
     try:
-        d = _vlrgg_event_matches()
+        events = _vlrgg_events()
+        _upsert_vlrgg_events(con, events, report)
+        _classify_stored_events(con, report)
+        d = _vlrgg_event_matches(events)
         if d.empty:
             return report
 
         known = {r[0] for r in con.execute("SELECT match_id FROM match").fetchall()}
+        known_events = {r[0] for r in con.execute("SELECT event_id FROM event").fetchall()}
+        d["event_id"] = _int(d["event_id"]).where(d["event_id"].isin(known_events))
         existing = d[d["match_id"].isin(known)]
         fresh = d[~d["match_id"].isin(known)]
 
         # Backfill dates onto rows the Kaggle load already owns.
+        # Kaggle already carries the correct event ID/title. Updating those
+        # columns trips DuckDB's referenced-row FK limitation, so the overlap
+        # only needs the real date that Kaggle lacks.
         dated = existing.dropna(subset=["completed_at"])[["match_id", "completed_at"]]
         if not dated.empty:
             con.register("_dates", dated)
@@ -544,15 +642,13 @@ def load_vlrgg_match_results(con: duckdb.DuckDBPyConnection | None = None) -> Lo
         round_score = best > 3
         report.drop("Bo1 rows storing round scores", int(round_score.sum()))
 
-        known_events = {r[0] for r in con.execute("SELECT event_id FROM event").fetchall()}
         won_a = fresh["score_a"] > fresh["score_b"]
 
         _insert(con, "match", pd.DataFrame({
             "match_id": fresh["match_id"],
-            # These events were never loaded, so the FK would fail; the event
-            # name is kept as text either way.
-            "event_id": pd.Series([pd.NA] * len(fresh), index=fresh.index, dtype="Int64"),
-            "event_name": fresh["event_series"].astype(str),
+            "event_id": _int(fresh["event_id"]),
+            "event_name": fresh["event_name"].astype("string"),
+            "event_series": fresh["event_series"].astype("string"),
             "status": "completed",
             "completed_at": fresh["completed_at"],
             # date_raw stays the YEAR, matching what the Kaggle load writes —

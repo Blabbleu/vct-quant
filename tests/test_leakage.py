@@ -60,3 +60,10 @@ def test_margin_signal_never_returns_nan():
     assert out.iloc[0] == 1.0            # 2-0 sweep
     assert out.iloc[1] == 0.0            # missing score -> binary result
     assert out.iloc[2] == 1.0            # 0-0 forfeit -> binary result
+
+
+def test_tier_two_results_do_not_move_shared_elo():
+    from vct_quant.features.build import BEST_K, TIER_2_WEIGHT, elo_k
+
+    out = elo_k(pd.Series([1, 2]))
+    assert out.tolist() == [BEST_K, BEST_K * TIER_2_WEIGHT]

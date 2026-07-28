@@ -78,12 +78,13 @@ as the universal ordering key; use `completed_at` for elapsed-time features.
 
 ## Phase 3 — Thin end-to-end slice ✅ done
 
-On the expanded corpus, margin-aware Elo scores **0.6235 walk-forward log loss,
-0.2174 Brier, and 64.2% accuracy** over 39,924 matches in 5 folds (coin flip =
-0.6931). Reproduce with `python scripts/benchmark_elo.py`.
+The canonical database retains all 81,875 harvested matches, but the model
+sequence is restricted to 11,948 official Tier-1 and 14,864 official Tier-2
+matches. The other 55,063 matches never enter ratings or features.
 
-Per fold: 0.6164 / 0.6253 / 0.6189 / 0.6241 / 0.6328. Raw Elo is underconfident
-on the expanded corpus, which motivates the logistic calibration in Phase 5.
+Margin-aware Elo scores **0.6525 walk-forward log loss / 0.2302 Brier / 61.8%
+accuracy** over 1,524 scored Tier-1 matches in 5 folds (coin flip = 0.6931).
+Reproduce with `python scripts/benchmark_elo.py`.
 
 *Original plan retained below.*
 
@@ -104,17 +105,17 @@ Elo can't clear that comfortably, something in ETL or ordering is wrong.
 
 ## Phase 4 — Feature engineering ✅ thin matrix done
 
-`features/build.py` now emits 79,904 point-in-time rows with Elo, prior-match
-counts, and roster churn to `data/processed/features.parquet`.
+`features/build.py` now emits 26,419 point-in-time Tier-1/Tier-2 rows with Elo,
+prior-match counts, and roster churn to `data/processed/features.parquet`.
 
 **Elo variants are done — see CLAUDE.md for the Kaggle-only experiment.** Margin
 of victory as a fractional score won (0.6487 → 0.6368 walk-forward, K=48). K
 tuning, the rating scale, round-level margin, margin-weighted K, and per-season
 regression were all tried and rejected on a paired significance test.
 
-Roster churn is implemented, but the event backfill has no player rows, so it is
-available for only 10,840 team-A and 10,368 team-B observations. Keep it out of
-the broad baseline rather than discarding ~87% of the match corpus.
+Player-map statistics cover 11,829 of 11,948 Tier-1 matches, but none of the
+14,864 Tier-2 matches added by the event backfill. Tier-2 player-form collection
+is therefore the missing input for assessing newly promoted teams.
 
 Remaining candidates, roughly by expected value:
 
@@ -131,15 +132,18 @@ most likely way this project produces impressive-and-wrong results is leakage in
 this phase**, because rolling aggregates over a match's own outcome are easy to
 write by accident and produce beautiful backtests.
 
-## Phase 5 — Calibrated baseline ✅ done
+## Phase 5 — Logistic calibration ❌ rejected
 
-Logistic regression trained on 30,501 matches from 2022–2023 and evaluated on
-14,199 matches from 2024 scores **0.6110 log loss / 0.2113 Brier**, beating raw
-Elo's **0.6192 / 0.2151** on identical matches (`t = 7.53`). Reproduce with
-`python scripts/benchmark_baseline.py`.
+The old broad-corpus win was contamination from unrelated events. On the
+correct 2024 Tier-1 holdout, logistic calibration scores **0.6790 log loss /
+0.2394 Brier**, significantly worse than raw Elo's **0.6522 / 0.2299**
+(`t = -2.81`). Reproduce with `python scripts/benchmark_baseline.py`.
 
-Do not add gradient boosting until a broader non-Elo feature exists; otherwise it
-only adds machinery around the same signal.
+Tier-2 shared-Elo weights `0/.25/.5/.75/1` were also evaluated on Tier-1 matches
+from both 2024 and 2025. Every positive weight lost, including for teams with
+Ascension history, because the mostly isolated rating pools are not directly
+comparable. Tier-2 rows remain available for future roster/player features, but
+their team results do not move shared Elo.
 
 ## Phase 6 — Forward prediction — next
 
@@ -150,8 +154,8 @@ return, and all 83 feed rows parse to a match_id.
 
 The historical event harvest and `vct load-vlrgg` are done: 81,875 canonical
 matches, 72,342 with real dates. Next: ingest upcoming matches, resolve them onto
-existing team IDs, replay current ratings, and emit probabilities through the
-calibrated logistic baseline.
+existing team IDs, replay current ratings, and emit raw Elo probabilities for
+Tier-1 fixtures.
 
 ## Cross-cutting
 

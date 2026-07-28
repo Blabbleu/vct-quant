@@ -84,6 +84,7 @@ CREATE TABLE player (
 CREATE TABLE event (
     event_id bigint PRIMARY KEY CHECK (event_id > 0),
     name text NOT NULL,
+    tier smallint CHECK (tier IN (1, 2)),
     series_name text,
     status text,
     region_code text,

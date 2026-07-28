@@ -45,7 +45,7 @@ the shim entirely. For this reason `ingest/kaggle.py` shells out via
 ```
 data/raw  →  ETL (normalize + entity resolution)  →  DuckDB canonical tables
           →  features (Elo, rolling form; point-in-time only)  →  data/processed
-          →  models (baseline: logistic regression on Elo diff)
+          →  models (baseline: margin-aware Elo)
           →  eval (walk-forward backtest; log loss, Brier, calibration)
 ```
 
@@ -100,11 +100,19 @@ or score them as 0.5.
 
 ### Detail coverage differs by source
 
-The event backfill expands match-level coverage to 81,875 matches but does not
-carry map or player rows. Those remain Kaggle-only: 27,416 maps and 272,991
-player-map rows across the original 12,672 matches. Consequently roster churn is
-present for only 10,840 team-A and 10,368 team-B feature rows; do not silently
-drop the other ~87% when training a match-level model.
+The event backfill expands canonical match-level coverage to 81,875 matches but
+does not carry map or player rows. The official model scope is much narrower:
+11,948 Tier-1 and 14,864 Tier-2 matches. Player-map stats cover 11,829 Tier-1
+matches and zero backfilled Tier-2 matches.
+
+`etl/events.py::competition_tier` owns the season-aware scope:
+
+* Tier 1: primary VCT regional circuit, Masters, Champions, historical LCQs.
+* Tier 2: post-2022 Challengers/VCL and Ascension.
+* Excluded: Game Changers, Premier, third-party/offseason, community, ranked.
+
+The 2021-2022 events named "Stage N: Challengers" are Tier 1: before the 2023
+league restructure, they were the primary regional VCT circuit.
 
 ## Ground rules
 
@@ -141,31 +149,48 @@ drop the other ~87% when training a match-level model.
   tournament realm, which is not public, and VAL-MATCH-V1 needs an approved
   production key. `ingest/riot.py` is a deliberate placeholder for ranked-queue
   form signals only.
+
 ## Implementation status
 
-Working: `config`, `db`, both ingest/load paths, point-in-time Elo and roster
-churn, the 79,904-row feature matrix, walk-forward evaluation, and logistic
-calibration of Elo.
+Working: both ingest/load paths, event provenance and official tier
+classification, point-in-time Elo and roster churn, the 26,419-row official
+feature matrix, and walk-forward evaluation.
 
 The database is loaded: 81,875 matches (72,342 dated), 27,416 maps, and 272,991
 player-map stat rows. The vlrggapi load is additive and idempotent: Kaggle rows
 gain dates, while new event matches are inserted with their two teams.
 
-**The current model is logistic calibration of margin-aware Elo.** Train on the
-2022–2023 Elo differences and score the untouched 2024 holdout:
-**0.6110 log loss / 0.2113 Brier**, versus raw Elo's **0.6192 / 0.2151** on the
-same 14,199 matches (`t = 7.53`). Reproduce with
-`python scripts/benchmark_baseline.py`.
-
-Raw margin-aware Elo still feeds `maps_a / (maps_a + maps_b)` at K=48. Across
-the expanded corpus its five-fold walk-forward score is **0.6235 log loss /
-0.2174 Brier / 64.2% accuracy** over 39,924 matches; reproduce with
+**The current model is raw margin-aware Elo on Tier 1.** It feeds
+`maps_a / (maps_a + maps_b)` at K=48 and scores **0.6525 log loss / 0.2302
+Brier / 61.8% accuracy** over 1,524 walk-forward Tier-1 matches. Reproduce with
 `python scripts/benchmark_elo.py`.
 
-Why the fractional score beats a binary one: a 93%-favourite that wins 2-1 scores
-0.667 against its own 0.93 expectation, so it *loses* rating. 261 of 7,423 match
-winners (2.1%) lose rating this way. Plain Elo cannot express "won, but that was
-bad news"; a margin-weighted K cannot either, since the winner always gains.
+The earlier logistic win was caused by scoring the unrelated broad harvest. On
+the corrected 2024 Tier-1 holdout, logistic calibration scores **0.6790 log loss
+/ 0.2394 Brier**, worse than raw Elo's **0.6522 / 0.2299** on the same 436
+matches (`t = -2.81`). `scripts/benchmark_baseline.py` preserves this rejected
+experiment.
+
+Tier-2 shared-Elo weights were tested on Tier-1 validation:
+
+| Tier-2 weight | 2024 log loss | 2025 log loss |
+| --- | ---: | ---: |
+| **0** | **0.6522** | **0.6485** |
+| 0.25 | 0.6554 | 0.6523 |
+| 0.50 | 0.6590 | 0.6564 |
+| 0.75 | 0.6627 | 0.6606 |
+| 1.00 | 0.6666 | 0.6650 |
+
+The result is stronger on the intended subgroup: among 100 Tier-1 matches in
+2025 involving a team with prior Ascension history, weight 0 scores 0.5551
+versus 0.6098 at weight 0.5. Tier-2 and Tier-1 rating pools are not directly
+comparable. Keep Tier-2 history for future roster/player-form features, but its
+team results currently have a validated Elo weight of zero.
+
+In the earlier Kaggle-only signal experiment, a 93%-favourite that wins 2-1
+scores 0.667 against its own 0.93 expectation, so it *loses* rating. Plain Elo
+cannot express "won, but that was bad news"; a margin-weighted K cannot either,
+since the winner always gains.
 
 Four training signals were compared on the earlier Kaggle-only 2023-24
 validation holdout, each at its own best K, paired per-match t-test
@@ -194,12 +219,8 @@ surviving a paired test (t = 1.03 for the scale; K differs by 0.0001).
 boundary was swept from carry=1.0 (keep everything) to 0.0 (full reset): carry=0.9
 gains nothing (t = 0.71) and a full reset is significantly *worse* (t = −2.25).
 Rosters do turn over, but Elo at K=48 re-learns faster than a reset can help, and
-org-level strength persists across roster changes. Actual roster turnover is now
-implemented, but its source coverage is too sparse for the broad baseline.
-
-The old Kaggle-only finding that Elo was well calibrated does not transfer to the
-expanded vlrggapi corpus. The fixed 2024 holdout is the current comparison, and
-the logistic layer materially corrects raw Elo there.
+org-level strength persists across roster changes. Actual roster turnover is
+implemented for Tier 1; Tier-2 roster coverage is the remaining gap.
 
 When comparing two models on the same matches, use the **paired** per-match loss
 difference, not the standard error of either aggregate score. The baseline
@@ -209,8 +230,7 @@ benchmark reports this paired t-statistic.
 tables — `ORDER BY match_id`, the chronological key. Use it rather than querying
 `match` directly, and never rely on incidental row order.
 
-The next product slice is forward prediction: ingest upcoming matches, resolve
-their teams, replay current ratings, and emit calibrated probabilities.
-`features/rolling.py` remains a placeholder; add another rolling signal only
-when its source coverage is broad enough to evaluate without discarding most of
-the corpus.
+The next research input for promoted teams is Tier-2 player/roster history; the
+event backfill currently has only match-level results. For the product slice,
+ingest upcoming official Tier-1 matches, resolve their teams, replay ratings,
+and emit raw Elo probabilities.

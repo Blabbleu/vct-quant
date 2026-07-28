@@ -31,7 +31,7 @@ python scripts/benchmark_baseline.py
 ```
 data/raw  →  ETL (normalize + entity resolution)  →  DuckDB canonical tables
           →  features (Elo, rolling form; point-in-time only)  →  data/processed
-          →  models (baseline: logistic regression on Elo diff)
+          →  models (baseline: margin-aware Elo)
           →  eval (walk-forward backtest; log loss, Brier, calibration)
 ```
 
@@ -41,6 +41,10 @@ Ground rules that keep the model honest:
   that match started. `features/` is built around pre-match snapshots.
 * **Temporal validation only** — `eval/backtest.py` trains on the past and
   tests on the future; random splits are banned.
+* **Official competition only** — Tier 1 is the prediction target. Tier 2
+  (Challengers/VCL and Ascension) is retained as possible evidence for promoted
+  teams; Game Changers, Premier, third-party, offseason, and ranked matches are
+  excluded from modeling.
 * **Raw is immutable** — `data/raw/` is never edited; the DuckDB file is
   disposable and rebuildable (`vct init-db` + replaying ETL).
 

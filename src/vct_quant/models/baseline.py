@@ -1,7 +1,7 @@
-"""Baseline model: logistic calibration of the pre-match Elo difference.
+"""Rejected comparison model: logistic calibration of pre-match Elo difference.
 
-This is the benchmark every fancier model must beat on walk-forward log loss
-and calibration — in esports prediction, well-tuned Elo is hard to beat.
+Raw Elo beats this model on the official Tier-1 holdout; the implementation is
+kept so that result remains reproducible.
 """
 from __future__ import annotations
 
