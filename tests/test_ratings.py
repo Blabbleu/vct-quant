@@ -1,4 +1,9 @@
-from vct_quant.features.ratings import compute_elo, expected_score, update
+from vct_quant.features.ratings import (
+    compute_elo,
+    expected_score,
+    series_score_probabilities,
+    update,
+)
 
 
 def test_expected_score_symmetry():
@@ -39,3 +44,12 @@ def test_compute_elo_initial_ratings_are_seeded_not_mutated():
     assert rows[0]["elo_b_pre"] == 1500.0  # unseeded teams still fall back
     assert final["A"] > 1700.0
     assert seed == {"A": 1700.0}  # caller's dict untouched
+
+
+def test_score_probabilities_sum_to_one_and_preserve_series_probability():
+    for best_of in (3, 5):
+        scores = series_score_probabilities(0.7, best_of)
+        a_wins = sum(p for score, p in scores.items() if score[0] > score[-1])
+
+        assert abs(sum(scores.values()) - 1.0) < 1e-12
+        assert abs(a_wins - 0.7) < 1e-12

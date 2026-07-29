@@ -14,7 +14,12 @@ import pandas as pd
 
 from .. import db
 from ..config import PROCESSED_DIR
-from .ratings import DEFAULT_BASE, compute_elo, expected_score
+from .ratings import (
+    DEFAULT_BASE,
+    compute_elo,
+    expected_score,
+    series_score_probabilities,
+)
 
 # Margin-aware Elo won the variant comparison at this K — see CLAUDE.md.
 BEST_K = 48.0
@@ -291,7 +296,94 @@ def predict_upcoming(
     out["ratings_through_match_id"] = (
         int(history.match_id.max()) if not history.empty else pd.NA
     )
+    return add_score_predictions(out)
+
+
+def add_score_predictions(fixtures: pd.DataFrame) -> pd.DataFrame:
+    """Attach exact score, sweep, and map-count forecasts to series forecasts."""
+    out = fixtures.copy()
+    if "best_of" not in out:
+        # Upgrade cached fixtures written before the feed gained this field.
+        series = (
+            out["event_series"]
+            if "event_series" in out
+            else pd.Series("", index=out.index)
+        )
+        out["best_of"] = series.str.contains(
+            "grand final", case=False, na=False
+        ).map({True: 5, False: 3})
+    distributions = [
+        series_score_probabilities(float(probability), int(best_of))
+        for probability, best_of in zip(out.p_team_a_win, out.best_of)
+    ]
+    out["score_probabilities"] = distributions
+    out["most_likely_score"] = [
+        max(scores, key=scores.get) for scores in distributions
+    ]
+    out["p_most_likely_score"] = [
+        scores[score]
+        for scores, score in zip(distributions, out.most_likely_score)
+    ]
+    out["p_sweep"] = [
+        sum(probability for score, probability in scores.items() if "0" in score)
+        for scores in distributions
+    ]
+    out["p_full_distance"] = [
+        sum(
+            probability
+            for score, probability in scores.items()
+            if sum(map(int, score.split("-"))) == best_of
+        )
+        for scores, best_of in zip(distributions, out.best_of)
+    ]
+    out["expected_maps"] = [
+        sum(
+            sum(map(int, score.split("-"))) * probability
+            for score, probability in scores.items()
+        )
+        for scores in distributions
+    ]
     return out
+
+
+def current_rankings(history: pd.DataFrame | None = None) -> pd.DataFrame:
+    """Rank teams active in the latest Tier-1 season by current Elo."""
+    history = match_sequence() if history is None else history
+    columns = ["rank", "season", "team_name", "elo", "season_matches", "last_match_id"]
+    official = history.loc[history.tier.eq(1) & history.year.notna()]
+    if official.empty:
+        return pd.DataFrame(columns=columns)
+
+    _, ratings = compute_elo(
+        zip(
+            history.match_id,
+            history.team_a,
+            history.team_b,
+            margin_signal(history),
+        ),
+        k=elo_k(history.tier),
+    )
+    season = int(official.year.max())
+    active = official.loc[official.year.eq(season)]
+    teams: dict = {}
+    for row in active.itertuples(index=False):
+        for key, name in (
+            (row.team_a, row.team_a_name),
+            (row.team_b, row.team_b_name),
+        ):
+            team = teams.setdefault(
+                key, {"team_name": name, "season_matches": 0, "last_match_id": 0}
+            )
+            team["team_name"] = name
+            team["season_matches"] += 1
+            team["last_match_id"] = max(team["last_match_id"], int(row.match_id))
+
+    out = pd.DataFrame([
+        {"season": season, "elo": ratings[key], **team}
+        for key, team in teams.items()
+    ]).sort_values(["elo", "team_name"], ascending=[False, True], ignore_index=True)
+    out.insert(0, "rank", out.index + 1)
+    return out[columns]
 
 
 def main() -> None:

@@ -20,6 +20,8 @@ CLI (`vct`, defined in `cli.py`):
 | `vct inspect-kaggle` | Print every Kaggle CSV with its columns. Run this before writing any loader. |
 | `vct load-kaggle` | Kaggle CSVs → canonical tables. Idempotent (clears first); prints a `LoadReport` of inserts and unresolved rows. |
 | `vct ingest-vlrgg [--what results\|upcoming]` | Fetch live feed → raw; upcoming also writes official Tier-1 fixtures and Elo probabilities to `data/processed/upcoming_tier1.parquet`. |
+| `vct prediction MATCH_ID [--json]` | Print one cached upcoming Tier-1 prediction; refresh the upcoming feed once on a cache miss. |
+| `vct predictions [--json]` | Print every cached upcoming Tier-1 forecast; fetch once if the cache is absent. |
 | `vct load-vlrgg` | Merge harvested event matches into `match` / `match_team`; safe to re-run. |
 
 Build and benchmark:

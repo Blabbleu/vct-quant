@@ -168,8 +168,9 @@ the raw feed and writes only official Tier-1 fixtures to
 `data/processed/upcoming_tier1.parquet`, including canonical team/event IDs and
 stable fallback team keys. It replays the validated margin-aware Elo through
 the latest completed official matches and attaches both teams' win
-probabilities. Next: decide whether the product surface should be a CLI report,
-small API, or dashboard.
+probabilities. `vct prediction MATCH_ID` is the first product surface: it reads
+the cached forecast, refreshes the feed once on a miss, and prints one match.
+Next: add an API or dashboard only if the CLI proves insufficient.
 
 ## Cross-cutting
 

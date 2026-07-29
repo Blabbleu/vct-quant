@@ -505,7 +505,7 @@ def official_upcoming(
 ) -> pd.DataFrame:
     """Normalize only official Tier-1 fixtures from an upcoming-feed payload."""
     columns = [
-        "match_id", "scheduled_at", "event_id", "event_name", "event_series",
+        "match_id", "scheduled_at", "event_id", "event_name", "event_series", "best_of",
         "team_a_id", "team_a_key", "team_a_name",
         "team_b_id", "team_b_key", "team_b_name",
         "vlr_url", "time_until_match",
@@ -559,6 +559,10 @@ def official_upcoming(
         )),
         "event_name": d["match_event"].astype(str),
         "event_series": d["match_series"].astype(str),
+        # ponytail: the feed omits format; VCT is Bo3 except grand finals.
+        "best_of": d["match_series"].str.contains(
+            "grand final", case=False, na=False
+        ).map({True: 5, False: 3}),
         "team_a_id": team_a_id,
         "team_a_key": [
             str(int(team_id)) if pd.notna(team_id) else f"name:{normalize_name(name)}"

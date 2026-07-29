@@ -7,6 +7,7 @@ leak the match's own outcome.
 from __future__ import annotations
 
 from itertools import repeat
+from math import comb
 from typing import Hashable, Iterable
 
 DEFAULT_K = 32.0
@@ -24,6 +25,48 @@ def update(
     """score_a: 1.0 = A won, 0.0 = A lost, 0.5 = draw."""
     delta = k * (score_a - expected_score(rating_a, rating_b))
     return rating_a + delta, rating_b - delta
+
+
+def series_score_probabilities(
+    p_series_a: float, best_of: int = 3
+) -> dict[str, float]:
+    """Exact score probabilities consistent with a series-win probability."""
+    if not 0.0 <= p_series_a <= 1.0:
+        raise ValueError("p_series_a must be between 0 and 1")
+    if best_of <= 0 or best_of % 2 == 0:
+        raise ValueError("best_of must be a positive odd number")
+
+    wins = best_of // 2 + 1
+
+    def p_series(p_map: float) -> float:
+        return sum(
+            comb(wins + losses - 1, losses)
+            * p_map**wins
+            * (1 - p_map) ** losses
+            for losses in range(wins)
+        )
+
+    low, high = 0.0, 1.0
+    for _ in range(60):
+        mid = (low + high) / 2
+        if p_series(mid) < p_series_a:
+            low = mid
+        else:
+            high = mid
+    p_map = (low + high) / 2
+    out = {
+        f"{wins}-{losses}": comb(wins + losses - 1, losses)
+        * p_map**wins
+        * (1 - p_map) ** losses
+        for losses in range(wins)
+    }
+    out.update({
+        f"{losses}-{wins}": comb(wins + losses - 1, losses)
+        * (1 - p_map) ** wins
+        * p_map**losses
+        for losses in range(wins)
+    })
+    return out
 
 
 def compute_elo(

@@ -24,6 +24,11 @@ vct load-vlrgg       # merge the harvested vlr.gg event matches
 python scripts/backfill_promoted_details.py  # Tier-2 player form for promoted teams
 vct load-vlrgg-details
 vct ingest-vlrgg --what upcoming  # filtered Tier-1 fixtures + Elo probabilities
+vct prediction 698904              # winner + exact score, sweep, and map count
+vct prediction 698904 --json       # one machine-readable forecast
+vct predictions                    # all upcoming Tier-1 forecasts
+vct predictions --json             # machine-readable output
+vct ranking                        # top 25 current VCT teams by Elo
 python -m vct_quant.features.build
 python scripts/benchmark_baseline.py
 python scripts/benchmark_gradient_boosting.py
