@@ -62,6 +62,7 @@ def test_update_refreshes_results_before_predictions(monkeypatch, tmp_path, caps
 
 def test_prediction_prints_cached_match(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(config, "PROCESSED_DIR", tmp_path)
+    monkeypatch.setattr(cli, "_refresh_prediction", lambda match_id: pd.DataFrame())
     monkeypatch.setattr(sys, "argv", ["vct", "prediction", "698904"])
     pd.DataFrame([{
         "match_id": 698904,
@@ -108,6 +109,39 @@ def test_prediction_falls_back_to_direct_match_details(monkeypatch, tmp_path, ca
     cli.main()
 
     assert "KRÜ Esports: 40.0%" in capsys.readouterr().out
+
+
+def test_prediction_automatically_uses_announced_maps(monkeypatch, tmp_path, capsys):
+    applied = []
+    monkeypatch.setattr(config, "PROCESSED_DIR", tmp_path)
+    monkeypatch.setattr(sys, "argv", ["vct", "predict", "1", "--json"])
+    monkeypatch.setattr(cli, "_refresh_prediction", lambda match_id: pd.DataFrame([{
+        "match_id": 1,
+        "event_name": "VCT 2026: Americas Stage 2",
+        "event_series": "Group Stage",
+        "best_of": 3,
+        "map_picks": ["Lotus", "Haven", "Ascent"],
+        "team_a_name": "Alpha",
+        "team_b_name": "Bravo",
+        "p_team_a_win": 0.5,
+        "p_team_b_win": 0.5,
+        "scheduled_at": "soon",
+        "ratings_through_match_id": 1,
+        "vlr_url": "https://www.vlr.gg/1",
+    }]))
+
+    def apply_maps(fixtures, maps):
+        applied.extend(maps)
+        out = fixtures.copy()
+        out["map_predictions"] = [[]]
+        return out
+
+    monkeypatch.setattr(build, "add_map_predictions", apply_maps)
+
+    cli.main()
+
+    assert applied == ["Lotus", "Haven", "Ascent"]
+    assert json.loads(capsys.readouterr().out)["match_id"] == 1
 
 
 def test_predictions_emits_json(monkeypatch, tmp_path, capsys):

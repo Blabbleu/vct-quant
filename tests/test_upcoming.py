@@ -66,6 +66,30 @@ def test_official_match_details_normalizes_later_fixture():
         706376, "VCT 2026: Americas Stage 2", 3,
     ]
     assert out[["team_a_key", "team_b_key"]].tolist() == ["2355", "2"]
+    assert out.map_picks == []
+
+
+def test_official_match_details_extracts_announced_map_picks():
+    payload = {"data": {"segments": [{
+        "match_id": "1",
+        "event": {
+            "name": "VCT 2026: Americas Stage 2 Group Stage",
+            "series": "Group Stage",
+        },
+        "teams": [
+            {"id": "1", "name": "Alpha", "score": ""},
+            {"id": "2", "name": "Bravo", "score": ""},
+        ],
+        "maps": [
+            {"map_name": "Lotus PICK"},
+            {"map_name": "Haven"},
+            {"map_name": "Ascent"},
+        ],
+    }]}}
+
+    assert official_match_details(payload).map_picks.iloc[0] == [
+        "Lotus", "Haven", "Ascent",
+    ]
 
 
 def test_predict_upcoming_replays_existing_elo():

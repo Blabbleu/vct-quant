@@ -24,6 +24,12 @@ def _predict_match_details(data):
     return predict_upcoming(fixture) if not fixture.empty else fixture
 
 
+def _refresh_prediction(match_id):
+    from .ingest import vlrgg
+
+    return _predict_match_details(vlrgg.fetch_match_details(match_id))
+
+
 def _print_predictions(fixtures) -> None:
     display = fixtures[[
         "match_id", "scheduled_at", "event_name", "team_a_name",
@@ -137,10 +143,17 @@ def main() -> None:
         path = PROCESSED_DIR / "upcoming_tier1.parquet"
         fixtures = pd.read_parquet(path) if path.exists() else pd.DataFrame()
         found = fixtures[fixtures.match_id.eq(args.match_id)] if not fixtures.empty else fixtures
-        if found.empty:
-            from .ingest import vlrgg
+        if found.empty or not args.maps:
+            from requests import RequestException
 
-            found = _predict_match_details(vlrgg.fetch_match_details(args.match_id))
+            try:
+                refreshed = _refresh_prediction(args.match_id)
+            except RequestException:
+                if found.empty:
+                    raise
+            else:
+                if not refreshed.empty:
+                    found = refreshed
         if found.empty:
             parser.error(
                 f"{args.match_id} is not an upcoming official Tier-1 match"
@@ -149,9 +162,16 @@ def main() -> None:
         from .features.build import add_map_predictions, add_score_predictions
 
         found = add_score_predictions(found)
-        if args.maps:
+        selected_maps = args.maps
+        detected_maps = False
+        if not selected_maps and "map_picks" in found:
+            picks = found.map_picks.iloc[0]
+            if isinstance(picks, list) and len(picks) == int(found.best_of.iloc[0]):
+                selected_maps = picks
+                detected_maps = True
+        if selected_maps:
             try:
-                found = add_map_predictions(found, args.maps)
+                found = add_map_predictions(found, selected_maps)
             except ValueError as exc:
                 parser.error(str(exc))
         match = found.iloc[0]
@@ -161,8 +181,8 @@ def main() -> None:
             print(f"{match.event_name} — {match.event_series}")
             print(f"{match.team_a_name}: {match.p_team_a_win:.1%}")
             print(f"{match.team_b_name}: {match.p_team_b_win:.1%}")
-            if args.maps:
-                print("Maps:")
+            if selected_maps:
+                print(f"Maps{' (detected)' if detected_maps else ''}:")
                 for map_prediction in match.map_predictions:
                     print(
                         f"  {map_prediction['map'].title()}: "

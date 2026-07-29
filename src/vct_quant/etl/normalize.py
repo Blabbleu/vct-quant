@@ -604,6 +604,11 @@ def official_match_details(payload: dict) -> pd.DataFrame:
 
     match_id = int(match["match_id"])
     maps = match.get("maps", [])
+    map_picks = [
+        re.sub(r"\s*PICK$", "", str(game_map.get("map_name", "")), flags=re.I).strip()
+        for game_map in maps
+        if str(game_map.get("map_name", "")).strip().lower() not in ("", "tbd")
+    ]
     best_of = len(maps) if len(maps) in (1, 3, 5) else (
         5 if "grand final" in series.lower() else 3
     )
@@ -619,6 +624,7 @@ def official_match_details(payload: dict) -> pd.DataFrame:
         "event_name": event_name,
         "event_series": series,
         "best_of": best_of,
+        "map_picks": map_picks,
         "team_a_id": _int(pd.Series([teams[0].get("id")])).iloc[0],
         "team_a_key": keys[0],
         "team_a_name": teams[0].get("name"),
