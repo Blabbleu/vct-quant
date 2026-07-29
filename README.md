@@ -16,6 +16,7 @@ Match prediction quant model for the Valorant Champions Tour (VCT).
 .venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
 vct init-db          # create data/vct.duckdb from sql/schema.sql
+vct update           # refresh results, ratings, fixtures, and predictions
 vct download-kaggle  # needs %USERPROFILE%\.kaggle\kaggle.json
 vct inspect-kaggle   # see the CSV layout before writing ETL loaders
 vct load-kaggle      # load the historical corpus
@@ -26,6 +27,7 @@ vct load-vlrgg-details
 vct ingest-vlrgg --what upcoming  # filtered Tier-1 fixtures + Elo probabilities
 vct prediction 698904              # winner + exact score, sweep, and map count
 vct prediction 698904 --json       # one machine-readable forecast
+vct prediction 698904 --maps lotus haven ascent  # condition on a known veto
 vct predictions                    # all upcoming Tier-1 forecasts
 vct predictions --json             # machine-readable output
 vct ranking                        # top 25 current VCT teams by Elo

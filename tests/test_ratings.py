@@ -1,6 +1,7 @@
 from vct_quant.features.ratings import (
     compute_elo,
     expected_score,
+    map_score_probabilities,
     series_score_probabilities,
     update,
 )
@@ -53,3 +54,12 @@ def test_score_probabilities_sum_to_one_and_preserve_series_probability():
 
         assert abs(sum(scores.values()) - 1.0) < 1e-12
         assert abs(a_wins - 0.7) < 1e-12
+
+
+def test_known_maps_produce_non_identical_score_probabilities():
+    scores = map_score_probabilities([0.6, 0.7, 0.8])
+
+    assert abs(scores["2-0"] - 0.42) < 1e-12
+    assert abs(scores["2-1"] - 0.368) < 1e-12
+    assert abs(scores["0-2"] - 0.12) < 1e-12
+    assert abs(scores["1-2"] - 0.092) < 1e-12

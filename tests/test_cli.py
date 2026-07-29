@@ -27,6 +27,39 @@ def test_load_vlrgg_details_dispatches_to_loader(monkeypatch, capsys):
     assert capsys.readouterr().out.strip() == "loaded details"
 
 
+def test_update_refreshes_results_before_predictions(monkeypatch, tmp_path, capsys):
+    from vct_quant.ingest import vlrgg
+
+    calls = []
+    monkeypatch.setattr(sys, "argv", ["vct", "update"])
+    monkeypatch.setattr(
+        vlrgg, "fetch_match_results",
+        lambda: calls.append("fetch results") or {"data": {"segments": [1, 2]}},
+    )
+    monkeypatch.setattr(
+        normalize, "load_vlrgg_match_results",
+        lambda: calls.append("load results") or "loaded",
+    )
+    monkeypatch.setattr(
+        vlrgg, "fetch_upcoming_matches",
+        lambda: calls.append("fetch upcoming") or {"data": {"segments": [1]}},
+    )
+    monkeypatch.setattr(
+        cli, "_materialize_upcoming",
+        lambda data: (
+            calls.append("predict upcoming") or pd.DataFrame([{"match_id": 1}]),
+            tmp_path / "upcoming_tier1.parquet",
+        ),
+    )
+
+    cli.main()
+
+    assert calls == [
+        "fetch results", "load results", "fetch upcoming", "predict upcoming",
+    ]
+    assert "retained 1 Tier-1" in capsys.readouterr().out
+
+
 def test_prediction_prints_cached_match(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(config, "PROCESSED_DIR", tmp_path)
     monkeypatch.setattr(sys, "argv", ["vct", "prediction", "698904"])
@@ -50,6 +83,31 @@ def test_prediction_prints_cached_match(monkeypatch, tmp_path, capsys):
     assert "Paper Rex: 87.7%" in output
     assert "Exact score (Bo3):" in output
     assert "Expected maps:" in output
+
+
+def test_prediction_falls_back_to_direct_match_details(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(config, "PROCESSED_DIR", tmp_path)
+    monkeypatch.setattr(sys, "argv", ["vct", "prediction", "706376"])
+    from vct_quant.ingest import vlrgg
+
+    monkeypatch.setattr(vlrgg, "fetch_match_details", lambda match_id: {"id": match_id})
+    monkeypatch.setattr(cli, "_predict_match_details", lambda data: pd.DataFrame([{
+        "match_id": 706376,
+        "event_name": "VCT 2026: Americas Stage 2",
+        "event_series": "Group Stage: Week 4",
+        "best_of": 3,
+        "team_a_name": "KRÜ Esports",
+        "team_b_name": "Sentinels",
+        "p_team_a_win": 0.4,
+        "p_team_b_win": 0.6,
+        "scheduled_at": "Saturday, August 8 5:00 PM EDT",
+        "ratings_through_match_id": 712823,
+        "vlr_url": "https://www.vlr.gg/706376",
+    }]))
+
+    cli.main()
+
+    assert "KRÜ Esports: 40.0%" in capsys.readouterr().out
 
 
 def test_predictions_emits_json(monkeypatch, tmp_path, capsys):

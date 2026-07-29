@@ -16,6 +16,14 @@ def _materialize_upcoming(data):
     return fixtures, path
 
 
+def _predict_match_details(data):
+    from .etl.normalize import official_match_details
+    from .features.build import predict_upcoming
+
+    fixture = official_match_details(data)
+    return predict_upcoming(fixture) if not fixture.empty else fixture
+
+
 def _print_predictions(fixtures) -> None:
     display = fixtures[[
         "match_id", "scheduled_at", "event_name", "team_a_name",
@@ -33,6 +41,7 @@ def main() -> None:
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("init-db", help="Create the DuckDB database from sql/schema.sql")
+    sub.add_parser("update", help="Refresh results, ratings, fixtures, and predictions")
     p = sub.add_parser("ingest-vlrgg", help="Fetch from vlrggapi into data/raw/vlrgg")
     p.add_argument(
         "--what", choices=["results", "upcoming"], default="results",
@@ -43,9 +52,16 @@ def main() -> None:
     sub.add_parser("load-kaggle", help="Load Kaggle CSVs into the canonical tables")
     sub.add_parser("load-vlrgg", help="Merge the vlrggapi event harvest into match/match_team")
     sub.add_parser("load-vlrgg-details", help="Load harvested maps and player stats")
-    p = sub.add_parser("prediction", help="Predict one upcoming official Tier-1 match")
+    p = sub.add_parser(
+        "predict", aliases=["prediction"],
+        help="Predict one upcoming official Tier-1 match",
+    )
     p.add_argument("match_id", type=int, help="Numeric vlr.gg match ID")
     p.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
+    p.add_argument(
+        "--maps", nargs="+", metavar="MAP",
+        help="Ordered map picks (three for Bo3, five for Bo5)",
+    )
     p = sub.add_parser("predictions", help="List all upcoming official Tier-1 predictions")
     p.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
     p = sub.add_parser("ranking", help="Rank current VCT teams by Elo")
@@ -59,6 +75,22 @@ def main() -> None:
 
         db.init_db()
         print(f"Initialized {db.DB_PATH}")
+    elif args.cmd == "update":
+        from .etl import normalize
+        from .ingest import vlrgg
+
+        results = vlrgg.fetch_match_results()
+        result_count = len(results.get("data", {}).get("segments", []))
+        print(f"Fetched {result_count} recent results")
+        print(normalize.load_vlrgg_match_results())
+
+        upcoming = vlrgg.fetch_upcoming_matches()
+        fixtures, path = _materialize_upcoming(upcoming)
+        upcoming_count = len(upcoming.get("data", {}).get("segments", []))
+        print(
+            f"Fetched {upcoming_count} upcoming entries; retained "
+            f"{len(fixtures)} Tier-1 -> {path}"
+        )
     elif args.cmd == "ingest-vlrgg":
         from .ingest import vlrgg
 
@@ -95,7 +127,7 @@ def main() -> None:
         from .etl import normalize
 
         print(normalize.load_vlrgg_match_details())
-    elif args.cmd == "prediction":
+    elif args.cmd in ("predict", "prediction"):
         import pandas as pd
 
         from .config import PROCESSED_DIR
@@ -108,16 +140,20 @@ def main() -> None:
         if found.empty:
             from .ingest import vlrgg
 
-            fixtures, _ = _materialize_upcoming(vlrgg.fetch_upcoming_matches())
-            found = fixtures[fixtures.match_id.eq(args.match_id)]
+            found = _predict_match_details(vlrgg.fetch_match_details(args.match_id))
         if found.empty:
             parser.error(
-                f"{args.match_id} is not in the current official Tier-1 upcoming feed"
+                f"{args.match_id} is not an upcoming official Tier-1 match"
             )
 
-        from .features.build import add_score_predictions
+        from .features.build import add_map_predictions, add_score_predictions
 
         found = add_score_predictions(found)
+        if args.maps:
+            try:
+                found = add_map_predictions(found, args.maps)
+            except ValueError as exc:
+                parser.error(str(exc))
         match = found.iloc[0]
         if args.json:
             print(match.to_json(date_format="iso"))
@@ -125,6 +161,16 @@ def main() -> None:
             print(f"{match.event_name} — {match.event_series}")
             print(f"{match.team_a_name}: {match.p_team_a_win:.1%}")
             print(f"{match.team_b_name}: {match.p_team_b_win:.1%}")
+            if args.maps:
+                print("Maps:")
+                for map_prediction in match.map_predictions:
+                    print(
+                        f"  {map_prediction['map'].title()}: "
+                        f"{match.team_a_name} {map_prediction['p_team_a_win']:.1%} | "
+                        f"{match.team_b_name} {map_prediction['p_team_b_win']:.1%} "
+                        f"(history {map_prediction['team_a_map_matches']}/"
+                        f"{map_prediction['team_b_map_matches']})"
+                    )
             print(f"Exact score (Bo{match.best_of}):")
             for score, probability in match.score_probabilities.items():
                 a_maps, b_maps = map(int, score.split("-"))

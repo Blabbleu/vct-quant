@@ -18,6 +18,8 @@ from .ratings import (
     DEFAULT_BASE,
     compute_elo,
     expected_score,
+    implied_map_probability,
+    map_score_probabilities,
     series_score_probabilities,
 )
 
@@ -299,7 +301,10 @@ def predict_upcoming(
     return add_score_predictions(out)
 
 
-def add_score_predictions(fixtures: pd.DataFrame) -> pd.DataFrame:
+def add_score_predictions(
+    fixtures: pd.DataFrame,
+    distributions: list[dict[str, float]] | None = None,
+) -> pd.DataFrame:
     """Attach exact score, sweep, and map-count forecasts to series forecasts."""
     out = fixtures.copy()
     if "best_of" not in out:
@@ -312,7 +317,7 @@ def add_score_predictions(fixtures: pd.DataFrame) -> pd.DataFrame:
         out["best_of"] = series.str.contains(
             "grand final", case=False, na=False
         ).map({True: 5, False: 3})
-    distributions = [
+    distributions = distributions or [
         series_score_probabilities(float(probability), int(best_of))
         for probability, best_of in zip(out.p_team_a_win, out.best_of)
     ]
@@ -344,6 +349,45 @@ def add_score_predictions(fixtures: pd.DataFrame) -> pd.DataFrame:
         for scores in distributions
     ]
     return out
+
+
+def add_map_predictions(
+    fixtures: pd.DataFrame,
+    maps: list[str],
+    history: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    """Condition one fixture on an explicitly supplied ordered map pool."""
+    if len(fixtures) != 1:
+        raise ValueError("map picks can only be applied to one match")
+    out = add_score_predictions(fixtures)
+    best_of = int(out.best_of.iloc[0])
+    if len(maps) != best_of:
+        raise ValueError(f"Bo{best_of} requires exactly {best_of} maps")
+
+    from .maps import map_probabilities, map_sequence
+
+    match = out.iloc[0]
+    forecasts = map_probabilities(
+        map_sequence() if history is None else history,
+        str(match.team_a_key),
+        str(match.team_b_key),
+        maps,
+        implied_map_probability(float(match.p_team_a_win), best_of),
+    )
+    distribution = map_score_probabilities([
+        forecast["p_team_a_win"] for forecast in forecasts
+    ])
+    p_team_a_win = sum(
+        probability
+        for score, probability in distribution.items()
+        if int(score.split("-")[0]) > int(score.split("-")[1])
+    )
+    out["p_team_a_win_unconditional"] = out.p_team_a_win
+    out["p_team_b_win_unconditional"] = out.p_team_b_win
+    out["p_team_a_win"] = p_team_a_win
+    out["p_team_b_win"] = 1 - p_team_a_win
+    out["map_predictions"] = [forecasts]
+    return add_score_predictions(out, [distribution])
 
 
 def current_rankings(history: pd.DataFrame | None = None) -> pd.DataFrame:

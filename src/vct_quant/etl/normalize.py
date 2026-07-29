@@ -581,6 +581,55 @@ def official_upcoming(
     return out.dropna(subset=["match_id", "scheduled_at"]).reset_index(drop=True)
 
 
+def official_match_details(payload: dict) -> pd.DataFrame:
+    """Normalize one upcoming Tier-1 match-details payload as a fixture."""
+    segments = payload.get("data", {}).get("segments", [])
+    if not segments:
+        return pd.DataFrame()
+    match = segments[0]
+    event = match.get("event", {})
+    series = str(event.get("series", ""))
+    event_name = str(event.get("name", ""))
+    if series and event_name.endswith(series):
+        event_name = event_name[:-len(series)].strip()
+    year = pd.to_numeric(
+        pd.Series(event_name).str.extract(r"(20\d{2})", expand=False),
+        errors="coerce",
+    ).iloc[0]
+    teams = match.get("teams", [])
+    if competition_tier(event_name, int(year) if pd.notna(year) else None) != 1:
+        return pd.DataFrame()
+    if len(teams) != 2 or any(str(team.get("score", "")).strip() for team in teams):
+        return pd.DataFrame()
+
+    match_id = int(match["match_id"])
+    maps = match.get("maps", [])
+    best_of = len(maps) if len(maps) in (1, 3, 5) else (
+        5 if "grand final" in series.lower() else 3
+    )
+    keys = [
+        str(team["id"]) if str(team.get("id", "")).isdigit()
+        else f"name:{normalize_name(team.get('name', ''))}"
+        for team in teams
+    ]
+    return pd.DataFrame([{
+        "match_id": match_id,
+        "scheduled_at": match.get("date"),
+        "event_id": pd.NA,
+        "event_name": event_name,
+        "event_series": series,
+        "best_of": best_of,
+        "team_a_id": _int(pd.Series([teams[0].get("id")])).iloc[0],
+        "team_a_key": keys[0],
+        "team_a_name": teams[0].get("name"),
+        "team_b_id": _int(pd.Series([teams[1].get("id")])).iloc[0],
+        "team_b_key": keys[1],
+        "team_b_name": teams[1].get("name"),
+        "vlr_url": f"https://www.vlr.gg/{match_id}",
+        "time_until_match": match.get("status"),
+    }])
+
+
 def _upsert_vlrgg_events(
     con: duckdb.DuckDBPyConnection, events: pd.DataFrame, report: LoadReport
 ) -> None:

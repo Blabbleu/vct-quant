@@ -27,18 +27,15 @@ def update(
     return rating_a + delta, rating_b - delta
 
 
-def series_score_probabilities(
-    p_series_a: float, best_of: int = 3
-) -> dict[str, float]:
-    """Exact score probabilities consistent with a series-win probability."""
+def implied_map_probability(p_series_a: float, best_of: int = 3) -> float:
+    """Map probability whose independent best-of win chance is p_series_a."""
     if not 0.0 <= p_series_a <= 1.0:
         raise ValueError("p_series_a must be between 0 and 1")
     if best_of <= 0 or best_of % 2 == 0:
         raise ValueError("best_of must be a positive odd number")
 
-    wins = best_of // 2 + 1
-
     def p_series(p_map: float) -> float:
+        wins = best_of // 2 + 1
         return sum(
             comb(wins + losses - 1, losses)
             * p_map**wins
@@ -53,20 +50,46 @@ def series_score_probabilities(
             low = mid
         else:
             high = mid
-    p_map = (low + high) / 2
-    out = {
-        f"{wins}-{losses}": comb(wins + losses - 1, losses)
-        * p_map**wins
-        * (1 - p_map) ** losses
-        for losses in range(wins)
-    }
-    out.update({
-        f"{losses}-{wins}": comb(wins + losses - 1, losses)
-        * (1 - p_map) ** wins
-        * p_map**losses
-        for losses in range(wins)
-    })
-    return out
+    return (low + high) / 2
+
+
+def series_score_probabilities(
+    p_series_a: float, best_of: int = 3
+) -> dict[str, float]:
+    """Exact score probabilities consistent with a series-win probability."""
+    p_map = implied_map_probability(p_series_a, best_of)
+    return map_score_probabilities([p_map] * best_of)
+
+
+def map_score_probabilities(p_maps_a: Iterable[float]) -> dict[str, float]:
+    """Exact score probabilities for an ordered Bo3/Bo5 map pool."""
+    probabilities = list(p_maps_a)
+    if not probabilities or len(probabilities) % 2 == 0:
+        raise ValueError("map probabilities must describe a positive odd best-of")
+    if any(not 0.0 <= probability <= 1.0 for probability in probabilities):
+        raise ValueError("map probabilities must be between 0 and 1")
+
+    wins = len(probabilities) // 2 + 1
+    active = {(0, 0): 1.0}
+    outcomes: dict[str, float] = {}
+    for p_map in probabilities:
+        following: dict[tuple[int, int], float] = {}
+        for (maps_a, maps_b), probability in active.items():
+            for score, branch in (
+                ((maps_a + 1, maps_b), probability * p_map),
+                ((maps_a, maps_b + 1), probability * (1 - p_map)),
+            ):
+                if wins in score:
+                    key = f"{score[0]}-{score[1]}"
+                    outcomes[key] = outcomes.get(key, 0.0) + branch
+                else:
+                    following[score] = following.get(score, 0.0) + branch
+        active = following
+    order = [
+        *(f"{wins}-{losses}" for losses in range(wins)),
+        *(f"{losses}-{wins}" for losses in range(wins)),
+    ]
+    return {score: outcomes[score] for score in order}
 
 
 def compute_elo(
