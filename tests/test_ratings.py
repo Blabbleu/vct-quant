@@ -63,3 +63,26 @@ def test_known_maps_produce_non_identical_score_probabilities():
     assert abs(scores["2-1"] - 0.368) < 1e-12
     assert abs(scores["0-2"] - 0.12) < 1e-12
     assert abs(scores["1-2"] - 0.092) < 1e-12
+
+
+def test_calibration_shrink_and_fit():
+    import importlib.util
+    from pathlib import Path
+
+    import numpy as np
+
+    path = Path(__file__).parents[1] / "scripts" / "benchmark_calibration.py"
+    spec = importlib.util.spec_from_file_location("benchmark_calibration", path)
+    cal = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cal)
+
+    p = np.array([0.2, 0.5, 0.8])
+    assert np.allclose(cal.shrink(p, 1.0), p)  # a=1 changes nothing
+    assert np.allclose(cal.shrink(p, 0.0), 0.5)  # a=0 is a coin flip
+    assert cal.shrink(p, 0.5)[2] < 0.8  # a<1 pulls toward 50%
+
+    rng = np.random.default_rng(0)
+    p = rng.uniform(0.05, 0.95, 20_000)
+    y = (rng.uniform(size=p.size) < p).astype(float)  # perfectly calibrated
+    assert abs(cal.fit_a(y, p) - 1.0) < 0.1
+    assert cal.fit_a(y, cal.shrink(p, 2.0)) < 0.6  # overconfident input -> shrink it
