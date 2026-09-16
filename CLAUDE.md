@@ -19,6 +19,7 @@ CLI (`vct`, defined in `cli.py`):
 | `vct download-kaggle` | Download/unzip the historical corpus (~1.3 GB, 131 CSVs). |
 | `vct inspect-kaggle` | Print every Kaggle CSV with its columns. Run this before writing any loader. |
 | `vct load-kaggle` | Kaggle CSVs → canonical tables. Idempotent (clears first); prints a `LoadReport` of inserts and unresolved rows. |
+| `vct update` | Matchday refresh: newest official event match lists → `load-vlrgg` → upcoming forecasts, appended to `data/processed/prediction_log.parquet`. Grade with `python scripts/grade_predictions.py`. |
 | `vct ingest-vlrgg [--what results\|upcoming]` | Fetch live feed → raw; upcoming also writes official Tier-1 fixtures and Elo probabilities to `data/processed/upcoming_tier1.parquet`. |
 | `vct prediction MATCH_ID [--json]` | Print one cached upcoming Tier-1 prediction; refresh the upcoming feed once on a cache miss. |
 | `vct predictions [--json]` | Print every cached upcoming Tier-1 forecast; fetch once if the cache is absent. |

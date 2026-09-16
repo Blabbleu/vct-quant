@@ -33,8 +33,15 @@ def test_update_refreshes_results_before_predictions(monkeypatch, tmp_path, caps
     calls = []
     monkeypatch.setattr(sys, "argv", ["vct", "update"])
     monkeypatch.setattr(
-        vlrgg, "fetch_match_results",
-        lambda: calls.append("fetch results") or {"data": {"segments": [1, 2]}},
+        vlrgg, "fetch_events",
+        lambda page: calls.append("fetch events") or {"data": {"segments": [
+            {"event_id": 1, "title": "Valorant Champions 2026"},
+            {"event_id": 2, "title": "Red Bull Home Ground"},
+        ]}},
+    )
+    monkeypatch.setattr(
+        vlrgg, "fetch_event_matches",
+        lambda event_id: calls.append(f"fetch event {event_id}") or {},
     )
     monkeypatch.setattr(
         normalize, "load_vlrgg_match_results",
@@ -55,7 +62,7 @@ def test_update_refreshes_results_before_predictions(monkeypatch, tmp_path, caps
     cli.main()
 
     assert calls == [
-        "fetch results", "load results", "fetch upcoming", "predict upcoming",
+        "fetch events", "fetch event 1", "load results", "fetch upcoming", "predict upcoming",
     ]
     assert "retained 1 Tier-1" in capsys.readouterr().out
 

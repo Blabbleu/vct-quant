@@ -103,11 +103,17 @@ def main() -> None:
         print(f"Initialized {db.DB_PATH}")
     elif args.cmd == "update":
         from .etl import normalize
+        from .etl.events import competition_tier
         from .ingest import vlrgg
 
-        results = vlrgg.fetch_match_results()
-        result_count = len(results.get("data", {}).get("segments", []))
-        print(f"Fetched {result_count} recent results")
+        # The loader reads event match lists, not the ~50-row results feed.
+        # ponytail: newest listing page only; after a long gap run
+        # scripts/backfill_vlrgg.py --pages 3 --force first.
+        events = vlrgg.fetch_events(1).get("data", {}).get("segments", [])
+        official = [e for e in events if competition_tier(e["title"]) is not None]
+        for event in official:
+            vlrgg.fetch_event_matches(event["event_id"])
+        print(f"Refreshed {len(official)} recent official events")
         print(normalize.load_vlrgg_match_results())
 
         upcoming = vlrgg.fetch_upcoming_matches()
