@@ -123,7 +123,8 @@ coming from Tier 2.
 
 Remaining candidates, roughly by expected value:
 
-* Map-level Elo (a separate rating per map — `match_map` is loaded and unused).
+* ~~Map-level Elo~~ — tried; did not beat global Elo significantly. Kept only as a
+  conservative adjustment when a veto is known (`features/maps.py`).
 * Team map win rates and pick/ban tendencies (`agents/`, `matches/draft_phase.csv`).
 * Rolling player form from `match_map_player_stat` (rating, ACS, KAST over last N maps).
 * Head-to-head record.
