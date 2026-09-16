@@ -29,6 +29,11 @@ from vct_quant.features.glicko import compute_glicko
 from vct_quant.features.ratings import compute_elo
 
 TUNE_YEAR, TEST_YEAR = 2024, 2025
+# Final holdout. 2025 was consulted while choosing between variants, so the
+# choice below was locked on 2026-09-16 BEFORE 2026 was ever scored. Never tune
+# on 2026 or change LOCKED after seeing its result.
+FINAL_YEAR = 2026
+LOCKED = {"season_c": 100, "roster_c": 100, "initial_rd": 75}
 # c (per-match widening) is fixed at 0: every earlier sweep picked it.
 INITIAL_RD = [75, 100, 150]
 VARIANTS = {
@@ -67,7 +72,7 @@ def main() -> None:
     t1 = df[tier1]
     y = df.score_a.to_numpy()
     scored = tier1 & (y != 0.5)
-    masks = {year: scored & df.year.eq(year).to_numpy() for year in (TUNE_YEAR, TEST_YEAR)}
+    masks = {year: scored & df.year.eq(year).to_numpy() for year in (TUNE_YEAR, TEST_YEAR, FINAL_YEAR)}
 
     def run(params) -> np.ndarray:
         rows = compute_glicko(
@@ -89,8 +94,13 @@ def main() -> None:
         loss, best = min(results, key=lambda r: r[0])
         print(f"\n[{name}] best on {TUNE_YEAR}: {loss:.4f}  {best}")
         p = run(best)
-        for year, m in masks.items():
+        for year in (TUNE_YEAR, TEST_YEAR):
+            m = masks[year]
             compare(f"  {year}", y[m], elo.p_a_win.to_numpy()[m], p[m])
+
+    m = masks[FINAL_YEAR]
+    print(f"\n[locked {LOCKED}] final holdout")
+    compare(f"  {FINAL_YEAR}", y[m], elo.p_a_win.to_numpy()[m], run(LOCKED)[m])
 
 
 if __name__ == "__main__":

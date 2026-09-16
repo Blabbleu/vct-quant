@@ -250,9 +250,16 @@ RD; the small gain came from widening RD at season boundaries instead.
 
 Roster-triggered RD widening (`roster_c * churn`, churn = new share of the
 lineup) was then tested as the real cause of the season effect. On 2025:
-season-only 0.6462 (`t = +0.51`), roster-only 0.6453 (`t = +0.55`), both
-**0.6429** (`t = +1.24`). Roster turnover explains the season gain at least as
+season-only 0.6462 (`t = +0.51`), roster-only 0.6452 (`t = +0.57`), both
+**0.6428** (`t = +1.27`). Roster turnover explains the season gain at least as
 well as the calendar does, but no variant clears significance, and every best
 setting sat at a grid edge. 2025 has now been consulted repeatedly, so it is
-no longer a clean holdout: confirm any future choice on 2026 instead. For the product slice, ingest upcoming official Tier-1
+no longer a clean holdout. The combined setting was therefore locked
+(`season_c=100, roster_c=100, initial_rd=75`) and scored once on untouched 2026
+Tier-1: **0.6713 vs Elo 0.6739, `t = +0.61`**. Rejected; raw Elo stays.
+
+Both models score noticeably worse on 2026 (Elo 0.6739) than on 2025 (0.6485),
+not far from a coin flip (0.6931). Unexplained so far; worth investigating
+before any further model work. Every year up to 2026 has now been used for
+selection -- the live prediction log is the only clean test left. For the product slice, ingest upcoming official Tier-1
 matches, resolve their teams, replay ratings, and emit raw Elo probabilities.
