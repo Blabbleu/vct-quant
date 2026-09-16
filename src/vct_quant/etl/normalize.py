@@ -857,13 +857,12 @@ def load_vlrgg_match_details(
     try:
         details = _vlrgg_match_details()
         known = {row[0] for row in con.execute("SELECT match_id FROM match").fetchall()}
+        # Any existing map row counts as loaded: Kaggle can load a match's maps
+        # without player rows, and re-inserting those maps breaks the unique
+        # (match_id, map_number) key.
         loaded = {
             row[0]
-            for row in con.execute("""
-                SELECT DISTINCT mm.match_id
-                FROM match_map mm
-                JOIN match_map_player_stat s USING (match_map_id)
-            """).fetchall()
+            for row in con.execute("SELECT DISTINCT match_id FROM match_map").fetchall()
         }
         report.drop(
             "details whose match is absent",

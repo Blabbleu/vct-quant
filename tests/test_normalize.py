@@ -77,3 +77,29 @@ def test_vlrgg_match_keeps_its_event_id_and_title(tmp_path, monkeypatch):
     assert matches.iloc[0][["event_id", "event_name", "event_series"]].tolist() == [
         42, "VCT 2026: Americas Stage 2", "Grand Final",
     ]
+
+
+def test_match_details_skip_matches_whose_maps_already_exist(tmp_path, monkeypatch):
+    # Kaggle can load a match's maps without any player rows. A detail payload
+    # for that match must not re-insert the maps (duplicate map_number).
+    import duckdb
+
+    from vct_quant import db
+
+    monkeypatch.setattr(normalize, "RAW_VLRGG_DIR", tmp_path)
+    con = duckdb.connect()
+    db.init_db(con)
+    con.execute("INSERT INTO match (match_id, status) VALUES (10267, 'completed')")
+    con.execute("INSERT INTO match_map (match_id, map_number, map_name) VALUES (10267, 1, 'Bind')")
+    (tmp_path / "match_details_10267_test.json").write_text(json.dumps({"data": {
+        "match_id": "10267",
+        "maps": [{
+            "map_name": "Bind",
+            "score": {"team1": 13, "team2": 3},
+            "players": {"team1": [{"name": "p1", "kills": "20"}], "team2": []},
+        }],
+    }}))
+
+    normalize.load_vlrgg_match_details(con)
+
+    assert con.execute("SELECT count(*) FROM match_map").fetchone() == (1,)
