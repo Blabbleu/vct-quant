@@ -158,7 +158,9 @@ Glicko-1 (per-team rating uncertainty) was also rejected. Tuned on 2024 and
 tested on 2025 Tier-1, it scored **0.6462** versus raw Elo's **0.6485**
 (`t = +0.51`). The best starting RD was the lowest tried, so uncertainty for
 new teams did not help; the small gain came from season-boundary RD widening.
-Reproduce with `python scripts/benchmark_glicko.py`.
+Reproduce with `python scripts/benchmark_glicko.py`. Widening RD by
+roster churn instead of (or as well as) the calendar did no better: the combined
+variant scored 0.6429 on 2025 (`t = +1.24`).
 
 ## Phase 6 — Forward prediction — next
 

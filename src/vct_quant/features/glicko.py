@@ -105,10 +105,7 @@ def compute_glicko(
             rd2 = rd**2 + c**2
             if team in last_year and year != last_year[team]:
                 rd2 += season_c**2
-            # TODO (you): grow rd2 by roster turnover, in the same style as the
-            # season_c line above: add the square of (roster_c times team_churn).
-            # Why squared? Independent sources of uncertainty add as variances
-            # (rd**2), never as standard deviations (rd).
+            rd2 += (roster_c * team_churn) ** 2
             last_year[team] = year
             pre.append((r, min(sqrt(rd2), MAX_RD)))
         (ra, rda), (rb, rdb) = pre

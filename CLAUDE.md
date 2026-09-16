@@ -246,5 +246,13 @@ production baseline.
 Elo's **0.6485** (`t = +0.51`). A narrower grid scored worse on 2024 but better
 on 2025 (0.6424, `t = +1.85`): extra tuning overfit the tuning year. The winning
 settings contradict the motivation -- new teams did best with a *low* starting
-RD; the small gain came from widening RD at season boundaries instead. For the product slice, ingest upcoming official Tier-1
+RD; the small gain came from widening RD at season boundaries instead.
+
+Roster-triggered RD widening (`roster_c * churn`, churn = new share of the
+lineup) was then tested as the real cause of the season effect. On 2025:
+season-only 0.6462 (`t = +0.51`), roster-only 0.6453 (`t = +0.55`), both
+**0.6429** (`t = +1.24`). Roster turnover explains the season gain at least as
+well as the calendar does, but no variant clears significance, and every best
+setting sat at a grid edge. 2025 has now been consulted repeatedly, so it is
+no longer a clean holdout: confirm any future choice on 2026 instead. For the product slice, ingest upcoming official Tier-1
 matches, resolve their teams, replay ratings, and emit raw Elo probabilities.

@@ -3,12 +3,15 @@
     python scripts/benchmark_glicko.py
 
 Protocol -- this is the lesson, not the plumbing:
-* Tune Glicko's knobs (c, season_c, initial_rd) on 2024 ONLY.
-* Report the single best setting on 2025, which tuning never looked at. Picking
-  the best of 48 settings on a set always flatters that set; the 2025 number is
-  the honest one.
+* Tune each variant's knobs on 2024 ONLY.
+* Report each variant's single best setting on 2025, which tuning never looked
+  at. Picking the best of many settings on a set always flatters that set; the
+  2025 number is the honest one.
 * Compare with a PAIRED t-test: both models score the same matches, so test the
   per-match loss difference, not the two aggregate numbers.
+
+Variants ask what the RD widening is really tracking: the calendar (season_c),
+lineup turnover (roster_c, from pre-match roster churn), or both.
 
 Elo is the production baseline: map-share signal, K=48, Tier-2 weight 0. Glicko
 gets the same signal and also ignores Tier-2 results.
@@ -20,12 +23,19 @@ from itertools import product
 import numpy as np
 import pandas as pd
 
-from vct_quant.features.build import elo_k, margin_signal, match_sequence
+from vct_quant import db
+from vct_quant.features.build import _roster_churn, elo_k, margin_signal, match_sequence
 from vct_quant.features.glicko import compute_glicko
 from vct_quant.features.ratings import compute_elo
 
 TUNE_YEAR, TEST_YEAR = 2024, 2025
-GRID = {"c": [0, 10, 25], "season_c": [50, 100, 150, 200], "initial_rd": [75, 100, 150, 250]}
+# c (per-match widening) is fixed at 0: every earlier sweep picked it.
+INITIAL_RD = [75, 100, 150]
+VARIANTS = {
+    "season": {"season_c": [50, 100, 150], "roster_c": [0]},
+    "roster": {"season_c": [0], "roster_c": [100, 200, 300]},
+    "both": {"season_c": [50, 100, 150], "roster_c": [100, 200, 300]},
+}
 
 
 def per_match_loss(y: np.ndarray, p: np.ndarray) -> np.ndarray:
@@ -42,7 +52,12 @@ def compare(label: str, y, p_elo, p_glicko) -> None:
 
 
 def main() -> None:
-    df = match_sequence()
+    con = db.connect(read_only=True)
+    try:
+        df = match_sequence(con)
+        churn = _roster_churn(df, con)  # over both tiers, as the feature matrix does
+    finally:
+        con.close()
     signal = margin_signal(df).to_numpy()
     elo = pd.DataFrame(compute_elo(
         zip(df.match_id, df.team_a, df.team_b, signal), k=elo_k(df.tier)
@@ -56,28 +71,26 @@ def main() -> None:
 
     def run(params) -> np.ndarray:
         rows = compute_glicko(
-            zip(t1.match_id, t1.year, t1.team_a, t1.team_b, signal[tier1]), **params
+            zip(t1.match_id, t1.year, t1.team_a, t1.team_b, signal[tier1]),
+            churn=zip(churn.churn_a[tier1], churn.churn_b[tier1]),
+            **params,
         )[0]
         p = np.full(len(df), np.nan)
         p[tier1] = [row["p_a_win"] for row in rows]
         return p
 
-    results = []
-    for values in product(*GRID.values()):
-        params = dict(zip(GRID, values))
-        p = run(params)
-        m = masks[TUNE_YEAR]
-        results.append((per_match_loss(y[m], p[m]).mean(), params))
-    results.sort(key=lambda r: r[0])
-    print(f"top settings on {TUNE_YEAR}:")
-    for loss, params in results[:5]:
-        print(f"  {loss:.4f}  {params}")
-
-    best = results[0][1]
-    p = run(best)
-    print(f"\nbest = {best}")
-    for year, m in masks.items():
-        compare(str(year), y[m], elo.p_a_win.to_numpy()[m], p[m])
+    for name, grid in VARIANTS.items():
+        grid = {**grid, "initial_rd": INITIAL_RD}
+        results = []
+        for values in product(*grid.values()):
+            params = dict(zip(grid, values))
+            m = masks[TUNE_YEAR]
+            results.append((per_match_loss(y[m], run(params)[m]).mean(), params))
+        loss, best = min(results, key=lambda r: r[0])
+        print(f"\n[{name}] best on {TUNE_YEAR}: {loss:.4f}  {best}")
+        p = run(best)
+        for year, m in masks.items():
+            compare(f"  {year}", y[m], elo.p_a_win.to_numpy()[m], p[m])
 
 
 if __name__ == "__main__":
