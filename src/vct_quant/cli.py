@@ -13,7 +13,27 @@ def _materialize_upcoming(data):
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
     path = PROCESSED_DIR / "upcoming_tier1.parquet"
     fixtures.to_parquet(path, index=False)
+    _log_predictions(fixtures, PROCESSED_DIR / "prediction_log.parquet")
     return fixtures, path
+
+
+def _log_predictions(fixtures, path) -> None:
+    """Append forecasts so they can be scored after the matches are played.
+
+    The upcoming cache is overwritten on every refresh; this log is not. TBD
+    pairings carry a placeholder 50/50 and are skipped. Grading must use the
+    last row per match with predicted_at before scheduled_at.
+    """
+    import pandas as pd
+
+    known = fixtures[fixtures.team_a_name.ne("TBD") & fixtures.team_b_name.ne("TBD")]
+    if known.empty:
+        return
+    rows = known.drop(columns=["score_probabilities", "time_until_match"], errors="ignore")
+    rows.insert(0, "predicted_at", pd.Timestamp.now(tz="UTC"))
+    if path.exists():
+        rows = pd.concat([pd.read_parquet(path), rows], ignore_index=True)
+    rows.to_parquet(path, index=False)
 
 
 def _predict_match_details(data):

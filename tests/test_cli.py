@@ -174,3 +174,20 @@ def test_ranking_respects_top_and_emits_json(monkeypatch, capsys):
     cli.main()
 
     assert [row["team_name"] for row in json.loads(capsys.readouterr().out)] == ["Alpha"]
+
+
+def test_log_predictions_appends_known_pairings(tmp_path):
+    path = tmp_path / "prediction_log.parquet"
+    fixtures = pd.DataFrame([
+        {"match_id": 1, "team_a_name": "G2 Esports", "team_b_name": "TYLOO",
+         "p_team_a_win": 0.68, "score_probabilities": {"2-0": 0.4}},
+        {"match_id": 2, "team_a_name": "TBD", "team_b_name": "TBD",
+         "p_team_a_win": 0.5, "score_probabilities": {"2-0": 0.25}},
+    ])
+
+    cli._log_predictions(fixtures, path)
+    cli._log_predictions(fixtures, path)
+
+    log = pd.read_parquet(path)
+    assert log.match_id.tolist() == [1, 1]
+    assert "predicted_at" in log.columns
