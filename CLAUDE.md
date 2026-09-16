@@ -76,7 +76,7 @@ original, not applied anywhere.
 
 There is **no date or match-time column anywhere in the Kaggle corpus** — only a
 `Year` column in `all_ids/all_matches_games_ids.csv`. The vlrggapi event harvest
-now backfills real dates for 72,342 of 81,875 canonical matches.
+now backfills real dates for 72,507 of 82,040 canonical matches.
 
 **Continue using ascending vlr.gg `Match ID` as the universal ordering key.**
 It covers the undated Kaggle tail and is strongly validated by the backfill:
@@ -103,9 +103,9 @@ or score them as 0.5.
 
 ### Detail coverage differs by source
 
-The event backfill expands canonical match-level coverage to 81,875 matches but
+The event backfill expands canonical match-level coverage to 82,040 matches but
 does not carry map or player rows. The official model scope is much narrower:
-11,948 Tier-1 and 14,864 Tier-2 matches. Player-map stats cover 11,829 Tier-1
+12,108 Tier-1 and 14,869 Tier-2 matches. Player-map stats cover 12,085 Tier-1
 matches and zero backfilled Tier-2 matches.
 
 `etl/events.py::competition_tier` owns the season-aware scope:
@@ -156,16 +156,17 @@ league restructure, they were the primary regional VCT circuit.
 ## Implementation status
 
 Working: both ingest/load paths, event provenance and official tier
-classification, point-in-time Elo and roster churn, the 26,419-row official
+classification, point-in-time Elo and roster churn, the 26,584-row official
 feature matrix, and walk-forward evaluation.
 
-The database is loaded: 81,875 matches (72,342 dated), 27,416 maps, and 272,991
+The database is loaded: 82,040 matches (72,507 dated), 28,556 maps, and 284,371
 player-map stat rows. The vlrggapi load is additive and idempotent: Kaggle rows
 gain dates, while new event matches are inserted with their two teams.
 
 **The current model is raw margin-aware Elo on Tier 1.** It feeds
-`maps_a / (maps_a + maps_b)` at K=48 and scores **0.6525 log loss / 0.2302
-Brier / 61.8% accuracy** over 1,524 walk-forward Tier-1 matches. Reproduce with
+`maps_a / (maps_a + maps_b)` at K=48 and scores **0.6569 log loss / 0.2321
+Brier / 61.5% accuracy** over 1,674 walk-forward Tier-1 matches (data through
+2026-09-16). Reproduce with
 `python scripts/benchmark_elo.py`.
 
 The earlier logistic win was caused by scoring the unrelated broad harvest. On

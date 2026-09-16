@@ -41,8 +41,8 @@ def main() -> int:
 
     y, p = scored.y, scored.p_team_a_win
     print(f"n = {len(scored)}")
-    print(f"log loss {log_loss(y, p):.4f}   (backtest 0.6525, coin flip 0.6931)")
-    print(f"brier    {brier_score(y, p):.4f}   (backtest 0.2302, coin flip 0.2500)")
+    print(f"log loss {log_loss(y, p):.4f}   (backtest 0.6569, coin flip 0.6931)")
+    print(f"brier    {brier_score(y, p):.4f}   (backtest 0.2321, coin flip 0.2500)")
     print(calibration_table(y, p, bins=5).to_string(index=False))
     return 0
 

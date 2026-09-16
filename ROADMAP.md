@@ -72,18 +72,18 @@ primary key. What changed instead:
   and silently produced garbage. Side benefit: every test window holds the same
   number of matches regardless of how clumped the key is.
 
-The vlrggapi event backfill now supplies real dates for 72,342 of 81,875 matches
+The vlrggapi event backfill now supplies real dates for 72,507 of 82,040 matches
 and validates the proxy (`corr(match_id, completed_at) = 0.9956`). Keep match ID
 as the universal ordering key; use `completed_at` for elapsed-time features.
 
 ## Phase 3 — Thin end-to-end slice ✅ done
 
-The canonical database retains all 81,875 harvested matches, but the model
-sequence is restricted to 11,948 official Tier-1 and 14,864 official Tier-2
+The canonical database retains all 82,040 harvested matches, but the model
+sequence is restricted to 12,108 official Tier-1 and 14,869 official Tier-2
 matches. The other 55,063 matches never enter ratings or features.
 
-Margin-aware Elo scores **0.6525 walk-forward log loss / 0.2302 Brier / 61.8%
-accuracy** over 1,524 scored Tier-1 matches in 5 folds (coin flip = 0.6931).
+Margin-aware Elo scores **0.6569 walk-forward log loss / 0.2321 Brier / 61.5%
+accuracy** over 1,674 scored Tier-1 matches in 5 folds (coin flip = 0.6931).
 Reproduce with `python scripts/benchmark_elo.py`.
 
 *Original plan retained below.*
@@ -105,7 +105,7 @@ Elo can't clear that comfortably, something in ETL or ordering is wrong.
 
 ## Phase 4 — Feature engineering ✅ thin matrix done
 
-`features/build.py` now emits 26,419 point-in-time Tier-1/Tier-2 rows with Elo,
+`features/build.py` now emits 26,584 point-in-time Tier-1/Tier-2 rows with Elo,
 prior-match counts, and roster churn to `data/processed/features.parquet`.
 
 **Elo variants are done — see CLAUDE.md for the Kaggle-only experiment.** Margin
@@ -113,7 +113,7 @@ of victory as a fractional score won (0.6487 → 0.6368 walk-forward, K=48). K
 tuning, the rating scale, round-level margin, margin-weighted K, and per-season
 regression were all tried and rejected on a paired significance test.
 
-Player-map statistics cover 11,829 of 11,948 Tier-1 matches. A targeted,
+Player-map statistics cover 12,085 of 12,108 Tier-1 matches. A targeted,
 resumable detail harvest selects 159 unique matches: the final 20 Tier-2
 matches available for nine teams that played Ascension and subsequently
 appeared in Tier 1. Including valid history captured during the initial cohort
@@ -170,8 +170,8 @@ The hosted vlrggapi's HTTP 402 was worked around by self-hosting on
 2026-07-27: `results` (50), `upcoming` (33), `match/details`, and `rankings` all
 return, and all 83 feed rows parse to a match_id.
 
-The historical event harvest and `vct load-vlrgg` are done: 81,875 canonical
-matches, 72,342 with real dates. `vct ingest-vlrgg --what upcoming` now preserves
+The historical event harvest and `vct load-vlrgg` are done: 82,040 canonical
+matches, 72,507 with real dates. `vct ingest-vlrgg --what upcoming` now preserves
 the raw feed and writes only official Tier-1 fixtures to
 `data/processed/upcoming_tier1.parquet`, including canonical team/event IDs and
 stable fallback team keys. It replays the validated margin-aware Elo through
