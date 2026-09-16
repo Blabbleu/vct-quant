@@ -239,5 +239,12 @@ cohort selects 159 unique details; 203 playable Tier-2 matches / 506 maps are
 available including valid history from the initial cohort pass. Leakage-safe
 prior-player form is in the feature matrix. Default histogram gradient boosting
 lost to raw Elo both overall and on the promoted cohort, so raw Elo remains the
-production baseline. For the product slice, ingest upcoming official Tier-1
+production baseline.
+
+**Glicko-1 was rejected** (`scripts/benchmark_glicko.py`). Tuned on 2024 Tier-1
+(best: `c=0, season_c=100, initial_rd=75`), it scored **0.6462** on 2025 versus
+Elo's **0.6485** (`t = +0.51`). A narrower grid scored worse on 2024 but better
+on 2025 (0.6424, `t = +1.85`): extra tuning overfit the tuning year. The winning
+settings contradict the motivation -- new teams did best with a *low* starting
+RD; the small gain came from widening RD at season boundaries instead. For the product slice, ingest upcoming official Tier-1
 matches, resolve their teams, replay ratings, and emit raw Elo probabilities.

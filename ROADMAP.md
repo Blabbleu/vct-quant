@@ -124,8 +124,6 @@ coming from Tier 2.
 Remaining candidates, roughly by expected value:
 
 * Map-level Elo (a separate rating per map — `match_map` is loaded and unused).
-* Glicko instead of Elo: carrying a rating *uncertainty* per team would handle the
-  71 unseen teams in the 2025 holdout and the weaker evidence of a Bo1.
 * Team map win rates and pick/ban tendencies (`agents/`, `matches/draft_phase.csv`).
 * Rolling player form from `match_map_player_stat` (rating, ACS, KAST over last N maps).
 * Head-to-head record.
@@ -154,6 +152,12 @@ leakage-safe player-form features was also rejected. Trained through 2024 and
 tested on 2025, it scored **0.6957 log loss / 0.2447 Brier** versus raw Elo's
 **0.6485 / 0.2286**. On the 105 matches involving an Ascension-promoted team,
 boosting scored **0.5990 / 0.2029** versus Elo's **0.5568 / 0.1881**.
+
+Glicko-1 (per-team rating uncertainty) was also rejected. Tuned on 2024 and
+tested on 2025 Tier-1, it scored **0.6462** versus raw Elo's **0.6485**
+(`t = +0.51`). The best starting RD was the lowest tried, so uncertainty for
+new teams did not help; the small gain came from season-boundary RD widening.
+Reproduce with `python scripts/benchmark_glicko.py`.
 
 ## Phase 6 — Forward prediction — next
 
