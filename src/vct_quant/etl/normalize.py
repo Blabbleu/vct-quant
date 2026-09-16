@@ -847,6 +847,53 @@ def _vlrgg_match_details() -> list[dict]:
     return details
 
 
+def _resolve_team_ids(
+    con: duckdb.DuckDBPyConnection, details: list[dict], report: LoadReport
+) -> None:
+    """Fill NULL match_team.team_id from the IDs that detail payloads carry.
+
+    The event feed has team names only, and vlr.gg names drift from the Kaggle
+    ones ("NRG" vs "NRG Esports", "ENVY" vs "Envy"). Each unresolved name then
+    became its own 1500-rated `name:` entity, splitting a team's history.
+
+    A name is resolved everywhere it appears, not just in matches with details,
+    and only when every payload agrees on one ID for it (`_unambiguous`). Rows
+    that already carry an ID are never changed.
+    """
+    pairs = pd.DataFrame([
+        {"name": team.get("name"), "team_id": int(team["id"])}
+        for detail in details
+        for team in detail.get("teams") or []
+        if str(team.get("id", "")).isdigit() and team.get("name")
+    ])
+    if pairs.empty:
+        return
+    names = _unambiguous(pairs, "name", "team_id")
+    ids = pd.DataFrame({"team_name": list(names), "team_id": list(names.values())})
+    con.register("_ids", ids)
+    try:
+        con.execute("""
+            INSERT INTO team (team_id, name)
+            SELECT team_id, any_value(team_name) FROM _ids
+            WHERE team_id NOT IN (SELECT team_id FROM team)
+            GROUP BY team_id
+        """)
+        (resolved,) = con.execute("""
+            UPDATE match_team SET team_id = _ids.team_id
+            FROM _ids
+            WHERE match_team.team_id IS NULL AND match_team.team_name = _ids.team_name
+              -- UNIQUE (match_id, team_id): never give both sides one ID
+              AND NOT EXISTS (
+                  SELECT 1 FROM match_team other
+                  WHERE other.match_id = match_team.match_id
+                    AND other.team_id = _ids.team_id
+              )
+        """).fetchone()
+    finally:
+        con.unregister("_ids")
+    report.note("team IDs resolved from details", resolved)
+
+
 def load_vlrgg_match_details(
     con: duckdb.DuckDBPyConnection | None = None,
 ) -> LoadReport:
@@ -856,6 +903,7 @@ def load_vlrgg_match_details(
     con = con or connect()
     try:
         details = _vlrgg_match_details()
+        _resolve_team_ids(con, details, report)
         known = {row[0] for row in con.execute("SELECT match_id FROM match").fetchall()}
         # Any existing map row counts as loaded: Kaggle can load a match's maps
         # without player rows, and re-inserting those maps breaks the unique

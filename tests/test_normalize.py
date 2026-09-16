@@ -103,3 +103,34 @@ def test_match_details_skip_matches_whose_maps_already_exist(tmp_path, monkeypat
     normalize.load_vlrgg_match_details(con)
 
     assert con.execute("SELECT count(*) FROM match_map").fetchone() == (1,)
+
+
+def test_match_details_resolve_missing_team_ids(tmp_path, monkeypatch):
+    # The event feed carries names only, so "NRG" never matched "NRG Esports"
+    # and started a separate 1500-rated history. Detail payloads carry IDs.
+    import duckdb
+
+    from vct_quant import db
+
+    monkeypatch.setattr(normalize, "RAW_VLRGG_DIR", tmp_path)
+    con = duckdb.connect()
+    db.init_db(con)
+    con.execute("INSERT INTO team (team_id, name) VALUES (1034, 'NRG Esports')")
+    for match_id in (1, 2):
+        con.execute(f"INSERT INTO match (match_id, status) VALUES ({match_id}, 'completed')")
+        con.execute(f"""INSERT INTO match_team (match_id, team_number, team_id, team_name)
+                        VALUES ({match_id}, 1, NULL, 'NRG'), ({match_id}, 2, NULL, 'LEVIATÁN')""")
+    # Only match 1 has a detail payload; its IDs must also resolve match 2.
+    (tmp_path / "match_details_1_test.json").write_text(json.dumps({"data": {
+        "match_id": "1",
+        "teams": [{"id": "1034", "name": "NRG"}, {"id": "2359", "name": "LEVIATÁN"}],
+        "maps": [],
+    }}))
+
+    normalize.load_vlrgg_match_details(con)
+
+    rows = con.execute(
+        "SELECT match_id, team_name, team_id FROM match_team ORDER BY match_id, team_number"
+    ).fetchall()
+    assert rows == [(1, "NRG", 1034), (1, "LEVIATÁN", 2359), (2, "NRG", 1034), (2, "LEVIATÁN", 2359)]
+    assert con.execute("SELECT name FROM team WHERE team_id = 2359").fetchone() == ("LEVIATÁN",)

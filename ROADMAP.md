@@ -160,8 +160,8 @@ tested on 2025 Tier-1, it scored **0.6462** versus raw Elo's **0.6485**
 new teams did not help; the small gain came from season-boundary RD widening.
 Reproduce with `python scripts/benchmark_glicko.py`. Widening RD by
 roster churn instead of (or as well as) the calendar did no better: the combined
-variant scored 0.6428 on 2025 (`t = +1.27`) and, locked in advance, 0.6713
-versus Elo's 0.6739 on untouched 2026 (`t = +0.61`).
+variant scored 0.6428 on 2025 (`t = +1.27`) and, locked in advance, 0.6670
+versus Elo's 0.6681 on untouched 2026 (`t = +0.26`, after fixing split team IDs).
 
 ## Phase 6 — Forward prediction — next
 
