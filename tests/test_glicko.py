@@ -37,3 +37,14 @@ def test_compute_glicko_is_point_in_time_and_inflates_rd_across_seasons():
     assert plain[1]["rd_a_pre"] < plain[0]["rd_a_pre"]
     assert season[1]["rd_a_pre"] == pytest.approx(plain[1]["rd_a_pre"])  # same year
     assert season[2]["rd_a_pre"] > plain[2]["rd_a_pre"]  # new year widens RD
+
+
+def test_compute_glicko_widens_rd_only_for_the_team_whose_roster_changed():
+    matches = [(1, 2024, "a", "b", 1.0), (2, 2024, "a", "b", 1.0)]
+    churn = [(float("nan"), float("nan")), (1.0, 0.0)]  # a fielded a whole new roster
+    plain, _ = glicko.compute_glicko(matches, churn=churn)
+    roster, _ = glicko.compute_glicko(matches, churn=churn, roster_c=100)
+
+    assert roster[0]["rd_a_pre"] == pytest.approx(plain[0]["rd_a_pre"])  # NaN = no change
+    assert roster[1]["rd_b_pre"] == pytest.approx(plain[1]["rd_b_pre"])  # b kept its roster
+    assert roster[1]["rd_a_pre"] ** 2 == pytest.approx(plain[1]["rd_a_pre"] ** 2 + 100**2)

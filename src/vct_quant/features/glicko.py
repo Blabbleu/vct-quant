@@ -18,7 +18,8 @@ Point-in-time safe like `ratings.compute_elo`: each row carries the ratings
 """
 from __future__ import annotations
 
-from math import log, pi, sqrt
+from itertools import repeat
+from math import isnan, log, pi, sqrt
 from typing import Hashable, Iterable
 
 BASE = 1500.0
@@ -74,6 +75,8 @@ def compute_glicko(
     c: float = 0.0,
     season_c: float = 0.0,
     initial_rd: float = MAX_RD,
+    churn: Iterable[tuple[float, float]] | None = None,
+    roster_c: float = 0.0,
 ) -> tuple[list[dict], dict]:
     """Run Glicko over (match_id, year, team_a, team_b, score_a), chronological.
 
@@ -82,18 +85,30 @@ def compute_glicko(
     first match of a new year arrives (offseason roster turnover). The corpus
     has no reliable dates, so time is counted in matches and years, not days.
 
+    `churn` optionally aligns (churn_a, churn_b) with `matches`: the share of
+    each lineup that is new since that team's previous match (known before the
+    match starts). RD then also grows by `roster_c * churn` -- the hypothesis
+    being that `season_c` only helped as a stand-in for roster turnover. NaN
+    churn (no previous lineup to compare) counts as no change.
+
     Returns (rows, final_state) with state[team] = (rating, rd).
     """
     state: dict = {}
     last_year: dict = {}
     rows: list[dict] = []
-    for match_id, year, team_a, team_b, score_a in matches:
+    churns = repeat((0.0, 0.0)) if churn is None else iter(churn)
+    for (match_id, year, team_a, team_b, score_a), sides in zip(matches, churns):
         pre = []
-        for team in (team_a, team_b):
+        for team, team_churn in zip((team_a, team_b), sides):
+            team_churn = 0.0 if isnan(team_churn) else team_churn
             r, rd = state.get(team, (BASE, initial_rd))
             rd2 = rd**2 + c**2
             if team in last_year and year != last_year[team]:
                 rd2 += season_c**2
+            # TODO (you): grow rd2 by roster turnover, in the same style as the
+            # season_c line above: add the square of (roster_c times team_churn).
+            # Why squared? Independent sources of uncertainty add as variances
+            # (rd**2), never as standard deviations (rd).
             last_year[team] = year
             pre.append((r, min(sqrt(rd2), MAX_RD)))
         (ra, rda), (rb, rdb) = pre
