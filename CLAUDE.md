@@ -26,6 +26,12 @@ CLI (`vct`, defined in `cli.py`):
 | `vct predictions [--json]` | Print every cached upcoming Tier-1 forecast; fetch once if the cache is absent. |
 | `vct load-vlrgg` | Merge harvested event matches into `match` / `match_team`; safe to re-run. |
 
+Dashboard: `python scripts/report.py` renders `data/processed/report.html`, a
+self-contained React page (data embedded as JSON, no server) with fixtures vs
+Polymarket, the walk-forward calibration chart, Elo leaders, live graded forecasts,
+and the experiment ledger. Run it after `vct update`; republish with the Artifact
+tool to refresh https://claude.ai/artifact/EQbyox8ZHiUEHtQbUmxQQj.
+
 Build and benchmark:
 
 ```powershell
