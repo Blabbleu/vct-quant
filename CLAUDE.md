@@ -41,6 +41,8 @@ at `/`, and answers `/api/snapshot`, `/api/fixtures`, `/api/backtest`, `/api/liv
 `/api/rankings`, `/api/ledger`, `/api/health`. **GET only** -- DuckDB is
 single-writer, so ingestion stays a CLI job. Set `PYTHON` to override the
 interpreter, `PORT`/`HOST` to move it. `npm run check` boots it and hits every route.
+**The cache keys on data, not code** -- editing `dashboard.py` needs a server
+restart, while `vct update` is picked up by the page's refresh button.
 
 `frontend/index.html` is the **frontend**: React 18 + Babel from cdnjs, no build
 step. It runs in two modes from one file -- served by `server.js` it fetches

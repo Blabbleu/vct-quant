@@ -206,7 +206,7 @@ def _db_stamp() -> float:
 
 @lru_cache(maxsize=4)
 def _cached(stamp: float) -> dict:
-    rankings = current_rankings().head(12)
+    rankings = current_rankings().head(24)  # the leaderboard and the matchup picker
     return {
         "coverage": coverage(),
         "backtest": official_backtest(),

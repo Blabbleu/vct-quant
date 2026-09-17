@@ -120,6 +120,19 @@
   details { font-size: 13px; color: var(--ink-2); }
   summary { cursor: pointer; color: var(--ink-2); font-size: 12px; }
   #tip { position: fixed; z-index: 5; pointer-events: none; background: var(--ink); color: var(--ground); font-family: var(--mono); font-size: 11px; padding: 5px 8px; border-radius: 5px; transform: translate(-50%, -140%); white-space: nowrap; }
+  .matchup { background: var(--surface); border: 1px solid var(--hairline); border-radius: 10px; box-shadow: var(--shadow); padding: 14px 16px; display: flex; flex-direction: column; gap: 11px; }
+  .picks { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; }
+  .picks select { width: 100%; font: 600 13px var(--sans); color: var(--ink); background: var(--surface-2); border: 1px solid var(--hairline); border-radius: 6px; padding: 6px 8px; }
+  .picks select:focus-visible { outline: 2px solid var(--elo); outline-offset: 1px; }
+  .picks .vs { font-family: var(--mono); font-size: 11px; color: var(--ink-3); text-transform: uppercase; }
+  .odds { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; }
+  .odds .p { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 19px; font-weight: 600; }
+  .odds .p.b { color: var(--ink-2); text-align: right; }
+  .split-bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--surface-2); gap: 2px; }
+  .split-bar i { display: block; }
+  .split-bar i.a { background: var(--elo); }
+  .split-bar i.b { background: var(--ink-3); }
+  .matchup .note { font-size: 12px; }
   .refresh { font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: .04em;
     text-transform: uppercase; color: var(--ink-2); background: var(--surface); cursor: pointer;
     border: 1px solid var(--hairline); border-radius: 5px; padding: 3px 9px; margin-left: 8px; }
@@ -383,6 +396,48 @@ function RankRow({ row: r, top }) {
   );
 }
 
+/* The model's own formula: a 400-point edge is 10:1 odds. */
+const eloWinProbability = (eloA, eloB) => 1 / (1 + Math.pow(10, (eloB - eloA) / 400));
+
+function Matchup({ teams }) {
+  const [a, setA] = useState(0);
+  const [b, setB] = useState(1);
+  if (teams.length < 2) return null;
+  const A = teams[Math.min(a, teams.length - 1)];
+  const B = teams[Math.min(b, teams.length - 1)];
+  const pA = eloWinProbability(A.elo, B.elo);
+  const gap = Math.round(A.elo - B.elo);
+  const thin = Math.min(A.matches, B.matches);
+  const options = teams.map((t, i) => (
+    <option key={t.rank} value={i}>{t.team} · {Math.round(t.elo)}</option>
+  ));
+  return (
+    <div className="matchup">
+      <div className="picks">
+        <select aria-label="First team" value={a} onChange={e => setA(+e.target.value)}>{options}</select>
+        <span className="vs">vs</span>
+        <select aria-label="Second team" value={b} onChange={e => setB(+e.target.value)}>{options}</select>
+      </div>
+      <div className="odds">
+        <span className="p" style={{ color: "var(--elo)" }}>{pct(pA)}</span>
+        <span className="split-bar">
+          <i className="a" style={{ width: pct(pA, 2) }} />
+          <i className="b" style={{ width: pct(1 - pA, 2) }} />
+        </span>
+        <span className="p b">{pct(1 - pA)}</span>
+      </div>
+      <p className="note">
+        {A.team === B.team
+          ? "Same team both sides, so it is a coin flip by definition."
+          : `${gap === 0 ? "Level on rating" : `${gap > 0 ? A.team : B.team} by ${Math.abs(gap)} Elo`}` +
+            ` · series odds, not a map. ${thin < 15
+              ? `Thin evidence: ${thin} matches on the lighter side this season.`
+              : "Both sides have a season of matches behind the rating."}`}
+      </p>
+    </div>
+  );
+}
+
 function Rankings({ rankings, season }) {
   const top = Math.max(...rankings.map(r => r.elo - 1500), 1);
   return (
@@ -391,10 +446,12 @@ function Rankings({ rankings, season }) {
         <h2>Elo leaders</h2>
         <span className="eyebrow">{season ? season + " season" : ""}</span>
       </div>
-      <div>{rankings.map(r => <RankRow key={r.rank} row={r} top={top} />)}</div>
+      <Matchup teams={rankings} />
+      <div style={{ marginTop: "14px" }}>{rankings.map(r => <RankRow key={r.rank} row={r} top={top} />)}</div>
       <figcaption className="note">
         Bars measure Elo above the 1500 baseline. A rating built on few matches this season is a
-        weak rating, however high it sits.
+        weak rating, however high it sits. Head-to-head above is the same margin-aware Elo the
+        fixtures use, with no map veto or roster news in it.
       </figcaption>
     </figure>
   );
