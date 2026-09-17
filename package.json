@@ -1,0 +1,12 @@
+{
+  "name": "vct-quant-desk",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Backend and frontend for the VCT quant desk; the model layer is Python",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node test/server.test.js"
+  },
+  "engines": { "node": ">=18" }
+}

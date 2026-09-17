@@ -31,7 +31,8 @@ vct prediction 698904 --maps lotus haven ascent  # condition on a known veto
 vct predictions                    # all upcoming Tier-1 forecasts
 vct predictions --json             # machine-readable output
 vct ranking                        # top 25 current VCT teams by Elo
-python scripts/report.py            # dashboard -> data/processed/report.html
+node server.js                      # desk app + JSON API on 127.0.0.1:8000
+python scripts/report.py            # bake a serverless copy -> data/processed/report.html
 python -m vct_quant.features.build
 python scripts/benchmark_baseline.py
 python scripts/benchmark_gradient_boosting.py
@@ -70,7 +71,11 @@ src/vct_quant/
   features/       Elo, rolling form, feature-matrix assembly
   models/         baseline + future models
   eval/           walk-forward backtesting, calibration metrics
+  dashboard.py    every dashboard number, as one JSON payload
   cli.py          `vct` entrypoint
+server.js         Node backend: GET-only JSON API, serves the frontend
+frontend/         index.html — React desk app, no build step
+test/             server.test.js — backend smoke test (`npm run check`)
 data/             raw → interim → processed (gitignored)
 notebooks/        EDA only — no pipeline logic
 tests/

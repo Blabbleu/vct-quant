@@ -1,0 +1,106 @@
+/**
+ * Backend for the VCT quant desk.
+ *
+ *   node server.js            # http://127.0.0.1:8000
+ *   PORT=9000 node server.js
+ *
+ * The model lives in Python, so this server shells out to
+ * `python -m vct_quant.dashboard`, which prints the payload as JSON, and caches
+ * the result against the DuckDB file's mtime: page reloads are free until the
+ * next `vct update` rewrites the database. Read-only by design -- DuckDB takes
+ * one writer at a time, and ingestion stays a command-line job.
+ *
+ * No dependencies: node's own http, fs and child_process.
+ */
+const http = require("node:http");
+const fs = require("node:fs/promises");
+const path = require("node:path");
+const { execFile } = require("node:child_process");
+
+const ROOT = __dirname;
+const PORT = Number(process.env.PORT || 8000);
+const HOST = process.env.HOST || "127.0.0.1";
+const DB = path.join(ROOT, "data", "vct.duckdb");
+const PYTHON = process.env.PYTHON ||
+  path.join(ROOT, process.platform === "win32" ? "venv/Scripts/python.exe" : "venv/bin/python");
+
+let cache = { stamp: null, payload: null };
+let inFlight = null;
+
+function computeSnapshot() {
+  return new Promise((resolve, reject) => {
+    execFile(PYTHON, ["-m", "vct_quant.dashboard"], { cwd: ROOT, maxBuffer: 64 << 20 },
+      (err, stdout, stderr) => {
+        if (err) return reject(new Error(stderr.trim() || err.message));
+        try {
+          resolve(JSON.parse(stdout));
+        } catch (parseError) {
+          reject(new Error(`bad JSON from the model layer: ${parseError.message}`));
+        }
+      });
+  });
+}
+
+async function snapshot() {
+  // mtime is the cache key, so `vct update` invalidates without restarting.
+  const stamp = await fs.stat(DB).then(s => String(s.mtimeMs), () => "no-db");
+  if (cache.stamp === stamp && cache.payload) return cache.payload;
+  // One python process even if ten requests land together.
+  inFlight ??= computeSnapshot().finally(() => { inFlight = null; });
+  const payload = await inFlight;
+  cache = { stamp, payload };
+  return payload;
+}
+
+const ROUTES = {
+  "/api/snapshot": data => data,
+  "/api/fixtures": data => data.fixtures,
+  "/api/backtest": data => data.backtest,
+  "/api/live": data => data.live,
+  "/api/rankings": data => ({ season: data.season, rankings: data.rankings }),
+  "/api/ledger": data => data.ledger,
+  "/api/health": data => ({ ok: true, generated_at: data.generated_at, coverage: data.coverage }),
+};
+
+function send(res, status, body, type = "application/json; charset=utf-8") {
+  res.writeHead(status, {
+    "content-type": type,
+    "cache-control": "no-store",
+    "content-length": Buffer.byteLength(body),
+  });
+  res.end(body);
+}
+
+const server = http.createServer(async (req, res) => {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    return send(res, 405, JSON.stringify({ error: "read-only API: GET only" }));
+  }
+  const route = ROUTES[url.pathname];
+  if (route) {
+    try {
+      return send(res, 200, JSON.stringify(route(await snapshot())));
+    } catch (err) {
+      console.error(`[500] ${url.pathname}: ${err.message}`);
+      return send(res, 500, JSON.stringify({
+        error: "the model layer failed",
+        detail: err.message,
+        hint: "run `vct init-db` and `vct update` first, or set PYTHON to your interpreter",
+      }));
+    }
+  }
+  if (url.pathname === "/" || url.pathname === "/index.html") {
+    const page = await fs.readFile(path.join(ROOT, "frontend", "index.html"), "utf8");
+    return send(res, 200, page, "text/html; charset=utf-8");
+  }
+  send(res, 404, JSON.stringify({ error: "not found", routes: Object.keys(ROUTES) }));
+});
+
+if (require.main === module) {
+  server.listen(PORT, HOST, () => {
+    console.log(`desk backend on http://${HOST}:${PORT}`);
+    console.log(`  routes: ${Object.keys(ROUTES).join(" ")}`);
+  });
+}
+
+module.exports = { server, snapshot, ROUTES };

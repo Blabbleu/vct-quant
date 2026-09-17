@@ -120,6 +120,12 @@
   details { font-size: 13px; color: var(--ink-2); }
   summary { cursor: pointer; color: var(--ink-2); font-size: 12px; }
   #tip { position: fixed; z-index: 5; pointer-events: none; background: var(--ink); color: var(--ground); font-family: var(--mono); font-size: 11px; padding: 5px 8px; border-radius: 5px; transform: translate(-50%, -140%); white-space: nowrap; }
+  .refresh { font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: .04em;
+    text-transform: uppercase; color: var(--ink-2); background: var(--surface); cursor: pointer;
+    border: 1px solid var(--hairline); border-radius: 5px; padding: 3px 9px; margin-left: 8px; }
+  .refresh:hover:not(:disabled) { color: var(--ink); border-color: var(--ink-3); }
+  .refresh:disabled { cursor: progress; color: var(--ink-3); }
+  .refresh:focus-visible { outline: 2px solid var(--elo); outline-offset: 2px; }
   .empty { padding: 16px; color: var(--ink-2); font-size: 13px; }
   @media (max-width: 720px) {
     .split { grid-template-columns: 1fr; }
@@ -133,12 +139,25 @@
 
 <div id="root"></div>
 
+<!-- Baked mode: scripts/report.py replaces the token with the payload, so the file
+     opens with no server. Served mode: the token stays, parsing fails, and the app
+     fetches /api/snapshot from server.js instead. -->
+<script id="baked" type="application/json">__DATA__</script>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js"></script>
 <script type="text/babel" data-presets="react">
-const DATA = __DATA__;
-const { useState, useRef, useEffect } = React;
+const { useState, useEffect, useCallback } = React;
+
+const API = "/api/snapshot";
+const bakedPayload = () => {
+  try {
+    return JSON.parse(document.getElementById("baked").textContent);
+  } catch {
+    return null;  // served mode: the token is still a token
+  }
+};
 
 const pct = (x, d = 1) => (100 * x).toFixed(d) + "%";
 const money = v => "$" + Math.round(v || 0).toLocaleString();
@@ -164,11 +183,21 @@ function Tip({ tip }) {
   return <div id="tip" style={{ left: tip.x + "px", top: tip.y + "px" }}>{tip.text}</div>;
 }
 
-function Header({ coverage, generatedAt }) {
+function Header({ coverage, generatedAt, live, onRefresh, busy }) {
   const c = coverage;
   return (
     <header>
-      <p className="eyebrow">Refreshed {stampUTC(generatedAt)} UTC</p>
+      <p className="eyebrow">
+        Refreshed {stampUTC(generatedAt)} UTC
+        <span className={"chip " + (live ? "gc" : "")} style={{ marginLeft: "10px" }}>
+          {live ? "live api" : "snapshot"}
+        </span>
+        {live && (
+          <button type="button" className="refresh" onClick={onRefresh} disabled={busy}>
+            {busy ? "refreshing…" : "refresh"}
+          </button>
+        )}
+      </p>
       <h1>VCT Quant Desk</h1>
       <p className="lede">
         Margin-aware Elo forecasts for VCT Tier 1 and Game Changers, scored the honest way:
@@ -434,20 +463,68 @@ function Ledger({ ledger }) {
   );
 }
 
+function Loading({ error, onRetry }) {
+  return (
+    <div className="wrap">
+      <header>
+        <p className="eyebrow">{error ? "Backend unreachable" : "Loading from the API"}</p>
+        <h1>VCT Quant Desk</h1>
+        <p className="lede">
+          {error
+            ? "The backend did not answer. Start it with `node server.js`, and make sure " +
+              "`vct init-db` and `vct update` have run at least once."
+            : "Fetching the current snapshot from server.js."}
+        </p>
+        {error && (
+          <>
+            <p className="note" style={{ marginTop: "10px" }}>{error}</p>
+            <p style={{ marginTop: "12px" }}>
+              <button type="button" className="refresh" onClick={onRetry}>try again</button>
+            </p>
+          </>
+        )}
+      </header>
+    </div>
+  );
+}
+
 function App() {
   const [tip, setTip] = useState(null);
+  const [data, setData] = useState(bakedPayload);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const served = !bakedPayload();
+
+  const load = useCallback(async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const resp = await fetch(API, { cache: "no-store" });
+      if (!resp.ok) throw new Error(`${API} answered ${resp.status}`);
+      setData(await resp.json());
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  useEffect(() => { if (served) load(); }, [served, load]);
+
+  if (!data) return <Loading error={error} onRetry={load} />;
   return (
     <TipContext.Provider value={setTip}>
       <div className="wrap">
-        <Header coverage={DATA.coverage} generatedAt={DATA.generated_at} />
-        <Scoreboard backtest={DATA.backtest} gc={DATA.gc} live={DATA.live} />
-        <Fixtures fixtures={DATA.fixtures} />
+        <Header coverage={data.coverage} generatedAt={data.generated_at}
+                live={served} onRefresh={load} busy={busy} />
+        <Scoreboard backtest={data.backtest} gc={data.gc} live={data.live} />
+        <Fixtures fixtures={data.fixtures} />
         <section className="split">
-          <Calibration buckets={DATA.backtest.calibration} />
-          <Rankings rankings={DATA.rankings} season={DATA.season} />
+          <Calibration buckets={data.backtest.calibration} />
+          <Rankings rankings={data.rankings} season={data.season} />
         </section>
-        <Live live={DATA.live} />
-        <Ledger ledger={DATA.ledger} />
+        <Live live={data.live} />
+        <Ledger ledger={data.ledger} />
       </div>
       <Tip tip={tip} />
     </TipContext.Provider>

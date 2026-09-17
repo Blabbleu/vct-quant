@@ -26,11 +26,30 @@ CLI (`vct`, defined in `cli.py`):
 | `vct predictions [--json]` | Print every cached upcoming Tier-1 forecast; fetch once if the cache is absent. |
 | `vct load-vlrgg` | Merge harvested event matches into `match` / `match_team`; safe to re-run. |
 
-Dashboard: `python scripts/report.py` renders `data/processed/report.html`, a
-self-contained React page (data embedded as JSON, no server) with fixtures vs
-Polymarket, the walk-forward calibration chart, Elo leaders, live graded forecasts,
-and the experiment ledger. Run it after `vct update`; republish with the Artifact
-tool to refresh https://claude.ai/artifact/EQbyox8ZHiUEHtQbUmxQQj.
+### The desk app: three layers, one payload
+
+`src/vct_quant/dashboard.py` is the **model layer** and the only place the numbers
+are computed. `python -m vct_quant.dashboard` prints the whole payload as JSON.
+Heavy Elo replays are cached by `lru_cache` keyed on the `.duckdb` mtime, so
+`vct update` invalidates them and nothing else does.
+
+`server.js` is the **backend**: `node server.js` (or `npm start`) on
+`http://127.0.0.1:8000`. Zero npm dependencies -- node's `http`, `fs` and
+`child_process`. It shells out to the model layer, caches the payload the same way,
+collapses concurrent requests into one Python process, serves `frontend/index.html`
+at `/`, and answers `/api/snapshot`, `/api/fixtures`, `/api/backtest`, `/api/live`,
+`/api/rankings`, `/api/ledger`, `/api/health`. **GET only** -- DuckDB is
+single-writer, so ingestion stays a CLI job. Set `PYTHON` to override the
+interpreter, `PORT`/`HOST` to move it. `npm run check` boots it and hits every route.
+
+`frontend/index.html` is the **frontend**: React 18 + Babel from cdnjs, no build
+step. It runs in two modes from one file -- served by `server.js` it fetches
+`/api/snapshot` and shows a live chip and a refresh button; baked by
+`python scripts/report.py` (which replaces the `__DATA__` token in the
+`<script id="baked">` tag) it renders `data/processed/report.html` with no server,
+which is what the published artifact needs since an artifact cannot reach
+localhost. Republish that file with the Artifact tool to refresh
+https://claude.ai/artifact/EQbyox8ZHiUEHtQbUmxQQj.
 
 Build and benchmark:
 
