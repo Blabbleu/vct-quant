@@ -20,7 +20,7 @@ CLI (`vct`, defined in `cli.py`):
 | `vct inspect-kaggle` | Print every Kaggle CSV with its columns. Run this before writing any loader. |
 | `vct load-kaggle` | Kaggle CSVs → canonical tables. Idempotent (clears first); prints a `LoadReport` of inserts and unresolved rows. |
 | `vct update` | Matchday refresh: newest official event match lists → `load-vlrgg` → upcoming forecasts, appended to `data/processed/prediction_log.parquet`. Grade with `python scripts/grade_predictions.py`. |
-| `vct ingest-vlrgg [--what results\|upcoming]` | Fetch live feed → raw; upcoming also writes official Tier-1 fixtures and Elo probabilities to `data/processed/upcoming_tier1.parquet`. |
+| `vct ingest-vlrgg [--what results\|upcoming]` | Fetch live feed → raw; upcoming also writes Tier-1 and Game Changers fixtures (`tier` column) with Elo probabilities to `data/processed/upcoming_tier1.parquet`. |
 | `vct prediction MATCH_ID [--json]` | Print one cached upcoming Tier-1 prediction; refresh the upcoming feed once on a cache miss. |
 | `vct predictions [--json]` | Print every cached upcoming Tier-1 forecast; fetch once if the cache is absent. |
 | `vct load-vlrgg` | Merge harvested event matches into `match` / `match_team`; safe to re-run. |
@@ -112,7 +112,9 @@ matches and zero backfilled Tier-2 matches.
 
 * Tier 1: primary VCT regional circuit, Masters, Champions, historical LCQs.
 * Tier 2: post-2022 Challengers/VCL and Ascension.
-* Excluded: Game Changers, Premier, third-party/offseason, community, ranked.
+* Tier 3: Game Changers, as its **own rating pool** (`match_sequence(tiers=(3,))`).
+  44 teams appear in both pools; never replay them together.
+* Excluded: Premier, third-party/offseason, community, ranked.
 
 The 2021-2022 events named "Stage N: Challengers" are Tier 1: before the 2023
 league restructure, they were the primary regional VCT circuit.

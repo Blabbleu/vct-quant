@@ -47,7 +47,7 @@ def test_competition_tiers_are_season_aware():
     assert competition_tier("VCT 2025: Americas Ascension") == 2
     assert competition_tier("Nerd Street Summer Championship 2022") is None
     assert competition_tier("VCT OFF//SEASON Spotlight Series 2024: Americas") is None
-    assert competition_tier("Game Changers 2025: Championship Seoul") is None
+    assert competition_tier("Game Changers 2025: Championship Seoul") == 3
 
 
 def test_vlrgg_match_keeps_its_event_id_and_title(tmp_path, monkeypatch):

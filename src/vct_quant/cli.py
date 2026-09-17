@@ -121,7 +121,7 @@ def main() -> None:
         upcoming_count = len(upcoming.get("data", {}).get("segments", []))
         print(
             f"Fetched {upcoming_count} upcoming entries; retained "
-            f"{len(fixtures)} Tier-1 -> {path}"
+            f"{len(fixtures)} official -> {path}"
         )
     elif args.cmd == "ingest-vlrgg":
         from .ingest import vlrgg
@@ -134,7 +134,7 @@ def main() -> None:
             data = vlrgg.fetch_upcoming_matches()
             fixtures, path = _materialize_upcoming(data)
             total = len(data.get("data", {}).get("segments", []))
-            print(f"Fetched {total} upcoming entries; retained {len(fixtures)} Tier-1 -> {path}")
+            print(f"Fetched {total} upcoming entries; retained {len(fixtures)} official -> {path}")
             if not fixtures.empty:
                 _print_predictions(fixtures)
     elif args.cmd == "download-kaggle":

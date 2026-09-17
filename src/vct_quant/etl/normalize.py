@@ -503,9 +503,9 @@ def _vlrgg_events() -> pd.DataFrame:
 def official_upcoming(
     payload: dict, con: duckdb.DuckDBPyConnection | None = None
 ) -> pd.DataFrame:
-    """Normalize only official Tier-1 fixtures from an upcoming-feed payload."""
+    """Normalize official Tier-1 and Game Changers fixtures from an upcoming-feed payload."""
     columns = [
-        "match_id", "scheduled_at", "event_id", "event_name", "event_series", "best_of",
+        "match_id", "scheduled_at", "tier", "event_id", "event_name", "event_series", "best_of",
         "team_a_id", "team_a_key", "team_a_name",
         "team_b_id", "team_b_key", "team_b_name",
         "vlr_url", "time_until_match",
@@ -516,11 +516,11 @@ def official_upcoming(
 
     d = pd.DataFrame(rows)
     scheduled = pd.to_datetime(d["unix_timestamp"], utc=True, errors="coerce")
-    tier = [
+    tier = pd.Series([
         competition_tier(name, when.year if pd.notna(when) else None)
         for name, when in zip(d["match_event"], scheduled)
-    ]
-    d = d[pd.Series(tier, index=d.index).eq(1)].copy()
+    ], index=d.index, dtype="Int64")
+    d = d[tier.isin((1, 3))].copy()
     if d.empty:
         return pd.DataFrame(columns=columns)
 
@@ -536,7 +536,7 @@ def official_upcoming(
         team_ids = _unambiguous(teams, "key", "team_id")
 
         events = con.execute(
-            "SELECT event_id, name FROM event WHERE tier = 1"
+            "SELECT event_id, name FROM event WHERE tier IN (1, 3)"
         ).df()
         events["key"] = events["name"].map(normalize_name)
         event_ids = _unambiguous(events, "key", "event_id")
@@ -554,6 +554,7 @@ def official_upcoming(
     out = pd.DataFrame({
         "match_id": _int(page.map(vlr_id_from_url)),
         "scheduled_at": scheduled.loc[d.index],
+        "tier": tier.loc[d.index],
         "event_id": _int(d["match_event"].map(
             lambda name: event_ids.get(normalize_name(name))
         )),
@@ -597,7 +598,8 @@ def official_match_details(payload: dict) -> pd.DataFrame:
         errors="coerce",
     ).iloc[0]
     teams = match.get("teams", [])
-    if competition_tier(event_name, int(year) if pd.notna(year) else None) != 1:
+    tier = competition_tier(event_name, int(year) if pd.notna(year) else None)
+    if tier not in (1, 3):
         return pd.DataFrame()
     if len(teams) != 2 or any(str(team.get("score", "")).strip() for team in teams):
         return pd.DataFrame()
@@ -620,6 +622,7 @@ def official_match_details(payload: dict) -> pd.DataFrame:
     return pd.DataFrame([{
         "match_id": match_id,
         "scheduled_at": match.get("date"),
+        "tier": tier,
         "event_id": pd.NA,
         "event_name": event_name,
         "event_series": series,

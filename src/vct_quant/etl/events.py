@@ -1,7 +1,8 @@
 """Official VCT competition scope.
 
 Tier 1 is the primary VCT circuit. Tier 2 is the post-2022 path-to-pro circuit
-(Challengers/VCL and Ascension). Everything else is out of model scope.
+(Challengers/VCL and Ascension). Tier 3 is Game Changers, modelled as a
+separate rating pool. Everything else is out of model scope.
 """
 from __future__ import annotations
 
@@ -9,14 +10,17 @@ import re
 
 
 def competition_tier(name: str, year: int | None = None) -> int | None:
-    """Return 1/2 for official VCT events, otherwise None.
+    """Return 1/2 for official VCT events, 3 for Game Changers, otherwise None.
 
     `year` matters because regional Challengers were the primary VCT circuit in
     2021-2022, before the separate Challengers League system launched in 2023.
     """
     title = str(name).strip().lower()
-    if not title or "game changers" in title or "off//season" in title:
+    if not title or "off//season" in title:
         return None
+    # Its own circuit and its own rating pool: GC teams never meet Tier-1 teams.
+    if "game changers" in title:
+        return 3
 
     if "ascension" in title and (
         title.startswith(("vct ", "champions tour ")) or "challengers" in title

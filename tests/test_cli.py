@@ -64,7 +64,7 @@ def test_update_refreshes_results_before_predictions(monkeypatch, tmp_path, caps
     assert calls == [
         "fetch events", "fetch event 1", "load results", "fetch upcoming", "predict upcoming",
     ]
-    assert "retained 1 Tier-1" in capsys.readouterr().out
+    assert "retained 1 official" in capsys.readouterr().out
 
 
 def test_prediction_prints_cached_match(monkeypatch, tmp_path, capsys):

@@ -41,7 +41,7 @@ def test_official_upcoming_filters_and_resolves_ids():
         "match_id", "event_id", "best_of", "team_a_id", "team_a_key",
         "team_b_id", "team_b_key",
     ]].iloc[0].tolist() == [712824, 10, 3, 1, "1", 2, "2"]
-    assert len(out) == 1
+    assert out.tier.tolist() == [1, 3]  # Game Changers kept, as its own pool
 
 
 def test_official_match_details_normalizes_later_fixture():

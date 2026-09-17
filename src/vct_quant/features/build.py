@@ -30,6 +30,8 @@ BEST_K = 48.0
 # matches, because the mostly isolated rating pools are not directly comparable.
 # Keep Tier-2 rows for roster/player-form features, but do not move shared Elo.
 TIER_2_WEIGHT = 0.0
+# Game Changers pool. Placeholder until scripts/benchmark_gc.py retunes it.
+GC_K = 48.0
 
 # The corpus has no date column anywhere, so ascending vlr.gg match_id is the
 # chronological key (verified: per-year ID ranges are strictly increasing with
@@ -66,7 +68,7 @@ SELECT
     r.rounds_a,
     r.rounds_b
 FROM match m
-JOIN event e ON e.event_id = m.event_id AND e.tier IN (1, 2)
+JOIN event e ON e.event_id = m.event_id AND e.tier IN (__TIERS__)
 JOIN match_team a ON a.match_id = m.match_id AND a.team_number = 1
 JOIN match_team b ON b.match_id = m.match_id AND b.team_number = 2
 LEFT JOIN (
@@ -84,8 +86,14 @@ ORDER BY m.match_id
 """
 
 
-def match_sequence(con: duckdb.DuckDBPyConnection | None = None) -> pd.DataFrame:
+def match_sequence(
+    con: duckdb.DuckDBPyConnection | None = None, tiers: tuple[int, ...] = (1, 2)
+) -> pd.DataFrame:
     """Every match in chronological order: match_id, team_a, team_b, score_a.
+
+    `tiers` selects the rating pool: (1, 2) is official VCT, (3,) is Game
+    Changers. Never mix them in one Elo replay -- 44 teams appear in both
+    pools, and GC results would leak into Tier-1 ratings.
 
     This is the input contract for `features.ratings.compute_elo`, which
     requires chronological order, and its match_id column is the ordering key
@@ -94,7 +102,8 @@ def match_sequence(con: duckdb.DuckDBPyConnection | None = None) -> pd.DataFrame
     owned = con is None
     con = con or db.connect(read_only=True)
     try:
-        return con.execute(_MATCH_SEQUENCE_SQL).df()
+        sql = _MATCH_SEQUENCE_SQL.replace("__TIERS__", ", ".join(str(int(t)) for t in tiers))
+        return con.execute(sql).df()
     finally:
         if owned:
             con.close()
@@ -212,7 +221,7 @@ def margin_signal(df: pd.DataFrame) -> "pd.Series":
 
 def elo_k(tiers: pd.Series, tier_2_weight: float = TIER_2_WEIGHT) -> "pd.Series":
     """Per-tier Elo K; Tier 2 defaults to the validated zero team-result weight."""
-    return tiers.map({1: BEST_K, 2: BEST_K * tier_2_weight})
+    return tiers.map({1: BEST_K, 2: BEST_K * tier_2_weight, 3: GC_K})
 
 
 def build_features(con: duckdb.DuckDBPyConnection | None = None) -> pd.DataFrame:
@@ -274,8 +283,19 @@ def build_features(con: duckdb.DuckDBPyConnection | None = None) -> pd.DataFrame
 def predict_upcoming(
     fixtures: pd.DataFrame, history: pd.DataFrame | None = None
 ) -> pd.DataFrame:
-    """Attach current margin-aware Elo probabilities to normalized fixtures."""
-    history = match_sequence() if history is None else history
+    """Attach current margin-aware Elo probabilities to normalized fixtures.
+
+    Fixtures carrying `tier == 3` (Game Changers) are rated from the GC pool;
+    everything else from the official pool. The two are never mixed.
+    """
+    if history is None:
+        gc = fixtures.get("tier", pd.Series(1, index=fixtures.index)).eq(3)
+        if gc.any() and not gc.all():
+            return pd.concat(
+                [predict_upcoming(fixtures[~gc]), predict_upcoming(fixtures[gc])],
+                ignore_index=True,
+            )
+        history = match_sequence(tiers=(3,) if gc.any() else (1, 2))
     _, ratings = compute_elo(
         zip(
             history.match_id,
