@@ -41,8 +41,8 @@ def shrink(p: np.ndarray, a: float) -> np.ndarray:
     logit(p) = log(p / (1 - p))     probability -> log-odds
     sigmoid(z) = 1 / (1 + exp(-z))  log-odds -> probability
     """
-    # TODO (you): two lines.
-    raise NotImplementedError
+    z = np.log(p / (1 - p))
+    return 1 / (1 + np.exp(-a * z))
 
 
 def fit_a(y: np.ndarray, p: np.ndarray) -> float:
@@ -51,8 +51,9 @@ def fit_a(y: np.ndarray, p: np.ndarray) -> float:
     Grid search is fine: try np.linspace(0.3, 2.0, 171) and keep the best.
     Sanity check: fit_a on data that is already calibrated should return ~1.0.
     """
-    # TODO (you)
-    raise NotImplementedError
+    grid = np.linspace(0.3, 2.0, 171)
+    losses = [per_match_loss(y, shrink(p, a)).mean() for a in grid]
+    return grid[np.argmin(losses)]
 
 
 def main() -> None:
@@ -63,14 +64,21 @@ def main() -> None:
     )[0])
     scored = df.tier.eq(1) & df.score_a.ne(0.5)
     d = pd.DataFrame({"year": df.year, "y": df.score_a, "p": elo.p_a_win})[scored]
+    years = d.year.to_numpy()
+    outcomes = d.y.to_numpy()
+    probabilities = d.p.to_numpy()
 
-    # TODO (you): for each year in SCORED_YEARS
-    #   1. take last year's rows, a = fit_a(their y, their p)
-    #   2. take this year's rows, p_cal = shrink(their p, a)
-    #   3. diff = per_match_loss(y, p) - per_match_loss(y, p_cal)   (positive = calibration helps)
-    #      t = diff.mean() / (diff.std(ddof=1) / sqrt(n))
-    #   4. print year, a, raw loss, calibrated loss, t
-
+    for year in SCORED_YEARS:
+        previous = years == year - 1
+        current = years == year
+        a = fit_a(outcomes[previous], probabilities[previous])
+        y = outcomes[current]
+        p = probabilities[current]
+        raw_loss = per_match_loss(y, p)
+        calibrated_loss = per_match_loss(y, shrink(p, a))
+        diff = raw_loss - calibrated_loss
+        t = diff.mean() / (diff.std(ddof=1) / np.sqrt(len(diff)))
+        print(year, a, raw_loss.mean(), calibrated_loss.mean(), t)
 
 if __name__ == "__main__":
     main()

@@ -269,5 +269,15 @@ Kaggle ones ("NRG" vs "NRG Esports", "ENVY" vs "Envy") became separate
 are down to 1. The remaining gap (0.6681 vs 0.6485) is real: 2026 has more
 upsets (39.5% vs 36.7%) despite Elo being *less* confident, concentrated in
 teams with 50+ prior matches. Every year up to 2026 has now been used for
-selection -- the live prediction log is the only clean test left. For the product slice, ingest upcoming official Tier-1
+selection -- the live prediction log is the only clean test left.
+
+**One-parameter calibration is not yet proven** (`scripts/benchmark_calibration.py`).
+`p' = sigmoid(a * logit(p))`, with `a` fit on the previous year only. The
+hindsight-best `a` drifts by era: 2021 2.00, 2022 1.44, 2023 1.10, 2024 0.76,
+2025 0.76, 2026 0.70. So Elo was underconfident before the 2023 league
+restructure and has been overconfident since, which explains the logistic
+rejection above. Scores: 2024 fit on 2023 `a=1.10`, **worse** (0.6558 vs
+0.6522, `t = -1.99`); 2025 `a=0.76` (0.6444 vs 0.6485, `t = +1.03`); 2026
+`a=0.76` (0.6634 vs 0.6681, `t = +1.39`). Two post-restructure years help but
+neither clears t ≈ 2. Revisit once the live log is large; do not ship yet. For the product slice, ingest upcoming official Tier-1
 matches, resolve their teams, replay ratings, and emit raw Elo probabilities.
