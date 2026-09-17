@@ -279,5 +279,14 @@ restructure and has been overconfident since, which explains the logistic
 rejection above. Scores: 2024 fit on 2023 `a=1.10`, **worse** (0.6558 vs
 0.6522, `t = -1.99`); 2025 `a=0.76` (0.6444 vs 0.6485, `t = +1.03`); 2026
 `a=0.76` (0.6634 vs 0.6681, `t = +1.39`). Two post-restructure years help but
-neither clears t ≈ 2. Revisit once the live log is large; do not ship yet. For the product slice, ingest upcoming official Tier-1
+neither clears t ≈ 2. Revisit once the live log is large; do not ship yet.
+
+**Per-region Elo offsets were rejected** (`scripts/benchmark_regions.py`).
+Offsets learned online from international results only, added to both teams'
+ratings at Masters/Champions. Tuned on 2023-24 international matches (n=135),
+k=0 won outright and every k>0 was worse; learned offsets peaked at about
+±14 Elo points. International matches are only slightly harder than regional
+ones across 2023-26 (0.667 vs 0.645) with the same upset rate. The 2025
+international loss of 0.692 was 76 matches of noise. Check a group across
+all years before building a fix for it. For the product slice, ingest upcoming official Tier-1
 matches, resolve their teams, replay ratings, and emit raw Elo probabilities.
