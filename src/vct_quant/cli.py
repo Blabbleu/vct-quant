@@ -9,12 +9,27 @@ def _materialize_upcoming(data):
     from .etl.normalize import official_upcoming
     from .features.build import predict_upcoming
 
-    fixtures = predict_upcoming(official_upcoming(data))
+    fixtures = _attach_market(predict_upcoming(official_upcoming(data)))
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
     path = PROCESSED_DIR / "upcoming_tier1.parquet"
     fixtures.to_parquet(path, index=False)
     _log_predictions(fixtures, PROCESSED_DIR / "prediction_log.parquet")
     return fixtures, path
+
+
+def _attach_market(fixtures):
+    """Add Polymarket prices; a market outage must not block the Elo forecast."""
+    import requests
+
+    from .etl.markets import attach_market_prices, moneylines
+    from .ingest import polymarket
+
+    try:
+        events = polymarket.fetch_valorant_events()
+    except requests.RequestException as exc:
+        print(f"Polymarket unavailable ({type(exc).__name__}); logging Elo only")
+        events = []
+    return attach_market_prices(fixtures, moneylines(events))
 
 
 def _log_predictions(fixtures, path) -> None:
@@ -51,6 +66,8 @@ def _refresh_prediction(match_id):
 
 
 def _print_predictions(fixtures) -> None:
+    import pandas as pd
+
     display = fixtures[[
         "match_id", "scheduled_at", "event_name", "team_a_name",
         "p_team_a_win", "team_b_name", "p_team_b_win",
@@ -59,6 +76,11 @@ def _print_predictions(fixtures) -> None:
     display["p_team_a_win"] = display.p_team_a_win.map("{:.1%}".format)
     display["p_team_b_win"] = display.p_team_b_win.map("{:.1%}".format)
     display["p_most_likely_score"] = display.p_most_likely_score.map("{:.1%}".format)
+    if "p_market_a" in fixtures:
+        display.insert(
+            display.columns.get_loc("p_team_a_win") + 1, "market_a",
+            fixtures.p_market_a.map(lambda p: "-" if pd.isna(p) else f"{p:.1%}"),
+        )
     print(display.to_string(index=False))
 
 

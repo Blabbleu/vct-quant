@@ -6,11 +6,14 @@ Run `vct load-vlrgg` after matches finish first.
 """
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 from vct_quant import db
 from vct_quant.config import PROCESSED_DIR
 from vct_quant.eval.metrics import brier_score, calibration_table, log_loss
+
+MAX_SPREAD = 0.10
 
 
 def main() -> int:
@@ -44,6 +47,23 @@ def main() -> int:
     print(f"log loss {log_loss(y, p):.4f}   (backtest 0.6569, coin flip 0.6931)")
     print(f"brier    {brier_score(y, p):.4f}   (backtest 0.2321, coin flip 0.2500)")
     print(calibration_table(y, p, bins=5).to_string(index=False))
+
+    # Market benchmark: only matches with a price, only liquid-enough markets.
+    # A wide bid/ask spread means nobody is really trading -- that "price" is noise.
+    if "p_market_a" not in scored:
+        return 0
+    priced = scored[scored.p_market_a.notna() & (scored.market_spread.fillna(1) <= MAX_SPREAD)]
+    if len(priced) < 2:
+        print(f"\nmarket: {len(priced)} liquid priced matches graded so far")
+        return 0
+    y, p_elo, p_mkt = priced.y.to_numpy(), priced.p_team_a_win.to_numpy(), priced.p_market_a.to_numpy()
+    loss_elo = -(y * np.log(p_elo) + (1 - y) * np.log(1 - p_elo))
+    loss_mkt = -(y * np.log(p_mkt) + (1 - y) * np.log(1 - p_mkt))
+    diff = loss_mkt - loss_elo  # positive = Elo beats the market
+    t = diff.mean() / (diff.std(ddof=1) / np.sqrt(len(diff)))
+    print(f"\nvs Polymarket (spread <= {MAX_SPREAD}), n = {len(priced)}")
+    print(f"elo    {loss_elo.mean():.4f}")
+    print(f"market {loss_mkt.mean():.4f}   paired t = {t:+.2f} (positive = Elo better)")
     return 0
 
 

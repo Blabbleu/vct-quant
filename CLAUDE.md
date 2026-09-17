@@ -20,6 +20,7 @@ CLI (`vct`, defined in `cli.py`):
 | `vct inspect-kaggle` | Print every Kaggle CSV with its columns. Run this before writing any loader. |
 | `vct load-kaggle` | Kaggle CSVs → canonical tables. Idempotent (clears first); prints a `LoadReport` of inserts and unresolved rows. |
 | `vct update` | Matchday refresh: newest official event match lists → `load-vlrgg` → upcoming forecasts, appended to `data/processed/prediction_log.parquet`. Grade with `python scripts/grade_predictions.py`. |
+| (market prices) | Every upcoming refresh also fetches open Polymarket Valorant moneylines (public Gamma API, no key) → `data/raw/polymarket/`, fuzzy-matched onto fixtures by start time ±2h and both team names (`etl/markets.py`). Logged as `p_market_a`, `market_spread`, `market_volume`; the grader scores Elo against it on markets with spread ≤ 0.10. An outage logs Elo only. |
 | `vct ingest-vlrgg [--what results\|upcoming]` | Fetch live feed → raw; upcoming also writes Tier-1 and Game Changers fixtures (`tier` column) with Elo probabilities to `data/processed/upcoming_tier1.parquet`. |
 | `vct prediction MATCH_ID [--json]` | Print one cached upcoming Tier-1 prediction; refresh the upcoming feed once on a cache miss. |
 | `vct predictions [--json]` | Print every cached upcoming Tier-1 forecast; fetch once if the cache is absent. |

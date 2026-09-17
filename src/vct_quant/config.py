@@ -26,6 +26,7 @@ RAW_DIR = DATA_DIR / "raw"
 RAW_VLRGG_DIR = RAW_DIR / "vlrgg"
 RAW_KAGGLE_DIR = RAW_DIR / "kaggle"
 RAW_RIOT_DIR = RAW_DIR / "riot"
+RAW_POLYMARKET_DIR = RAW_DIR / "polymarket"
 INTERIM_DIR = DATA_DIR / "interim"
 PROCESSED_DIR = DATA_DIR / "processed"
 
