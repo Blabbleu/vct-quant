@@ -10,6 +10,7 @@ from __future__ import annotations
 from collections import defaultdict, deque
 
 import duckdb
+import numpy as np
 import pandas as pd
 
 from .. import db
@@ -296,7 +297,7 @@ def predict_upcoming(
                 ignore_index=True,
             )
         history = match_sequence(tiers=(3,) if gc.any() else (1, 2))
-    _, ratings = compute_elo(
+    replay, ratings = compute_elo(
         zip(
             history.match_id,
             history.team_a,
@@ -318,6 +319,12 @@ def predict_upcoming(
     out["ratings_through_match_id"] = (
         int(history.match_id.max()) if not history.empty else pd.NA
     )
+    # Shadow forecasts are logged beside Elo so live results can grade them.
+    # They are official-pool models only; the Game Changers pool is untuned.
+    if "tier" in history and not history.tier.eq(3).any():
+        from ..models.shadow import shadow_columns
+
+        out = shadow_columns(out, history, np.array([row["p_a_win"] for row in replay]))
     return add_score_predictions(out)
 
 

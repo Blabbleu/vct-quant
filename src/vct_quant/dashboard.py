@@ -33,7 +33,7 @@ MAX_SPREAD = 0.10
 # Every experiment that has been run and settled; see CLAUDE.md for the detail.
 LEDGER = [
     {"name": "Margin-aware Elo (map share, K=48)", "holdout": "walk-forward Tier 1",
-     "score": "0.6569", "verdict": "shipped"},
+     "score": "0.6567", "verdict": "shipped"},
     {"name": "Binary win/loss signal", "holdout": "2023-24 Kaggle", "score": "0.6475",
      "verdict": "rejected"},
     {"name": "Round-share signal", "holdout": "2023-24 Kaggle", "score": "0.6441",
@@ -52,6 +52,16 @@ LEDGER = [
      "score": "no gain at any k", "verdict": "rejected"},
     {"name": "One-parameter shrink, fit on prior year", "holdout": "2026", "score": "0.6634",
      "verdict": "not proven"},
+    {"name": "Fast/slow Elo ensemble (0.7 K16 + 0.3 K256)", "holdout": "2025+26 (t=+1.70)",
+     "score": "0.6488 wf", "verdict": "shadow"},
+    {"name": "Online shrink, trailing 500", "holdout": "2025+26 (t=+1.21)",
+     "score": "0.6642 '26", "verdict": "shadow"},
+    {"name": "Player-level Elo blend", "holdout": "2025+26", "score": "t=+0.31",
+     "verdict": "rejected"},
+    {"name": "Inactivity decay (calendar days)", "holdout": "2025+26", "score": "t=+0.00",
+     "verdict": "rejected"},
+    {"name": "Best-of-aware map Elo", "holdout": "2025+26", "score": "t=-4.24",
+     "verdict": "rejected"},
 ]
 
 
@@ -143,6 +153,19 @@ def graded_log() -> dict:
             "elo": float(metrics.log_loss(ym, p[liquid.to_numpy()])),
             "market": float(metrics.log_loss(ym, pm)),
         }
+    shadows = {}
+    for column, name in (("p_team_a_win_ensemble", "ensemble"),
+                         ("p_team_a_win_calibrated", "shrink")):
+        if column not in scored:
+            continue
+        has = scored[column].notna().to_numpy()
+        if has.sum():
+            shadows[name] = {
+                "n": int(has.sum()),
+                "elo": float(metrics.log_loss(y[has], p[has])),
+                "shadow": float(metrics.log_loss(y[has], scored[column].to_numpy()[has])),
+            }
+    out["shadows"] = shadows
     out["rows"] = [
         {"match_id": int(r.match_id), "team_a": r.team_a_name, "team_b": r.team_b_name,
          "p": float(r.p_team_a_win), "won": bool(r.is_winner),

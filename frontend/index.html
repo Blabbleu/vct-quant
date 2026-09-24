@@ -116,6 +116,7 @@
   .verdict.shipped { color: var(--good); }
   .verdict.rejected { color: var(--ink-3); }
   .verdict[class$="proven"] { color: var(--warn); }
+  .verdict.shadow { color: var(--warn); }
   .scroll { overflow-x: auto; }
   details { font-size: 13px; color: var(--ink-2); }
   summary { cursor: pointer; color: var(--ink-2); font-size: 12px; }
@@ -474,6 +475,11 @@ function Live({ live }) {
                 {live.graded} graded · log loss {live.log_loss.toFixed(4)} · Brier {live.brier.toFixed(4)}
                 {live.market && ` · market ${live.market.market.toFixed(4)} vs Elo ${live.market.elo.toFixed(4)} on ${live.market.n} priced`}
               </div>
+              {live.shadows && Object.entries(live.shadows).map(([name, s]) => (
+                <div className="num" key={name}>
+                  shadow {name}: {s.shadow.toFixed(4)} vs Elo {s.elo.toFixed(4)} on {s.n}
+                </div>
+              ))}
             </div>
             {live.rows.map(r => (
               <div className="fx" key={r.match_id}

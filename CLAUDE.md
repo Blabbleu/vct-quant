@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```powershell
 .venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev]"   # NOT pip.exe — see "Venv landmine" below
-pytest -q                            # full suite
+pytest -q                            # full suite (pyproject puts the repo root on sys.path)
 pytest tests/test_ratings.py::test_compute_elo_is_point_in_time  # single test
 ```
 
@@ -19,7 +19,7 @@ CLI (`vct`, defined in `cli.py`):
 | `vct download-kaggle` | Download/unzip the historical corpus (~1.3 GB, 131 CSVs). |
 | `vct inspect-kaggle` | Print every Kaggle CSV with its columns. Run this before writing any loader. |
 | `vct load-kaggle` | Kaggle CSVs → canonical tables. Idempotent (clears first); prints a `LoadReport` of inserts and unresolved rows. |
-| `vct update` | Matchday refresh: newest official event match lists → `load-vlrgg` → upcoming forecasts, appended to `data/processed/prediction_log.parquet`. Grade with `python scripts/grade_predictions.py`. |
+| `vct update` | Matchday refresh: newest official event match lists → `load-vlrgg` → detail fetch for any unresolved Tier-1 team name → upcoming forecasts (Elo plus shadow models), appended to `data/processed/prediction_log.parquet`. Grade with `python scripts/grade_predictions.py`. |
 | (market prices) | Every upcoming refresh also fetches open Polymarket Valorant moneylines (public Gamma API, no key) → `data/raw/polymarket/`, fuzzy-matched onto fixtures by start time ±2h and both team names (`etl/markets.py`). Logged as `p_market_a`, `market_spread`, `market_volume`; the grader scores Elo against it on markets with spread ≤ 0.10. An outage logs Elo only. |
 | `vct ingest-vlrgg [--what results\|upcoming]` | Fetch live feed → raw; upcoming also writes Tier-1 and Game Changers fixtures (`tier` column) with Elo probabilities to `data/processed/upcoming_tier1.parquet`. |
 | `vct prediction MATCH_ID [--json]` | Print one cached upcoming Tier-1 prediction; refresh the upcoming feed once on a cache miss. |
@@ -295,11 +295,19 @@ The event feed carries team names only, so vlr.gg names that drifted from the
 Kaggle ones ("NRG" vs "NRG Esports", "ENVY" vs "Envy") became separate
 1500-rated `name:` teams: 118 of 588 2026 matches, at 0.7037 loss.
 `load_vlrgg_match_details` now resolves NULL team IDs from detail payloads
-(`scripts/diagnose_2026.py` is the analysis). Tier-1 NULL team IDs since 2023
-are down to 1. The remaining gap (0.6681 vs 0.6485) is real: 2026 has more
-upsets (39.5% vs 36.7%) despite Elo being *less* confident, concentrated in
-teams with 50+ prior matches. Every year up to 2026 has now been used for
-selection -- the live prediction log is the only clean test left.
+(`scripts/diagnose_2026.py` is the analysis). The remaining gap is real:
+2026 has more upsets (39.5% vs 36.7%) despite Elo being *less* confident,
+concentrated in teams with 50+ prior matches. Every year up to 2026 has now been
+used for selection -- the live prediction log is the only clean test left.
+
+The split recurred: by 2026-09-24, 61 Tier-1 names (G2, FPX, NRG, ENVY, JD
+Gaming, KIWOOM DRX...) were `name:` keys again across 251 matches since 2023.
+**`vct update` now resolves them automatically.** After loading results it
+fetches one detail payload per unresolved Tier-1 name
+(`normalize.unresolved_team_detail_targets`) and reruns
+`load_vlrgg_match_details`. Tier-1 name keys since 2023 are at 0. 2026 Elo
+improved 0.6736 -> 0.6674 (t = +1.17), and NRG's first live forecast moved
+from 75% to 53% (the market price was 50.5%).
 
 **One-parameter calibration is not yet proven** (`scripts/benchmark_calibration.py`).
 `p' = sigmoid(a * logit(p))`, with `a` fit on the previous year only. The

@@ -14,6 +14,23 @@ from vct_quant.config import PROCESSED_DIR
 from vct_quant.eval.metrics import brier_score, calibration_table, log_loss
 
 MAX_SPREAD = 0.10
+# Walk-forward production Elo (scripts/benchmark_elo.py) after the 2026-09-24 team-ID fix.
+BACKTEST_LOG_LOSS = 0.6567
+BACKTEST_BRIER = 0.2320
+SHADOWS = {
+    "p_team_a_win_ensemble": "fast/slow ensemble",
+    "p_team_a_win_calibrated": "online shrink",
+}
+
+
+def _loss(y: np.ndarray, p: np.ndarray) -> np.ndarray:
+    p = np.clip(p.astype(float), 1e-12, 1 - 1e-12)
+    return -(y * np.log(p) + (1 - y) * np.log(1 - p))
+
+
+def _paired_t(diff: np.ndarray) -> float:
+    sd = diff.std(ddof=1)
+    return float(diff.mean() / (sd / np.sqrt(len(diff)))) if sd > 0 else 0.0
 
 
 def main() -> int:
@@ -44,9 +61,25 @@ def main() -> int:
 
     y, p = scored.y, scored.p_team_a_win
     print(f"n = {len(scored)}")
-    print(f"log loss {log_loss(y, p):.4f}   (backtest 0.6569, coin flip 0.6931)")
-    print(f"brier    {brier_score(y, p):.4f}   (backtest 0.2321, coin flip 0.2500)")
+    print(f"log loss {log_loss(y, p):.4f}   (backtest {BACKTEST_LOG_LOSS:.4f}, coin flip 0.6931)")
+    print(f"brier    {brier_score(y, p):.4f}   (backtest {BACKTEST_BRIER:.4f}, coin flip 0.2500)")
     print(calibration_table(y, p, bins=5).to_string(index=False))
+
+    # Shadow models: logged beside Elo since 2026-09-24, graded only where logged.
+    # Positive t = the shadow beats production Elo on the same matches.
+    for column, label in SHADOWS.items():
+        if column not in scored:
+            continue
+        both = scored[scored[column].notna()]
+        if len(both) < 2:
+            print(f"\n{label}: {len(both)} graded so far")
+            continue
+        yy = both.y.to_numpy()
+        base = _loss(yy, both.p_team_a_win.to_numpy())
+        shadow = _loss(yy, both[column].to_numpy())
+        print(f"\n{label}, n = {len(both)}")
+        print(f"elo    {base.mean():.4f}")
+        print(f"shadow {shadow.mean():.4f}   paired t = {_paired_t(base - shadow):+.2f} (positive = shadow better)")
 
     # Market benchmark: only matches with a price, only liquid-enough markets.
     # A wide bid/ask spread means nobody is really trading -- that "price" is noise.
@@ -57,13 +90,19 @@ def main() -> int:
         print(f"\nmarket: {len(priced)} liquid priced matches graded so far")
         return 0
     y, p_elo, p_mkt = priced.y.to_numpy(), priced.p_team_a_win.to_numpy(), priced.p_market_a.to_numpy()
-    loss_elo = -(y * np.log(p_elo) + (1 - y) * np.log(1 - p_elo))
-    loss_mkt = -(y * np.log(p_mkt) + (1 - y) * np.log(1 - p_mkt))
-    diff = loss_mkt - loss_elo  # positive = Elo beats the market
-    t = diff.mean() / (diff.std(ddof=1) / np.sqrt(len(diff)))
+    loss_elo = _loss(y, p_elo)
+    loss_mkt = _loss(y, p_mkt)
+    t = _paired_t(loss_mkt - loss_elo)  # positive = Elo beats the market
     print(f"\nvs Polymarket (spread <= {MAX_SPREAD}), n = {len(priced)}")
     print(f"elo    {loss_elo.mean():.4f}")
     print(f"market {loss_mkt.mean():.4f}   paired t = {t:+.2f} (positive = Elo better)")
+    for column, label in SHADOWS.items():
+        if column in priced and priced[column].notna().sum() >= 2:
+            both = priced[priced[column].notna()]
+            ls = _loss(both.y.to_numpy(), both[column].to_numpy())
+            lm = _loss(both.y.to_numpy(), both.p_market_a.to_numpy())
+            print(f"{label:<14} {ls.mean():.4f} vs market, n = {len(both)}, "
+                  f"paired t = {_paired_t(lm - ls):+.2f}")
     return 0
 
 
