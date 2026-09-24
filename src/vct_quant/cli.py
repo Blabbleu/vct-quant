@@ -125,7 +125,7 @@ def main() -> None:
         print(f"Initialized {db.DB_PATH}")
     elif args.cmd == "update":
         from .etl import normalize
-        from .etl.events import competition_tier
+        from .etl.events import competition_tier, untiered_vct_titles
         from .ingest import vlrgg
 
         # The loader reads event match lists, not the ~50-row results feed.
@@ -136,6 +136,9 @@ def main() -> None:
         for event in official:
             vlrgg.fetch_event_matches(event["event_id"])
         print(f"Refreshed {len(official)} recent official events")
+        for title in untiered_vct_titles(e["title"] for e in events):
+            print(f"WARNING: VCT-branded event has no tier and is skipped: {title!r}"
+                  " (extend etl/events.py)")
         print(normalize.load_vlrgg_match_results())
 
         # The event feed has team names only. A renamed or new org shows up as

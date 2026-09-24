@@ -50,6 +50,34 @@ def test_competition_tiers_are_season_aware():
     assert competition_tier("Game Changers 2025: Championship Seoul") == 3
 
 
+def test_vct_2027_open_stages_stay_out_of_tier_1():
+    # vlr.gg has no 2027 names yet; these follow its 2023-26 "VCT YYYY:" pattern.
+    # Replace with the real titles once the Kickoff qualifiers are listed.
+    assert competition_tier("VCT 2027: Americas Kickoff") == 1
+    assert competition_tier("VCT 2027: EMEA Cup 1") == 1
+    assert competition_tier("Valorant Masters Santiago 2027") == 1
+    assert competition_tier("VCT 2027: North America Open Qualifier") == 2
+    assert competition_tier("VCT 2027: Türkiye Open Qualifiers 2") == 2
+    assert competition_tier("VCT 2027: EMEA Open Playoffs") == 2
+    assert competition_tier("VCT 2027: Pacific Wild Card") == 2
+    assert competition_tier("VCT 2027: Pacific Last Chance Qualifier") == 2
+    # Pre-2027 LCQs were partner teams playing for Champions: still Tier 1.
+    assert competition_tier("Champions Tour 2023: Pacific Last Chance Qualifier", 2023) == 1
+    assert competition_tier("VCT 2024: Pacific Last Chance Qualifier") == 1
+
+
+def test_untiered_vct_titles_flags_only_unknown_official_events():
+    from vct_quant.etl.events import untiered_vct_titles
+
+    assert untiered_vct_titles([
+        "VCT 2027: Americas Kickoff",
+        "VCT OFF//SEASON Spotlight Series 2024: EMEA",
+        "NECC Valorant Champions Finals - Spring 2023",
+        "Red Bull Home Ground",
+        "VCT Cup Americas 2027",
+    ]) == ["VCT Cup Americas 2027"]
+
+
 def test_vlrgg_match_keeps_its_event_id_and_title(tmp_path, monkeypatch):
     monkeypatch.setattr(normalize, "RAW_VLRGG_DIR", tmp_path)
     event = {
