@@ -222,7 +222,14 @@ and `grade_predictions.py` and the desk's live panel grade them against Elo:
 
 Do not retune shadow settings against the live log. At a ~0.007/match gain,
 t = 2 needs ~1,500 graded matches, so the live log is a guard against
-regression, not a significance test.
+regression, not a significance test. **The promotion rule is fixed in advance**
+in `docs/model-lab-2026-09-24.md` section 3. Checkpoint 1 is after the
+Champions 2026 final (promote if the ensemble is no worse than Elo, n ≥ 25);
+checkpoint 2 is at 300 graded matches. Apply it as written.
+
+`scripts/matchday.sh` runs `vct update` plus grading every 2h from blabbleu's
+crontab (flock-guarded, skips if vlrggapi is down, stops itself after
+2026-10-20). Output goes to `data/interim/matchday.log`.
 
 The earlier logistic win was caused by scoring the unrelated broad harvest. On
 the corrected 2024 Tier-1 holdout, logistic calibration scores **0.6790 log loss
