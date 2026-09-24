@@ -8,7 +8,7 @@
 set -u
 cd "$(dirname "$0")/.."
 LOG=data/interim/matchday.log
-STOP_AFTER=${VCT_MATCHDAY_UNTIL:-2026-10-20}   # Champions 2026 plus a grading margin
+STOP_AFTER=${VCT_MATCHDAY_UNTIL:-2027-12-31}   # through the 2027 season (Kickoff qualifiers start Nov 2026)
 
 mkdir -p data/interim
 exec >>"$LOG" 2>&1
