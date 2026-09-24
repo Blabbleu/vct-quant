@@ -194,10 +194,35 @@ player-map stat rows. The vlrggapi load is additive and idempotent: Kaggle rows
 gain dates, while new event matches are inserted with their two teams.
 
 **The current model is raw margin-aware Elo on Tier 1.** It feeds
-`maps_a / (maps_a + maps_b)` at K=48 and scores **0.6569 log loss / 0.2321
-Brier / 61.5% accuracy** over 1,674 walk-forward Tier-1 matches (data through
-2026-09-16). Reproduce with
+`maps_a / (maps_a + maps_b)` at K=48 and scores **0.6567 log loss / 0.2320
+Brier / 61.6% accuracy** over 1,676 walk-forward Tier-1 matches (data through
+2026-09-24, after the automatic team-ID resolution below). Reproduce with
 `python scripts/benchmark_elo.py`.
+
+### Shadow models and the 2026-09-24 model lab
+
+Six more candidates were tuned on 2023-24 and scored on 2025/26
+(`docs/model-lab-2026-09-24.md`; `scripts/model_lab.py`, `model_lab2.py`,
+`ensemble_robustness.py`). None cleared the t > 2 ship bar.
+Best-of-aware map ratings (t = -4.24), calendar inactivity decay (+0.00) and a
+player-level Elo blend (+0.31) were rejected. A walk-forward logistic refit of
+Elo lost on validation in every setting that finished; its player-form/churn
+variants timed out unscored.
+
+Two survivors are **logged as shadows** by `models/shadow.py`. `predict_upcoming`
+adds `p_team_a_win_ensemble` and `p_team_a_win_calibrated` to official fixtures,
+and `grade_predictions.py` and the desk's live panel grade them against Elo:
+
+* **Fast/slow ensemble**: 0.7 x logit(Elo K=16) + 0.3 x logit(Elo K=256). It
+  wins every walk-forward fold (0.6488 vs 0.6567), and 82% of 330 nearby
+  settings gain held-out. The pre-registered pick is only t = +1.70 on 2025+26,
+  and +0.69 on 2026 alone.
+* **Online shrink**: `sigmoid(a * logit(p))` with `a` refit on the trailing 500
+  scored Tier-1 forecasts (t = +1.21).
+
+Do not retune shadow settings against the live log. At a ~0.007/match gain,
+t = 2 needs ~1,500 graded matches, so the live log is a guard against
+regression, not a significance test.
 
 The earlier logistic win was caused by scoring the unrelated broad harvest. On
 the corrected 2024 Tier-1 holdout, logistic calibration scores **0.6790 log loss
