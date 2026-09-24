@@ -82,9 +82,9 @@ The canonical database retains all 82,040 harvested matches, but the model
 sequence is restricted to 12,108 official Tier-1 and 14,869 official Tier-2
 matches. The other 55,063 matches never enter ratings or features.
 
-Margin-aware Elo scores **0.6569 walk-forward log loss / 0.2321 Brier / 61.5%
-accuracy** over 1,674 scored Tier-1 matches in 5 folds (coin flip = 0.6931).
-Reproduce with `python scripts/benchmark_elo.py`.
+Margin-aware Elo scores **0.6567 walk-forward log loss / 0.2320 Brier / 61.6%
+accuracy** over 1,676 scored Tier-1 matches in 5 folds (coin flip = 0.6931),
+data through 2026-09-24. Reproduce with `python scripts/benchmark_elo.py`.
 
 *Original plan retained below.*
 
@@ -162,6 +162,12 @@ Reproduce with `python scripts/benchmark_glicko.py`. Widening RD by
 roster churn instead of (or as well as) the calendar did no better: the combined
 variant scored 0.6428 on 2025 (`t = +1.27`) and, locked in advance, 0.6670
 versus Elo's 0.6681 on untouched 2026 (`t = +0.26`, after fixing split team IDs).
+
+The 2026-09-24 model lab (`docs/model-lab-2026-09-24.md`) rejected best-of-aware
+map ratings, calendar inactivity decay and a player-level Elo blend. Two
+near-misses now run as **shadow models** logged beside every forecast: a fast/slow
+Elo ensemble (walk-forward 0.6488 vs 0.6567, held-out t = +1.70) and an online
+shrink calibration (t = +1.21). Promote one only if it holds on the live log.
 
 ## Phase 6 — Forward prediction — next
 
