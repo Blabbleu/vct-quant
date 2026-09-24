@@ -186,6 +186,59 @@ probabilities. `vct prediction MATCH_ID` is the first product surface: it reads
 the cached forecast, refreshes the feed once on a miss, and prints one match.
 Next: add an API or dashboard only if the CLI proves insufficient.
 
+## Phase 7 — VCT 2027 open ecosystem — before November 2026
+
+Sources: Riot, "No Guaranteed Paths: Inside the New VCT 2027" (2026-06-18) and
+"Get Ready for VCT 2027 Open Qualifiers" (2026-09-08); vlr.gg articles 651748
+and 701065.
+
+**What changes.** Leagues become tournaments. Kickoff (Americas/EMEA/Pacific)
+is 12 teams, triple elimination: 8 partners + 4 from Open Qualifiers; the top 3
+go to Masters. China: 8 partners + 2 visitor teams + 2 open. Two **Cups** per
+territory replace the league stages and qualify directly for Masters and
+Champions. Partners get no guaranteed Cup slot: low finishers at a Cup or
+Masters drop to **Open Playoffs**; teams without results restart in **Open
+Qualifiers**. Ascension is gone ("a single tier of competition"). 14 regions,
+open qualifiers per region; South Asia and Oceania go through a Pacific
+LCQ / Wild Card. **A team that keeps 3 of 5 players keeps its points.** Kickoff
+qualifiers start November 2026; slot counts, qualifier formats and the partner
+list are due around Champions Shanghai.
+
+**Model consequences, in order.**
+
+1. ✅ **Scope.** Open Qualifiers, Open Playoffs, Wild Card and 2027+ LCQs are
+   Tier 2 (`etl/events.py`), so amateur rosters stay out of the Tier-1 pool as
+   they did not in 2021-22. Kickoff, Cups, Masters, Champions stay Tier 1. No
+   existing event changes tier (checked on all 2,195). `vct update` warns on
+   any VCT-branded title that gets no tier.
+2. ⏳ **Real titles.** Tests use guessed 2027 names. Replace them with vlr.gg's
+   real titles when the November qualifiers are listed; watch
+   `data/interim/matchday.log` for the untiered-title WARNING.
+3. ⏳ **Roster-based rating carry-over** (`scripts/open_era.py`). When a team
+   key first appears with >= 3 of 5 players from a rated team whose last lineup
+   still held them (an en-bloc move: rebrand, org swap), start it at that
+   team's rating instead of 1500. This is Riot's own continuity rule.
+
+   | period | 1500 prior | carry-over | paired t |
+   |---|---:|---:|---:|
+   | 2022 H1 (tune) | 0.6322 | 0.6207 | +4.68 |
+   | 2022 H2 (test) | 0.6359 | 0.6200 | +5.08 |
+   | 2023-26 (closed leagues) | 0.6479 | 0.6500 | -1.47 |
+
+   The 2023-26 cost splits evenly: inheriting only from 2023 on gives t=-0.89
+   (3 cases in four years: closed leagues barely rebrand), inheriting only in
+   2021-22 gives t=-1.31 (different ratings carried forward). Neither is
+   significant. The rule helps a lot when rosters move and costs a little,
+   not significantly, when they don't, so it fits 2027. Before shipping:
+   decide it on 2022 only, then treat 2027 Kickoff as the live check.
+4. ✅ **Newcomer starting rating: no change.** `scripts/newcomer_prior.py`:
+   priors 1350-1650 or seeding from the Tier-2 pool all score t≈0 on 2025-26.
+5. ⏳ **Region labels.** Qualifier titles name sub-regions ("North America Open
+   Qualifier"); `benchmark_regions.py` must map sub-region to territory.
+6. ✅ **Matchday refresh** runs through 2027-12-31.
+7. ⏳ **Promotion rule checkpoint 2** (300 graded matches) straddles the
+   format change; report the 2026 and 2027 parts separately next to the total.
+
 ## Cross-cutting
 
 * **Tests worth having**: a leakage regression test (assert no feature for match

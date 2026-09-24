@@ -138,14 +138,23 @@ matches and zero backfilled Tier-2 matches.
 
 `etl/events.py::competition_tier` owns the season-aware scope:
 
-* Tier 1: primary VCT regional circuit, Masters, Champions, historical LCQs.
-* Tier 2: post-2022 Challengers/VCL and Ascension.
+* Tier 1: primary VCT regional circuit, Masters, Champions, pre-2027 LCQs;
+  from 2027 also Kickoff and the Cups.
+* Tier 2: post-2022 Challengers/VCL and Ascension; from 2027 the open stages
+  (Open Qualifiers, Open Playoffs, Wild Card, 2027+ LCQs), which keep amateur
+  rosters out of the Tier-1 pool. `vct update` prints a WARNING for any
+  VCT-branded title that gets no tier: that is how a renamed 2027 stage shows up.
 * Tier 3: Game Changers, as its **own rating pool** (`match_sequence(tiers=(3,))`).
   44 teams appear in both pools; never replay them together.
 * Excluded: Premier, third-party/offseason, community, ranked.
 
 The 2021-2022 events named "Stage N: Challengers" are Tier 1: before the 2023
 league restructure, they were the primary regional VCT circuit.
+
+VCT 2027 is an open, all-tournament season (see ROADMAP "Phase 7"). The 2027
+tier rules were written against guessed titles; vlr.gg had no 2027 events on
+2026-09-24. Swap the guesses in `test_vct_2027_open_stages_stay_out_of_tier_1`
+for real titles as soon as the November Kickoff qualifiers are listed.
 
 ## Ground rules
 
@@ -229,7 +238,7 @@ checkpoint 2 is at 300 graded matches. Apply it as written.
 
 `scripts/matchday.sh` runs `vct update` plus grading every 2h from blabbleu's
 crontab (flock-guarded, skips if vlrggapi is down, stops itself after
-2026-10-20). Output goes to `data/interim/matchday.log`.
+2027-12-31). Output goes to `data/interim/matchday.log`.
 
 The earlier logistic win was caused by scoring the unrelated broad harvest. On
 the corrected 2024 Tier-1 holdout, logistic calibration scores **0.6790 log loss
