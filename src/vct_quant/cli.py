@@ -138,6 +138,16 @@ def main() -> None:
         print(f"Refreshed {len(official)} recent official events")
         print(normalize.load_vlrgg_match_results())
 
+        # The event feed has team names only. A renamed or new org shows up as
+        # an unresolved name and would start a fresh 1500-rated history, so
+        # fetch one detail payload per such name and resolve its ID now.
+        targets = normalize.unresolved_team_detail_targets()
+        if targets:
+            for match_id in targets:
+                vlrgg.fetch_match_details(match_id)
+            print(f"Fetched {len(targets)} match details for unresolved Tier-1 teams")
+            print(normalize.load_vlrgg_match_details())
+
         upcoming = vlrgg.fetch_upcoming_matches()
         fixtures, path = _materialize_upcoming(upcoming)
         upcoming_count = len(upcoming.get("data", {}).get("segments", []))

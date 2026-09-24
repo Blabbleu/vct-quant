@@ -48,6 +48,18 @@ def test_update_refreshes_results_before_predictions(monkeypatch, tmp_path, caps
         lambda: calls.append("load results") or "loaded",
     )
     monkeypatch.setattr(
+        normalize, "unresolved_team_detail_targets",
+        lambda: calls.append("find unresolved") or [42],
+    )
+    monkeypatch.setattr(
+        vlrgg, "fetch_match_details",
+        lambda match_id: calls.append(f"fetch details {match_id}") or {},
+    )
+    monkeypatch.setattr(
+        normalize, "load_vlrgg_match_details",
+        lambda: calls.append("load details") or "details",
+    )
+    monkeypatch.setattr(
         vlrgg, "fetch_upcoming_matches",
         lambda: calls.append("fetch upcoming") or {"data": {"segments": [1]}},
     )
@@ -62,9 +74,13 @@ def test_update_refreshes_results_before_predictions(monkeypatch, tmp_path, caps
     cli.main()
 
     assert calls == [
-        "fetch events", "fetch event 1", "load results", "fetch upcoming", "predict upcoming",
+        "fetch events", "fetch event 1", "load results",
+        "find unresolved", "fetch details 42", "load details",
+        "fetch upcoming", "predict upcoming",
     ]
-    assert "retained 1 official" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "retained 1 official" in out
+    assert "1 match details for unresolved Tier-1 teams" in out
 
 
 def test_prediction_prints_cached_match(monkeypatch, tmp_path, capsys):

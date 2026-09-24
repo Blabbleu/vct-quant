@@ -29,3 +29,8 @@ vct = "vct_quant.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+# tests import scripts/ as a package; bare `pytest` needs the repo root on sys.path
+pythonpath = ["."]
+testpaths = ["tests"]

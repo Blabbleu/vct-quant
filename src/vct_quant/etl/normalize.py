@@ -897,6 +897,42 @@ def _resolve_team_ids(
     report.note("team IDs resolved from details", resolved)
 
 
+def unresolved_team_detail_targets(
+    con: duckdb.DuckDBPyConnection | None = None,
+) -> list[int]:
+    """Matches whose detail payload would resolve an official team with no ID.
+
+    One match per unresolved Tier-1 team name: its latest. The detail
+    payload carries vlr.gg team IDs, and `_resolve_team_ids` applies an ID to
+    every row with that name. Tier 2 is excluded: thousands of lower-tier names
+    are unresolved and their results do not move ratings. Matches already
+    harvested are skipped, so a name the payload cannot resolve is not
+    refetched on every update.
+    """
+    owned = con is None
+    con = con or connect(read_only=True)
+    try:
+        rows = con.execute("""
+            SELECT max(mt.match_id)
+            FROM match_team mt
+            JOIN match m USING (match_id)
+            JOIN event e USING (event_id)
+            WHERE mt.team_id IS NULL AND mt.team_name IS NOT NULL
+              AND lower(trim(mt.team_name)) NOT IN ('tbd', '')
+              AND e.tier = 1
+            GROUP BY lower(trim(mt.team_name))
+        """).fetchall()
+    finally:
+        if owned:
+            con.close()
+    harvested = {
+        int(match.group(1))
+        for path in RAW_VLRGG_DIR.glob("match_details_*.json")
+        if (match := re.match(r"match_details_(\d+)_", path.name))
+    }
+    return sorted(int(r[0]) for r in rows if int(r[0]) not in harvested)
+
+
 def load_vlrgg_match_details(
     con: duckdb.DuckDBPyConnection | None = None,
 ) -> LoadReport:
