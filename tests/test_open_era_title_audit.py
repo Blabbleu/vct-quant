@@ -27,9 +27,37 @@ def test_2027_titles_join_events_and_fixtures_without_inventing_tiers():
     assert lcq["event_id"] == "123"
     assert lcq["event_url"] == "https://www.vlr.gg/event/123/example"
     assert lcq["upcoming_fixtures"] == 2
-    assert (lcq["tier_current"], lcq["tier_by_title"]) == (1, 2)
-    assert (rows[0]["vct_branded"], rows[0]["tier_current"]) == (False, None)
-    assert (rows[2]["vct_branded"], rows[2]["tier_current"]) == (True, None)
+    assert (lcq["tier_if_2026"], lcq["tier_by_title"]) == (1, 2)
+    assert (rows[0]["vct_branded"], rows[0]["tier_if_2026"]) == (False, None)
+    assert (rows[2]["vct_branded"], rows[2]["tier_if_2026"]) == (True, None)
+
+
+def test_calendar_tier_audit_uses_each_fixture_start_year_not_a_fixed_2026():
+    events = payload([{"title": "VCT 2027: Pacific LCQ", "event_id": "123"}])
+    upcoming = payload([
+        {"match_event": "VCT 2027: Pacific LCQ", "unix_timestamp": "2026-11-15 09:00:00",
+         "match_page": "101/november"},
+        {"match_event": "VCT 2027: Pacific LCQ", "unix_timestamp": "2027-01-15 09:00:00",
+         "match_page": "102/january"},
+    ])
+    row = titles.audit(events, upcoming)[0]
+    assert row["fixture_calendar_years"] == [2026, 2027]
+    assert row["calendar_tier_mismatches"] == [{
+        "match_page": "101/november", "scheduled_at": "2026-11-15 09:00:00",
+        "calendar_tier": 1, "title_tier": 2,
+    }]
+    assert row["tier_if_2026"] == 1
+    assert "tier_current" not in row
+
+
+def test_unknown_fixture_date_is_not_counted_as_no_calendar_disagreement():
+    row = titles.audit(payload([]), payload([
+        {"match_event": "VCT 2027: Pacific LCQ", "unix_timestamp": "TBD", "match_page": "103/tbd"},
+    ]))[0]
+    assert row["upcoming_fixtures"] == 1
+    assert row["unparsed_fixture_dates"] == 1
+    assert row["fixture_calendar_years"] == []
+    assert row["calendar_tier_mismatches"] == []
 
 
 def test_error_envelopes_are_not_empty_event_pages():

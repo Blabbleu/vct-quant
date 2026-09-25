@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+from datetime import datetime
 from pathlib import Path
 
 import requests
@@ -40,7 +41,10 @@ def audit(events: dict | None, upcoming: dict | None) -> list[dict]:
         if not SEASON.search(title):
             continue
         row = titles.setdefault(title, {"title": title, "event_url": None, "event_id": None,
-                                        "upcoming_fixtures": 0 if upcoming is not None else None})
+                                        "upcoming_fixtures": 0 if upcoming is not None else None,
+                                        "fixture_calendar_years": [] if upcoming is not None else None,
+                                        "calendar_tier_mismatches": [] if upcoming is not None else None,
+                                        "unparsed_fixture_dates": 0 if upcoming is not None else None})
         row["event_url"] = event.get("url_path")
         row["event_id"] = event.get("event_id")
     for fixture in segments(upcoming) if upcoming is not None else []:
@@ -48,14 +52,33 @@ def audit(events: dict | None, upcoming: dict | None) -> list[dict]:
         if not SEASON.search(title):
             continue
         row = titles.setdefault(title, {"title": title, "event_url": None, "event_id": None,
-                                        "upcoming_fixtures": 0})
+                                        "upcoming_fixtures": 0, "fixture_calendar_years": [],
+                                        "calendar_tier_mismatches": [],
+                                        "unparsed_fixture_dates": 0})
         row["upcoming_fixtures"] += 1
+        when = str(fixture.get("unix_timestamp") or "")
+        try:
+            year = datetime.fromisoformat(when).year
+        except ValueError:
+            row["unparsed_fixture_dates"] += 1
+            continue  # A missing or malformed date is not evidence of a safe tier.
+        if year not in row["fixture_calendar_years"]:
+            row["fixture_calendar_years"].append(year)
+        calendar_tier = competition_tier(title, year)
+        title_tier = competition_tier(title)
+        if calendar_tier != title_tier:
+            row["calendar_tier_mismatches"].append({
+                "match_page": fixture.get("match_page"), "scheduled_at": when,
+                "calendar_tier": calendar_tier, "title_tier": title_tier,
+            })
     result = []
     for row in titles.values():
         title = row["title"]
         row["vct_branded"] = bool(VCT_BRANDED.match(title.lower()))
-        row["tier_current"] = competition_tier(title, 2026)
+        row["tier_if_2026"] = competition_tier(title, 2026)
         row["tier_by_title"] = competition_tier(title)
+        if row["fixture_calendar_years"] is not None:
+            row["fixture_calendar_years"].sort()
         result.append(row)
     return sorted(result, key=lambda row: row["title"])
 
