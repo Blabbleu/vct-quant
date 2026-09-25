@@ -113,12 +113,10 @@ them or list the ingest they would need.
 
 ## Decisions (user, 2026-09-25)
 
-- **Audience: friends.** A small invited group, not public. Needs a login
-  (per-friend access) and a way in from outside: the host is behind NAT
-  (private 10.88.x address), so no port-forwarding. Recommended: Cloudflare
-  Tunnel + Cloudflare Access (email allowlist, no open ports); alternative:
-  Tailscale with shared nodes. Not chosen yet; exposure needs the user's
-  account setup and approval. Until then build and test on 127.0.0.1.
+- **Audience: friends.** A small invited group, not public. Access is the
+  user's existing Tailscale setup; the user handles exposure, so it is out of
+  scope for autodev. Keep `HOST`/`PORT` configurable (default 127.0.0.1),
+  no in-app login needed for now, and never open ports or install tunnels.
 - **Edge board and paper trading: yes.** Paper only; no real-money actions.
 - **Frontend build step: yes.** Vite + React + TypeScript under `frontend/`,
   npm dependencies installed in the dev worktree only (`frontend/node_modules`,
