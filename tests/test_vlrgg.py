@@ -1,6 +1,47 @@
+import json
+
 import pytest
 
 from vct_quant.ingest import vlrgg
+from vct_quant.etl import normalize
+
+
+def test_save_raw_preserves_same_second_retries_and_detail_replay(tmp_path, monkeypatch):
+    """A poisoned response must not replace the last valid archived detail."""
+    class Clock:
+        @staticmethod
+        def now(tz):
+            from datetime import datetime, timezone
+            return datetime(2026, 9, 25, 7, 30, tzinfo=timezone.utc)
+
+    monkeypatch.setattr(vlrgg, "datetime", Clock)
+    monkeypatch.setattr(vlrgg, "RAW_VLRGG_DIR", tmp_path)
+    monkeypatch.setattr(normalize, "RAW_VLRGG_DIR", tmp_path)
+    good = {"status": "success", "data": {"status": 200, "segments": [
+        {"match_id": "44", "teams": [], "maps": []}
+    ]}}
+    poison = {"status": "error", "data": {"status": 503, "segments": None}}
+    first = vlrgg.save_raw(good, "match_details_44")
+    second = vlrgg.save_raw(poison, "match_details_44")
+    assert first != second
+    assert json.loads(first.read_text()) == good
+    assert json.loads(second.read_text()) == poison
+    with pytest.warns(UserWarning, match="Skipping invalid archived detail"):
+        assert normalize._vlrgg_match_details() == good["data"]["segments"]
+
+
+def test_save_raw_three_same_second_snapshots_sort_in_fetch_order(tmp_path, monkeypatch):
+    class Clock:
+        @staticmethod
+        def now(tz):
+            from datetime import datetime, timezone
+            return datetime(2026, 9, 25, 7, 30, tzinfo=timezone.utc)
+
+    monkeypatch.setattr(vlrgg, "datetime", Clock)
+    monkeypatch.setattr(vlrgg, "RAW_VLRGG_DIR", tmp_path)
+    paths = [vlrgg.save_raw({"n": n}, "events_page001") for n in range(3)]
+    assert paths == sorted(paths)
+    assert [json.loads(p.read_text())["n"] for p in paths] == list(range(3))
 
 
 def test_get_respects_retry_after(monkeypatch):

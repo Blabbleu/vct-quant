@@ -32,11 +32,25 @@ def _get(path: str, params: dict | None = None) -> dict:
 
 
 def save_raw(payload: dict, name: str) -> Path:
+    """Keep every response, including two fetches for a source in one second.
+
+    Exclusive creation avoids overwriting an earlier good snapshot with an
+    HTTP-200 error. Numbered collisions sort after the unsuffixed snapshot,
+    preserving fetch order for the replay loader's latest-valid selection.
+    """
     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     RAW_VLRGG_DIR.mkdir(parents=True, exist_ok=True)
-    path = RAW_VLRGG_DIR / f"{name}_{ts}.json"
-    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    return path
+    body = json.dumps(payload, indent=2)
+    for number in range(10000):
+        suffix = f"_{number:04d}" if number else ""
+        path = RAW_VLRGG_DIR / f"{name}_{ts}{suffix}.json"
+        try:
+            with path.open("x", encoding="utf-8") as output:
+                output.write(body)
+            return path
+        except FileExistsError:
+            continue
+    raise FileExistsError(f"raw snapshot names exhausted for {name}_{ts}")
 
 
 def _fetch_segmented(path: str, params: dict, name: str, save: bool) -> dict:
