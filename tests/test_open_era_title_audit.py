@@ -88,6 +88,37 @@ def test_yearless_open_title_is_flagged_from_late_2026_fixture_not_called_2027()
     }]
 
 
+def test_yearless_event_candidates_include_upcoming_open_stages_without_fixtures():
+    events = [payload([
+        {"title": "VCT Pacific: Open Qualifier", "status": "upcoming", "dates": "Nov 15—20",
+         "event_id": "301", "url_path": "https://www.vlr.gg/event/301/open"},
+        {"title": "VCT Americas: LCQ", "status": "ongoing", "dates": "Nov 1—10",
+         "event_id": "302"},
+        {"title": "VCT Pacific: Kickoff", "status": "upcoming"},
+        {"title": "VCT 2026: Pacific Open Qualifier", "status": "upcoming"},
+        {"title": "Community Open Qualifier", "status": "upcoming"},
+        {"title": "VCT Pacific: Open Playoffs", "status": "completed"},
+    ])]
+    assert titles.yearless_open_event_candidates(events) == [{
+        "title": "VCT Pacific: Open Qualifier", "event_id": "301",
+        "event_url": "https://www.vlr.gg/event/301/open", "status": "upcoming",
+        "dates_raw": "Nov 15—20",
+    }]
+    assert titles.yearless_open_event_candidates([]) is None
+
+
+def test_yearless_event_candidates_survive_partial_upcoming_outage(monkeypatch, capsys):
+    monkeypatch.setattr(titles.vlrgg, "fetch_events", lambda page, save: payload([
+        {"title": "VCT Pacific: Open Qualifier", "status": "upcoming", "event_id": "301"}]))
+    monkeypatch.setattr(titles.vlrgg, "fetch_upcoming_matches", lambda save: payload({}))
+    monkeypatch.setattr(sys, "argv", ["open_era_title_audit.py"])
+    with pytest.raises(SystemExit):
+        titles.main()
+    report = json.loads(capsys.readouterr().out)
+    assert report["yearless_open_event_candidates"][0]["event_id"] == "301"
+    assert report["yearless_open_candidates"] is None
+
+
 def test_yearless_candidates_survive_partial_event_outage(monkeypatch, capsys):
     monkeypatch.setattr(titles.vlrgg, "fetch_events", lambda page, save: payload({}))
     monkeypatch.setattr(titles.vlrgg, "fetch_upcoming_matches", lambda save: payload([

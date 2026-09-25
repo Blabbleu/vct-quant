@@ -86,6 +86,30 @@ def audit(events: dict | list[dict] | None, upcoming: dict | None) -> list[dict]
     return sorted(result, key=lambda row: row["title"])
 
 
+def yearless_open_event_candidates(events: list[dict]) -> list[dict] | None:
+    """Flag upcoming VCT open-stage event cards even before fixtures are listed.
+
+    Event cards often give month/day but no year; neither status nor a date
+    string verifies which VCT season the event belongs to.
+    """
+    if not events:
+        return None  # An event outage is not an empty candidate set.
+    found = {}
+    for event in (row for page in events for row in segments(page)):
+        title = str(event.get("title") or "").strip()
+        lower = title.lower()
+        if (str(event.get("status") or "").lower() != "upcoming"
+                or re.search(r"\b20\d\d\b", lower)
+                or not VCT_BRANDED.match(lower)
+                or not (OPEN_STAGE.search(lower) or LAST_CHANCE.search(lower))):
+            continue
+        key = event.get("event_id") or title
+        found[key] = {"title": title, "event_id": event.get("event_id"),
+                      "event_url": event.get("url_path"), "status": event.get("status"),
+                      "dates_raw": event.get("dates")}
+    return sorted(found.values(), key=lambda row: row["title"])
+
+
 def yearless_open_candidates(upcoming: dict | None) -> list[dict] | None:
     """Surface dated open-stage fixtures lacking a year in their event title.
 
@@ -155,6 +179,7 @@ def main() -> None:
               "event_pages_checked": checked,
               "event_rows": sum(len(segments(page)) for page in event_pages) if checked else None,
               "fixture_rows": len(segments(upcoming)) if upcoming is not None else None,
+              "yearless_open_event_candidates": yearless_open_event_candidates(event_pages),
               "yearless_open_candidates": yearless_open_candidates(upcoming)}
     if errors:
         # Observations from a healthy source survive a partial outage, but an
