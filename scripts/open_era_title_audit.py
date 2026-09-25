@@ -19,7 +19,7 @@ from pathlib import Path
 
 import requests
 
-from vct_quant.etl.events import VCT_BRANDED, competition_tier
+from vct_quant.etl.events import LAST_CHANCE, OPEN_STAGE, VCT_BRANDED, competition_tier
 from vct_quant.ingest import vlrgg
 
 SEASON = re.compile(r"\b2027\b")
@@ -86,6 +86,34 @@ def audit(events: dict | list[dict] | None, upcoming: dict | None) -> list[dict]
     return sorted(result, key=lambda row: row["title"])
 
 
+def yearless_open_candidates(upcoming: dict | None) -> list[dict] | None:
+    """Surface dated open-stage fixtures lacking a year in their event title.
+
+    A late-2026 match *might* qualify for 2027, but neither its date nor its
+    stage proves the event season. Keep these separate from observed 2027 titles.
+    """
+    if upcoming is None:
+        return None  # Feed outage is not an empty candidate set.
+    found: dict[str, dict] = {}
+    for fixture in segments(upcoming):
+        title = str(fixture.get("match_event") or "").strip()
+        lower = title.lower()
+        if (re.search(r"\b20\d\d\b", lower) or not VCT_BRANDED.match(lower)
+                or not (OPEN_STAGE.search(lower) or LAST_CHANCE.search(lower))):
+            continue
+        when = str(fixture.get("unix_timestamp") or "")
+        try:
+            start = datetime.fromisoformat(when)
+        except ValueError:
+            continue
+        if not ((start.year == 2026 and start.month >= 11) or start.year == 2027):
+            continue
+        row = found.setdefault(title, {"title": title, "fixture_count": 0, "fixtures": []})
+        row["fixture_count"] += 1
+        row["fixtures"].append({"match_page": fixture.get("match_page"), "scheduled_at": when})
+    return sorted(found.values(), key=lambda row: row["title"])
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--events-json", type=Path, nargs="+", help="archived event pages (read only)")
@@ -126,7 +154,8 @@ def main() -> None:
               "complete": not errors,
               "event_pages_checked": checked,
               "event_rows": sum(len(segments(page)) for page in event_pages) if checked else None,
-              "fixture_rows": len(segments(upcoming)) if upcoming is not None else None}
+              "fixture_rows": len(segments(upcoming)) if upcoming is not None else None,
+              "yearless_open_candidates": yearless_open_candidates(upcoming)}
     if errors:
         # Observations from a healthy source survive a partial outage, but an
         # empty list cannot establish that no 2027 title exists across sources.

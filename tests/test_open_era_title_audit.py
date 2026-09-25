@@ -68,6 +68,39 @@ def test_unknown_fixture_date_is_not_counted_as_no_calendar_disagreement():
     assert row["calendar_tier_mismatches"] == []
 
 
+def test_yearless_open_title_is_flagged_from_late_2026_fixture_not_called_2027():
+    upcoming = payload([
+        {"match_event": "VCT Pacific: Open Qualifier", "unix_timestamp": "2026-11-15 09:00:00",
+         "match_page": "201/open"},
+        {"match_event": "VCT Pacific: Open Qualifier", "unix_timestamp": "2026-12-01 09:00:00",
+         "match_page": "202/open"},
+        {"match_event": "VCT Pacific: Open Qualifier", "unix_timestamp": "2026-09-01 09:00:00"},
+        {"match_event": "VCT 2026: Pacific LCQ", "unix_timestamp": "2026-11-15 09:00:00"},
+        {"match_event": "Third Party Open Qualifier", "unix_timestamp": "2027-01-01 09:00:00"},
+        {"match_event": "VCT Pacific: Kickoff", "unix_timestamp": "2027-01-01 09:00:00"},
+        {"match_event": "VCT Pacific: LCQ", "unix_timestamp": "TBD"},
+    ])
+    assert titles.audit(payload([]), upcoming) == []
+    assert titles.yearless_open_candidates(upcoming) == [{
+        "title": "VCT Pacific: Open Qualifier", "fixture_count": 2,
+        "fixtures": [{"match_page": "201/open", "scheduled_at": "2026-11-15 09:00:00"},
+                     {"match_page": "202/open", "scheduled_at": "2026-12-01 09:00:00"}],
+    }]
+
+
+def test_yearless_candidates_survive_partial_event_outage(monkeypatch, capsys):
+    monkeypatch.setattr(titles.vlrgg, "fetch_events", lambda page, save: payload({}))
+    monkeypatch.setattr(titles.vlrgg, "fetch_upcoming_matches", lambda save: payload([
+        {"match_event": "VCT Pacific: LCQ", "unix_timestamp": "2027-01-15 09:00:00",
+         "match_page": "203/lcq"}]))
+    monkeypatch.setattr(sys, "argv", ["open_era_title_audit.py"])
+    with pytest.raises(SystemExit):
+        titles.main()
+    report = json.loads(capsys.readouterr().out)
+    assert report["yearless_open_candidates"][0]["title"] == "VCT Pacific: LCQ"
+    assert report["complete"] is False
+
+
 def test_error_envelopes_are_not_empty_event_pages():
     for bad in ({"status": "error", "data": {"segments": []}},
                 {"status": "success", "data": {"status": 502, "segments": []}},
@@ -129,6 +162,7 @@ def test_partial_upcoming_outage_preserves_event_title_without_false_zero(monkey
     assert "upcoming" in report["errors"]
     assert report["observed_2027_titles"][0]["event_id"] == "123"
     assert report["observed_2027_titles"][0]["upcoming_fixtures"] is None
+    assert report["yearless_open_candidates"] is None
     assert "season_2027_titles" not in report
 
 
