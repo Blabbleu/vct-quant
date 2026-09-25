@@ -229,6 +229,81 @@ def test_live_audit_rejects_played_map_despite_scheduled_detail(monkeypatch):
     assert "played map" in lines[0]
 
 
+@pytest.mark.parametrize("payload", [
+    {"status": "error", "data": {"status": 503, "segments": []}},
+    {"status": "success", "data": {"status": 200, "segments": None}},
+    {"status": "success", "data": {"status": 200, "segments": [None]}},
+])
+def test_live_audit_does_not_treat_malformed_http_200_feed_as_empty(monkeypatch, payload):
+    class Response:
+        def raise_for_status(self):
+            pass
+        def json(self):
+            return payload
+    class Session:
+        def get(self, url, *, params, timeout):
+            return Response()
+    monkeypatch.setattr("scripts.veto_source_audit.requests.Session", Session)
+    counts, lines = live_audit("http://example.test", 8)
+    assert counts["feed_api_errors"] == 1
+    assert counts["successful_prestart"] == 0
+    assert "unavailable" in lines[0].lower()
+
+
+@pytest.mark.parametrize("detail", [
+    {"status": "error", "data": {"status": 503, "segments": [{"status": "scheduled", "maps": [], "map_vetos": BO3}]}},
+    {"status": "success", "data": {"status": 200, "segments": [{"match_id": "999", "status": "scheduled", "maps": [], "map_vetos": BO3}]}},
+])
+def test_live_audit_does_not_count_poisoned_or_wrong_match_detail(monkeypatch, detail):
+    class Response:
+        def __init__(self, payload):
+            self.payload = payload
+        def raise_for_status(self):
+            pass
+        def json(self):
+            return self.payload
+    class Session:
+        def get(self, url, *, params, timeout):
+            if params == {"q": "upcoming"}:
+                return Response({"data": {"segments": [
+                    {"match_page": "3/fixture", "unix_timestamp": "2099-01-01 00:00:00"},
+                ]}})
+            return Response(detail)
+    monkeypatch.setattr("scripts.veto_source_audit.requests.Session", Session)
+    counts, lines = live_audit("http://example.test", 1)
+    assert counts["api_errors"] == 1
+    assert counts["successful_prestart"] == 0
+    assert counts["full_prestart_veto"] == 0
+    assert "API error" in lines[0]
+
+
+def test_live_audit_skips_bad_fixture_link_and_malformed_detail(monkeypatch):
+    class Response:
+        def __init__(self, payload):
+            self.payload = payload
+        def raise_for_status(self):
+            pass
+        def json(self):
+            return self.payload
+    class Session:
+        def get(self, url, *, params, timeout):
+            if params == {"q": "upcoming"}:
+                return Response({"data": {"segments": [
+                    {"match_page": "", "unix_timestamp": "2099-01-01 00:00:00"},
+                    {"match_page": "3/fixture", "unix_timestamp": "2099-01-01 00:00:00"},
+                ]}})
+            assert params == {"match_id": "3"}
+            return Response({"data": {"segments": [{"status": "scheduled", "maps": None,
+                                                       "map_vetos": BO3}]}})
+    monkeypatch.setattr("scripts.veto_source_audit.requests.Session", Session)
+    counts, lines = live_audit("http://example.test", 2)
+    assert counts["invalid_fixture"] == 1
+    assert counts["prestart_attempts"] == 1
+    assert counts["api_errors"] == 1
+    assert counts["successful_prestart"] == 0
+    assert len(lines) == 2
+
+
 def test_live_audit_skips_bad_start_without_window_too(monkeypatch):
     class Response:
         def __init__(self, data):

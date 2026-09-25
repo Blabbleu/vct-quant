@@ -51,11 +51,32 @@ def parse_full_veto(text: str) -> dict | None:
     return {"best_of": len(picks) + 1, "picks": picks, "decider": deciders[0]}
 
 
-def segment(payload: dict) -> dict | None:
+def _segments(payload: dict) -> list[dict]:
+    """Reject explicit API errors and broken rows, including HTTP-200 errors.
+
+    Older archived fixtures omit the status fields, but an explicitly failed
+    envelope cannot establish a negative observation from a live probe.
+    """
+    data = payload.get("data") if isinstance(payload, dict) else None
+    rows = data.get("segments") if isinstance(data, dict) else None
+    if (not isinstance(payload, dict) or payload.get("status", "success") != "success"
+            or not isinstance(data, dict) or data.get("status", 200) != 200
+            or not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows)):
+        raise ValueError("invalid vlrggapi envelope or segments")
+    return rows
+
+
+def segment(payload: dict, match_id: str | None = None) -> dict | None:
     """API v2 nests match details under data.segments[0]."""
-    data = payload.get("data") or {}
-    segments = data.get("segments") or []
-    return segments[0] if segments and isinstance(segments[0], dict) else None
+    rows = _segments(payload)
+    if not rows:
+        return None
+    if len(rows) != 1 or (match_id is not None and rows[0].get("match_id") is not None
+                          and str(rows[0]["match_id"]) != match_id):
+        raise ValueError("wrong match detail identity")
+    if match_id is not None and not isinstance(rows[0].get("maps"), list):
+        raise ValueError("invalid match detail maps")
+    return rows[0]
 
 
 def archived_audit(root: Path) -> Counter:
@@ -86,7 +107,7 @@ def live_audit(base_url: str, limit: int, within_hours: float | None = None) -> 
     try:
         response = session.get(f"{base_url}/v2/match", params={"q": "upcoming"}, timeout=30)
         response.raise_for_status()
-        fixtures = response.json()["data"]["segments"]
+        fixtures = _segments(response.json())
     except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
         counts["feed_api_errors"] += 1
         lines.append(f"Upcoming feed unavailable: {type(exc).__name__}: {exc}")
@@ -95,6 +116,11 @@ def live_audit(base_url: str, limit: int, within_hours: float | None = None) -> 
     # from an observed negative veto and never let it abort the other probes.
     dated = []
     for fixture in fixtures:
+        page = fixture.get("match_page")
+        if not isinstance(page, str) or not page.split("/", 1)[0].isdigit():
+            counts["invalid_fixture"] += 1
+            lines.append(f"{page!r}: invalid fixture link")
+            continue
         try:
             start = datetime.strptime(fixture["unix_timestamp"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
         except (ValueError, TypeError, KeyError):
@@ -124,7 +150,7 @@ def live_audit(base_url: str, limit: int, within_hours: float | None = None) -> 
         try:
             response = session.get(f"{base_url}/v2/match/details", params={"match_id": match_id}, timeout=30)
             response.raise_for_status()
-            detail = segment(response.json())
+            detail = segment(response.json(), match_id)
             if detail is None:
                 raise ValueError("missing detail segment")
         except (requests.RequestException, ValueError, KeyError) as exc:
