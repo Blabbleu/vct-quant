@@ -36,6 +36,33 @@ def _paired_t(diff: np.ndarray) -> float:
     return float(diff.mean() / (sd / np.sqrt(len(diff)))) if sd > 0 else 0.0
 
 
+def _print_shadow_scores(scored: pd.DataFrame, column: str, label: str) -> None:
+    """Keep the preregistered pooled score; show season cohorts as diagnostics."""
+    both = scored[scored[column].notna()]
+    if len(both) < 2:
+        print(f"\n{label}: {len(both)} graded so far")
+    else:
+        yy = both.y.to_numpy()
+        base = _loss(yy, both.p_team_a_win.to_numpy())
+        shadow = _loss(yy, both[column].to_numpy())
+        print(f"\n{label}, n = {len(both)}")
+        print(f"elo    {base.mean():.4f}")
+        print(f"shadow {shadow.mean():.4f}   paired t = {_paired_t(base - shadow):+.2f} (positive = shadow better)")
+
+    years = sorted({2026, 2027} | set(both.scheduled_at.dt.year.dropna().astype(int)))
+    for year in years:
+        cohort = both[both.scheduled_at.dt.year == year]
+        n = len(cohort)
+        if n < 2:
+            print(f"  {year}: n = {n} (paired t unavailable)")
+            continue
+        yy = cohort.y.to_numpy()
+        base = _loss(yy, cohort.p_team_a_win.to_numpy())
+        shadow = _loss(yy, cohort[column].to_numpy())
+        print(f"  {year}: n = {n}, elo {base.mean():.4f}, shadow {shadow.mean():.4f}, "
+              f"paired t = {_paired_t(base - shadow):+.2f}")
+
+
 def main() -> int:
     log = pd.read_parquet(PROCESSED_DIR / "prediction_log.parquet")
 
@@ -71,18 +98,8 @@ def main() -> int:
     # Shadow models: logged beside Elo since 2026-09-24, graded only where logged.
     # Positive t = the shadow beats production Elo on the same matches.
     for column, label in SHADOWS.items():
-        if column not in scored:
-            continue
-        both = scored[scored[column].notna()]
-        if len(both) < 2:
-            print(f"\n{label}: {len(both)} graded so far")
-            continue
-        yy = both.y.to_numpy()
-        base = _loss(yy, both.p_team_a_win.to_numpy())
-        shadow = _loss(yy, both[column].to_numpy())
-        print(f"\n{label}, n = {len(both)}")
-        print(f"elo    {base.mean():.4f}")
-        print(f"shadow {shadow.mean():.4f}   paired t = {_paired_t(base - shadow):+.2f} (positive = shadow better)")
+        if column in scored:
+            _print_shadow_scores(scored, column, label)
 
     # Market benchmark: only matches with a price, only liquid-enough markets.
     # A wide bid/ask spread means nobody is really trading -- that "price" is noise.

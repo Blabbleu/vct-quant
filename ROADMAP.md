@@ -236,8 +236,11 @@ list are due around Champions Shanghai.
 5. ⏳ **Region labels.** Qualifier titles name sub-regions ("North America Open
    Qualifier"); `benchmark_regions.py` must map sub-region to territory.
 6. ✅ **Matchday refresh** runs through 2027-12-31.
-7. ⏳ **Promotion rule checkpoint 2** (300 graded matches) straddles the
-   format change; report the 2026 and 2027 parts separately next to the total.
+7. ✅ **Checkpoint-2 grading split.** `grade_predictions.py` preserves the
+   pre-registered pooled paired score and reports 2026/2027 cohort n, losses
+   and paired t separately by scheduled fixture year (UTC). A cohort with
+   fewer than two graded shadow forecasts has no paired t; the cohort rows
+   are diagnostics, not new promotion thresholds.
 
 ## Cross-cutting
 
