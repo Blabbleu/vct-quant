@@ -32,6 +32,13 @@ that the canonical map table has not stored it.
   means no near-start candidates, not evidence that vetoes are missing. The
   probe is read-only; leave historical raw untouched and do not add a
   dev-worktree collector aimed at the live raw symlink.
+- A `TBD`/missing fixture timestamp now increments `invalid_start` without
+  preventing other fixture probes. A detail already marked `final` despite
+  its fixture's future start increments `stale_final_detail` and cannot count
+  as a pre-start veto: the upcoming date may be stale after rescheduling.
+  Both cases are unknown, not negative veto observations. Tests cover the
+  near-start and unfiltered paths. At 06:08 UTC the live feed still returned
+  HTTP 502; no new veto observation was made.
 
 **Decision:** source is promising for *retrospective* complete-veto text but
 unproven for *pre-start* forecasts. Do not backfill and score historical

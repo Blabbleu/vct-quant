@@ -91,11 +91,21 @@ def live_audit(base_url: str, limit: int, within_hours: float | None = None) -> 
         counts["feed_api_errors"] += 1
         lines.append(f"Upcoming feed unavailable: {type(exc).__name__}: {exc}")
         return counts, lines
+    # A TBD/rescheduled fixture can have no parseable start. Keep it distinct
+    # from an observed negative veto and never let it abort the other probes.
+    dated = []
+    for fixture in fixtures:
+        try:
+            start = datetime.strptime(fixture["unix_timestamp"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+        except (ValueError, TypeError, KeyError):
+            counts["invalid_start"] += 1
+            lines.append(f"{fixture.get('match_page', '<unknown>')}: invalid start {fixture.get('unix_timestamp')!r}")
+            continue
+        dated.append((start, fixture))
     if within_hours is not None:
         cutoff = datetime.now(timezone.utc) + timedelta(hours=within_hours)
         near = []
-        for fixture in fixtures:
-            start = datetime.strptime(fixture["unix_timestamp"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+        for start, fixture in dated:
             if start > cutoff:
                 counts["outside_window"] += 1
             elif start > datetime.now(timezone.utc):
@@ -103,10 +113,9 @@ def live_audit(base_url: str, limit: int, within_hours: float | None = None) -> 
             else:
                 counts["at_or_after_start"] += 1
         counts["window_eligible"] = len(near)
-        fixtures = [fixture for _, fixture in sorted(near, key=lambda pair: pair[0])]
-    for fixture in fixtures[:limit]:
+        dated = sorted(near, key=lambda pair: pair[0])
+    for start, fixture in dated[:limit]:
         match_id = fixture["match_page"].split("/", 1)[0]
-        start = datetime.strptime(fixture["unix_timestamp"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
         observed = datetime.now(timezone.utc)
         if observed >= start:
             counts["at_or_after_start"] += 1
@@ -125,6 +134,12 @@ def live_audit(base_url: str, limit: int, within_hours: float | None = None) -> 
         received = datetime.now(timezone.utc)
         if received >= start:
             counts["at_or_after_start"] += 1
+            continue
+        if str(detail.get("status") or "").lower() == "final":
+            # Feed time may be stale after a reschedule; a completed detail
+            # cannot prove its veto was published before play.
+            counts["stale_final_detail"] += 1
+            lines.append(f"{match_id}: detail already final despite future fixture start={start.isoformat()}")
             continue
         veto = str(detail.get("map_vetos") or "").strip()
         parsed = parse_full_veto(veto)

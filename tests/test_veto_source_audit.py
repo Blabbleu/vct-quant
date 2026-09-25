@@ -126,3 +126,81 @@ def test_live_audit_near_start_window_filters_and_orders_before_limiting(monkeyp
     assert counts["window_eligible"] == 2
     assert [line.split(":", 1)[0] for line in lines] == ["2", "1"]
 
+
+def test_live_audit_skips_tbd_and_malformed_start_without_losing_valid_fixture(monkeypatch):
+    class Response:
+        def __init__(self, data):
+            self.data = data
+        def raise_for_status(self):
+            pass
+        def json(self):
+            return self.data
+
+    class Session:
+        def get(self, url, *, params, timeout):
+            if params == {"q": "upcoming"}:
+                return Response({"data": {"segments": [
+                    {"match_page": "1/tbd", "unix_timestamp": "TBD"},
+                    {"match_page": "2/missing"},
+                    {"match_page": "3/valid", "unix_timestamp": "2099-01-01 00:00:00"},
+                ]}})
+            assert params == {"match_id": "3"}
+            return Response({"data": {"segments": [{"status": "scheduled", "map_vetos": "", "maps": []}]}})
+
+    monkeypatch.setattr("scripts.veto_source_audit.requests.Session", Session)
+    counts, lines = live_audit("http://example.test", 3, within_hours=999999)
+    assert counts["invalid_start"] == 2
+    assert counts["window_eligible"] == 1
+    assert counts["successful_prestart"] == 1
+    assert any("TBD" in line for line in lines)
+
+
+def test_live_audit_does_not_count_final_detail_as_prestart_veto(monkeypatch):
+    class Response:
+        def __init__(self, data):
+            self.data = data
+        def raise_for_status(self):
+            pass
+        def json(self):
+            return self.data
+
+    class Session:
+        def get(self, url, *, params, timeout):
+            if params == {"q": "upcoming"}:
+                return Response({"data": {"segments": [
+                    {"match_page": "3/stale", "unix_timestamp": "2099-01-01 00:00:00"},
+                ]}})
+            return Response({"data": {"segments": [{"status": "final", "map_vetos": BO3, "maps": []}]}})
+
+    monkeypatch.setattr("scripts.veto_source_audit.requests.Session", Session)
+    counts, lines = live_audit("http://example.test", 1)
+    assert counts["stale_final_detail"] == 1
+    assert counts["successful_prestart"] == 0
+    assert counts["full_prestart_veto"] == 0
+    assert "final" in lines[0]
+
+
+def test_live_audit_skips_bad_start_without_window_too(monkeypatch):
+    class Response:
+        def __init__(self, data):
+            self.data = data
+        def raise_for_status(self):
+            pass
+        def json(self):
+            return self.data
+
+    class Session:
+        def get(self, url, *, params, timeout):
+            if params == {"q": "upcoming"}:
+                return Response({"data": {"segments": [
+                    {"match_page": "1/tbd", "unix_timestamp": "TBD"},
+                    {"match_page": "3/valid", "unix_timestamp": "2099-01-01 00:00:00"},
+                ]}})
+            return Response({"data": {"segments": [{"status": "scheduled", "map_vetos": "", "maps": []}]}})
+
+    monkeypatch.setattr("scripts.veto_source_audit.requests.Session", Session)
+    counts, lines = live_audit("http://example.test", 2)
+    assert counts["invalid_start"] == 1
+    assert counts["successful_prestart"] == 1
+    assert len(lines) == 2
+
