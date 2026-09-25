@@ -198,7 +198,9 @@ go to Masters. China: 8 partners + 2 visitor teams + 2 open. Two **Cups** per
 territory replace the league stages and qualify directly for Masters and
 Champions. Partners get no guaranteed Cup slot: low finishers at a Cup or
 Masters drop to **Open Playoffs**; teams without results restart in **Open
-Qualifiers**. Ascension is gone ("a single tier of competition"). 14 regions,
+Qualifiers**. Ascension is gone ("a single tier of competition"). **16 listed Open
+Qualifier regions** (4 Americas, 3 EMEA, 8 Pacific, 1 China), per Riot's
+[September 8 list](https://valorantesports.com/news/get-ready-for-vct-2027-open-qualifiers);
 open qualifiers per region; South Asia and Oceania go through a Pacific
 LCQ / Wild Card. **A team that keeps 3 of 5 players keeps its points.** Kickoff
 qualifiers start November 2026; slot counts, qualifier formats and the partner
@@ -239,8 +241,15 @@ list are due around Champions Shanghai.
    match details before considering promotion.
 4. ✅ **Newcomer starting rating: no change.** `scripts/newcomer_prior.py`:
    priors 1350-1650 or seeding from the Tier-2 pool all score t≈0 on 2025-26.
-5. ⏳ **Region labels.** Qualifier titles name sub-regions ("North America Open
-   Qualifier"); `benchmark_regions.py` must map sub-region to territory.
+5. ✅ **Qualifier territory labels (provisional titles).**
+   `scripts/benchmark_regions.py` maps all 16 Riot-listed qualifier sub-regions
+   to four territories, carries a team's label from Tier-2 qualifier appearance
+   into later Tier-1 matches in match-ID order, and recognizes VCT 2027 season
+   names even when `date_raw` is ISO text or the match occurred in November
+   2026. No Elo update uses the Tier-2 result. Historical 2023–24 tuning is
+   unchanged (n=135, k=0 best; 2025–26 test n=126). Replace title assumptions
+   and verify coverage when vlr.gg lists real qualifiers; region offsets remain
+   rejected, and this is a research-script fix, not a production forecast.
 6. ✅ **Matchday refresh** runs through 2027-12-31.
 7. ✅ **Checkpoint-2 grading split.** `grade_predictions.py` preserves the
    pre-registered pooled paired score and reports 2026/2027 cohort n, losses

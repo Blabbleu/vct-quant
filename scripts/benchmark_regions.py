@@ -17,6 +17,8 @@ only ~120 scored matches in 2025-2026 -- expect a noisy answer.
 """
 from __future__ import annotations
 
+import re
+
 import numpy as np
 import pandas as pd
 
@@ -29,6 +31,68 @@ INTERNATIONAL = r"Masters|LOCK//IN|Valorant Champions \d{4}$"
 FIRST_YEAR = 2023
 TUNE_YEARS, TEST_YEARS = (2023, 2024), (2025, 2026)
 K_GRID = [0, 2, 4, 8, 16, 32]
+
+# Riot's September 2026 list has 16 qualifiers (not 14). Assign a territory
+# from an official event title, never from a team's name or guessed nationality.
+QUALIFIER_TERRITORIES = {
+    "north america": "Americas", "latin america north": "Americas",
+    "latin america south": "Americas", "brazil": "Americas",
+    "europe": "EMEA", "turkiye": "EMEA", "türkiye": "EMEA", "mena": "EMEA",
+    "south korea": "Pacific", "japan": "Pacific", "thailand": "Pacific",
+    "indonesia": "Pacific", "vietnam": "Pacific", "southeast asia": "Pacific",
+    "south asia": "Pacific", "oceania": "Pacific", "china": "China",
+}
+_QUALIFIER_NAME = "|".join(re.escape(name) for name in QUALIFIER_TERRITORIES)
+_QUALIFIER = re.compile(rf"\b({_QUALIFIER_NAME})\s+open qualifiers?\b", re.I)
+
+
+def territory_for_event(title: str) -> str | None:
+    """Recognize a regional league or a named 2027 open qualifier."""
+    if re.search(r"\bvct 2027\b", title, re.I) and re.search(
+        r"\bopen qualifiers?\b", title, re.I
+    ):
+        found = _QUALIFIER.search(title)
+        return QUALIFIER_TERRITORIES[found.group(1).lower()] if found else None
+    if re.search(r"\bopen qualifiers?\b", title, re.I):
+        return None
+    found = re.search(LEAGUE, title)
+    return found.group(1) if found else None
+
+
+def assign_regions(df: pd.DataFrame) -> pd.DataFrame:
+    """Carry the last regional event assignment in match-id order."""
+    region: dict[str, str] = {}
+    region_a, region_b = [], []
+    for team_a, team_b, title in zip(df.team_a, df.team_b, df.event_name):
+        league = None if re.search(INTERNATIONAL, title) else territory_for_event(title)
+        if league:
+            region[team_a] = region[team_b] = league
+        region_a.append(region.get(team_a))
+        region_b.append(region.get(team_b))
+    return df.assign(region_a=region_a, region_b=region_b)
+
+
+def region_history_mask(df: pd.DataFrame) -> pd.Series:
+    """Retain 2027 fixtures with ISO dates and qualifier region lineage."""
+    season_2027 = df.event_name.str.contains(
+        r"\bvct 2027\b", case=False, regex=True, na=False
+    )
+    qualifier = df.event_name.str.contains(
+        r"\bopen qualifiers?\b", case=False, regex=True, na=False
+    )
+    return (df.tier.eq(1) & (df.year.ge(FIRST_YEAR) | season_2027)) | (
+        df.tier.eq(2) & season_2027 & qualifier
+    )
+
+
+def with_2027_season(df: pd.DataFrame) -> pd.DataFrame:
+    """Label VCT 2027 by event season, including November 2026 qualifiers."""
+    season_2027 = df.event_name.str.contains(
+        r"\bvct 2027\b", case=False, regex=True, na=False
+    )
+    out = df.copy()
+    out.loc[season_2027, "year"] = 2027
+    return out
 
 
 def per_match_loss(y: np.ndarray, p: np.ndarray) -> np.ndarray:
@@ -52,21 +116,14 @@ def load() -> pd.DataFrame:
         elo_a=elo.elo_a_pre, elo_b=elo.elo_b_pre, p_elo=elo.p_a_win,
         signal=margin_signal(seq),
     ).merge(events, on="match_id")
-    df = df[df.tier.eq(1) & df.year.ge(FIRST_YEAR)].reset_index(drop=True)
-
+    # Tier-2 results do not move Elo (validated weight zero), but official
+    # 2027 qualifier participation is a pre-match territory signal for a team's
+    # later Tier-1 appearances. Keep those rows during region assignment only.
+    df = df.loc[region_history_mask(df)].reset_index(drop=True)
+    df = with_2027_season(assign_regions(df))
+    df = df[df.tier.eq(1)].reset_index(drop=True)
     df["international"] = df.event_name.str.contains(INTERNATIONAL, regex=True)
-    league = df.event_name.str.extract(LEAGUE, expand=False).where(~df.international)
-
-    # A team's region = league of its most recent regional match. Known before
-    # any international match it plays, so this is not leakage.
-    region: dict = {}
-    region_a, region_b = [], []
-    for team_a, team_b, lg in zip(df.team_a, df.team_b, league):
-        if isinstance(lg, str):
-            region[team_a] = region[team_b] = lg
-        region_a.append(region.get(team_a))
-        region_b.append(region.get(team_b))
-    return df.assign(region_a=region_a, region_b=region_b)
+    return df
 
 
 def offset_probabilities(df: pd.DataFrame, k: float) -> np.ndarray:
