@@ -1,6 +1,11 @@
 import json
+import sys
+from datetime import datetime, timedelta, timezone
 
-from scripts.veto_source_audit import archived_audit, live_audit, parse_full_veto, segment
+import pytest
+import requests
+
+from scripts.veto_source_audit import archived_audit, live_audit, main, parse_full_veto, segment
 
 
 BO3 = ("A ban Breeze; B ban Lotus; A pick Haven; B pick Ascent; "
@@ -70,4 +75,54 @@ def test_live_audit_counts_empty_full_and_api_errors_separately(monkeypatch):
                       "partial_or_other_prestart_veto": 0, "api_errors": 1}
     assert len(lines) == 3
     assert "full_veto=True" in lines[1]
+
+
+def test_live_audit_reports_unavailable_feed_without_claiming_zero_vetos(monkeypatch):
+    class Session:
+        def get(self, url, *, params, timeout):
+            raise requests.HTTPError("503 Service Unavailable")
+
+    monkeypatch.setattr("scripts.veto_source_audit.requests.Session", Session)
+    counts, lines = live_audit("http://example.test", 8)
+    assert counts == {"feed_api_errors": 1}
+    assert "unavailable" in lines[0].lower()
+    assert "503" in lines[0]
+
+
+def test_live_cli_exits_nonzero_when_feed_unavailable(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr("scripts.veto_source_audit.RAW_VLRGG_DIR", tmp_path)
+    monkeypatch.setattr("scripts.veto_source_audit.live_audit", lambda base, limit, within_hours=None: (
+        {"feed_api_errors": 1}, ["Upcoming feed unavailable: 503"]
+    ))
+    monkeypatch.setattr(sys, "argv", ["veto_source_audit.py", "--live"])
+    with pytest.raises(SystemExit) as error:
+        main()
+    assert error.value.code == 1
+    assert "feed_api_errors" in capsys.readouterr().out
+
+
+def test_live_audit_near_start_window_filters_and_orders_before_limiting(monkeypatch):
+    now = datetime.now(timezone.utc)
+    starts = [now + timedelta(hours=2), now + timedelta(minutes=30), now + timedelta(minutes=10)]
+    class Response:
+        def __init__(self, data):
+            self.data = data
+        def raise_for_status(self):
+            pass
+        def json(self):
+            return self.data
+    class Session:
+        def get(self, url, *, params, timeout):
+            if params == {"q": "upcoming"}:
+                return Response({"data": {"segments": [
+                    {"match_page": f"{i}/fixture", "unix_timestamp": when.strftime("%Y-%m-%d %H:%M:%S")}
+                    for i, when in enumerate(starts)
+                ]}})
+            return Response({"data": {"segments": [{"status": "scheduled", "map_vetos": "", "maps": []}]}})
+    monkeypatch.setattr("scripts.veto_source_audit.requests.Session", Session)
+    counts, lines = live_audit("http://example.test", 2, within_hours=1)
+    assert counts["successful_prestart"] == 2
+    assert counts["outside_window"] == 1
+    assert counts["window_eligible"] == 2
+    assert [line.split(":", 1)[0] for line in lines] == ["2", "1"]
 

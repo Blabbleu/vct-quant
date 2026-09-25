@@ -23,9 +23,15 @@ that the canonical map table has not stored it.
   training/validation set. The API may publish vetoes closer to kickoff or
   only after it; this probe cannot tell.
 - `/v2/match/details` can have missing segments or errors. The audit counts
-  those separately rather than declaring a missing veto. `--live --limit N`
-  is a bounded read-only recheck; leave historical raw untouched and do not
-  add a dev-worktree collector aimed at the live raw symlink.
+  those separately rather than declaring a missing veto. A failed upstream
+  `/v2/match` feed is also distinct: at 05:11 UTC the local proxy returned
+  HTTP 502/503 for both upcoming matches and events (upstream circuit open);
+  the CLI reports `feed_api_errors=1` and exits nonzero, not `0/0` vetoes.
+  `--live --within-hours 1 --limit 8` filters the **whole** upcoming feed by
+  scheduled start before limiting to the nearest fixtures; `window_eligible=0`
+  means no near-start candidates, not evidence that vetoes are missing. The
+  probe is read-only; leave historical raw untouched and do not add a
+  dev-worktree collector aimed at the live raw symlink.
 
 **Decision:** source is promising for *retrospective* complete-veto text but
 unproven for *pre-start* forecasts. Do not backfill and score historical

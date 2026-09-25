@@ -2,6 +2,7 @@
 
     python scripts/veto_source_audit.py
     python scripts/veto_source_audit.py --live --limit 8
+    python scripts/veto_source_audit.py --live --within-hours 1 --limit 8
 
 Never writes to data/raw. A historical final-page veto is NOT pre-start evidence.
 The optional live probe does not persist observations and cannot be used for
@@ -12,7 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import requests
@@ -77,15 +78,33 @@ def archived_audit(root: Path) -> Counter:
     return counts
 
 
-def live_audit(base_url: str, limit: int) -> tuple[Counter, list[str]]:
-    """Probe the first N fixtures; count API errors separately from missing veto."""
+def live_audit(base_url: str, limit: int, within_hours: float | None = None) -> tuple[Counter, list[str]]:
+    """Probe fixtures, optionally selecting the nearest pre-start window."""
     counts: Counter = Counter()
     lines: list[str] = []
     session = requests.Session()
-    response = session.get(f"{base_url}/v2/match", params={"q": "upcoming"}, timeout=30)
-    response.raise_for_status()
-    fixtures = response.json()["data"]["segments"][:limit]
-    for fixture in fixtures:
+    try:
+        response = session.get(f"{base_url}/v2/match", params={"q": "upcoming"}, timeout=30)
+        response.raise_for_status()
+        fixtures = response.json()["data"]["segments"]
+    except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
+        counts["feed_api_errors"] += 1
+        lines.append(f"Upcoming feed unavailable: {type(exc).__name__}: {exc}")
+        return counts, lines
+    if within_hours is not None:
+        cutoff = datetime.now(timezone.utc) + timedelta(hours=within_hours)
+        near = []
+        for fixture in fixtures:
+            start = datetime.strptime(fixture["unix_timestamp"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+            if start > cutoff:
+                counts["outside_window"] += 1
+            elif start > datetime.now(timezone.utc):
+                near.append((start, fixture))
+            else:
+                counts["at_or_after_start"] += 1
+        counts["window_eligible"] = len(near)
+        fixtures = [fixture for _, fixture in sorted(near, key=lambda pair: pair[0])]
+    for fixture in fixtures[:limit]:
         match_id = fixture["match_page"].split("/", 1)[0]
         start = datetime.strptime(fixture["unix_timestamp"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
         observed = datetime.now(timezone.utc)
@@ -123,13 +142,18 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--live", action="store_true", help="read-only API probe, no raw save")
     parser.add_argument("--limit", type=int, default=8)
+    parser.add_argument("--within-hours", type=float, help="only probe fixtures starting within this many hours")
     args = parser.parse_args()
+    if args.within_hours is not None and args.within_hours <= 0:
+        parser.error("--within-hours must be positive")
     print("archived", dict(archived_audit(RAW_VLRGG_DIR)))
     if args.live:
-        counts, lines = live_audit(SETTINGS["vlrgg"]["base_url"], max(args.limit, 0))
+        counts, lines = live_audit(SETTINGS["vlrgg"]["base_url"], max(args.limit, 0), args.within_hours)
         for line in lines:
             print(line)
         print("live", dict(counts))
+        if counts["feed_api_errors"]:
+            raise SystemExit(1)
     print("Historical full vetos on final pages do not establish pre-start availability.")
 
 
