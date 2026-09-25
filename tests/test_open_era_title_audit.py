@@ -11,6 +11,14 @@ def payload(rows):
     return {"status": "success", "data": {"status": 200, "segments": rows}}
 
 
+def test_later_event_page_can_reveal_2027_title_missing_from_first_page():
+    rows = titles.audit([payload([{"title": "VCT 2026: Champions"}]),
+                         payload([{"title": "VCT 2027: Pacific LCQ", "event_id": "123"}])],
+                        payload([]))
+    assert [row["title"] for row in rows] == ["VCT 2027: Pacific LCQ"]
+    assert rows[0]["event_id"] == "123"
+
+
 def test_2027_titles_join_events_and_fixtures_without_inventing_tiers():
     events = payload([
         {"title": "VCT 2027: Pacific LCQ", "event_id": "123", "url_path": "https://www.vlr.gg/event/123/example"},
@@ -66,6 +74,27 @@ def test_error_envelopes_are_not_empty_event_pages():
                 {"status": "success", "data": {"status": 200, "segments": {}}}):
         with pytest.raises((ValueError, KeyError)):
             titles.segments(bad)
+
+
+def test_second_event_page_error_retains_observations_but_marks_incomplete(monkeypatch, capsys):
+    def fetch(page, save):
+        if page == 2:
+            raise ValueError("page 2 down")
+        return payload([{"title": "VCT 2027: Pacific LCQ", "event_id": "123"}])
+
+    monkeypatch.setattr(titles.vlrgg, "fetch_events", fetch)
+    monkeypatch.setattr(titles.vlrgg, "fetch_upcoming_matches", lambda save: payload([]))
+    monkeypatch.setattr(sys, "argv", ["open_era_title_audit.py", "--event-pages", "2"])
+    with pytest.raises(SystemExit) as exc:
+        titles.main()
+    assert exc.value.code == 1
+    report = json.loads(capsys.readouterr().out)
+    assert report["complete"] is False
+    assert report["event_pages_checked"] == [1]
+    assert report["event_rows"] == 1
+    assert "events_page_2" in report["errors"]
+    assert report["observed_2027_titles"][0]["event_id"] == "123"
+    assert "season_2027_titles" not in report
 
 
 def test_partial_feed_failure_exits_nonzero_without_claiming_no_titles(monkeypatch, capsys):

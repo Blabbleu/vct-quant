@@ -1,11 +1,13 @@
 """Read-only 2027 title audit across vlr.gg events and upcoming fixtures.
 
     python scripts/open_era_title_audit.py
-    python scripts/open_era_title_audit.py --events-json path --upcoming-json path
+    python scripts/open_era_title_audit.py --event-pages 9
+    python scripts/open_era_title_audit.py --events-json page1.json page2.json --upcoming-json feed.json
 
-Unlike ingestion this never saves a response into data/raw. A failed endpoint is
-reported as unknown, not as evidence that no 2027 event exists. Archived mode
-reads previously saved payloads without network access.
+Unlike ingestion this never saves a response into data/raw. A failed endpoint or
+requested page is reported as unknown, not as evidence that no 2027 event exists.
+Archived mode reads previously saved payloads without network access. "complete"
+means every requested source succeeded, not that every vlr.gg event was searched.
 """
 from __future__ import annotations
 
@@ -33,10 +35,11 @@ def segments(payload: dict) -> list[dict]:
     return rows
 
 
-def audit(events: dict | None, upcoming: dict | None) -> list[dict]:
+def audit(events: dict | list[dict] | None, upcoming: dict | None) -> list[dict]:
     """Return observed 2027 titles; unknown fixture counts remain null on outage."""
     titles: dict[str, dict] = {}
-    for event in segments(events) if events is not None else []:
+    event_pages = events if isinstance(events, list) else [events] if events is not None else []
+    for event in (row for page in event_pages for row in segments(page)):
         title = str(event.get("title") or "").strip()
         if not SEASON.search(title):
             continue
@@ -85,30 +88,45 @@ def audit(events: dict | None, upcoming: dict | None) -> list[dict]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--events-json", type=Path, help="archived event page (read only)")
+    parser.add_argument("--events-json", type=Path, nargs="+", help="archived event pages (read only)")
     parser.add_argument("--upcoming-json", type=Path, help="archived upcoming feed (read only)")
+    parser.add_argument("--event-pages", type=int, default=1,
+                        help="number of live event pages to inspect (default: 1, max: 9)")
     args = parser.parse_args()
     if bool(args.events_json) != bool(args.upcoming_json):
         parser.error("provide both archived payloads or neither")
+    if not 1 <= args.event_pages <= 9:
+        parser.error("--event-pages must be between 1 and 9")
+    if args.events_json and args.event_pages != 1:
+        parser.error("--event-pages applies to live mode; list archive paths instead")
     errors = {}
-    payloads = {}
-    sources = {
-        "events": (args.events_json, lambda: vlrgg.fetch_events(1, save=False)),
-        "upcoming": (args.upcoming_json, lambda: vlrgg.fetch_upcoming_matches(save=False)),
-    }
-    for name, (path, fetch) in sources.items():
+    event_pages = []
+    checked = []
+    paths = args.events_json if args.events_json else [None] * args.event_pages
+    for page_num, path in enumerate(paths, 1):
         try:
-            payload = json.loads(path.read_text(encoding="utf-8")) if path else fetch()
+            payload = (json.loads(path.read_text(encoding="utf-8")) if path
+                       else vlrgg.fetch_events(page_num, save=False))
             segments(payload)
-            payloads[name] = payload
+            event_pages.append(payload)
+            checked.append(page_num)
         except (OSError, ValueError, KeyError, TypeError, requests.RequestException) as exc:
-            # A failed source is unknown, never a negative 2027 observation.
-            errors[name] = f"{type(exc).__name__}: {exc}"
-    rows = audit(payloads.get("events"), payloads.get("upcoming"))
+            # A failed page is unknown, never a negative 2027 observation.
+            errors["events" if page_num == 1 else f"events_page_{page_num}"] = f"{type(exc).__name__}: {exc}"
+    upcoming = None
+    try:
+        upcoming = (json.loads(args.upcoming_json.read_text(encoding="utf-8"))
+                    if args.upcoming_json else vlrgg.fetch_upcoming_matches(save=False))
+        segments(upcoming)
+    except (OSError, ValueError, KeyError, TypeError, requests.RequestException) as exc:
+        errors["upcoming"] = f"{type(exc).__name__}: {exc}"
+        upcoming = None
+    rows = audit(event_pages, upcoming)
     report = {"source": "archive" if args.events_json else "live",
               "complete": not errors,
-              "event_rows": len(segments(payloads["events"])) if "events" in payloads else None,
-              "fixture_rows": len(segments(payloads["upcoming"])) if "upcoming" in payloads else None}
+              "event_pages_checked": checked,
+              "event_rows": sum(len(segments(page)) for page in event_pages) if checked else None,
+              "fixture_rows": len(segments(upcoming)) if upcoming is not None else None}
     if errors:
         # Observations from a healthy source survive a partial outage, but an
         # empty list cannot establish that no 2027 title exists across sources.
