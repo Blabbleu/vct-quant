@@ -65,8 +65,8 @@ def competition_tier(name: str, year: int | None = None) -> int | None:
 
     if title.startswith("champions tour "):
         # Some official pages use the long prefix instead of "VCT YYYY:".
-        if (OPEN_ERA_TITLE_SEASON and LAST_CHANCE.search(title)
-                and (_season(title, year) or 0) >= OPEN_ERA):
+        if (OPEN_ERA_TITLE_SEASON and (_season(title, year) or 0) >= OPEN_ERA
+                and (OPEN_STAGE.search(title) or LAST_CHANCE.search(title))):
             return 2
         # In 2021-2022, events named "... Stage N: Challengers" were the
         # primary regional VCT circuit, not the modern Tier-2 league.

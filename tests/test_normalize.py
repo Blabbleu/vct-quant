@@ -76,6 +76,14 @@ def test_opt_in_uses_2027_event_season_for_november_2026_lcq(monkeypatch):
     assert competition_tier("VCT 2026: Pacific Last Chance Qualifier", 2027) == 1
 
 
+def test_opt_in_classifies_long_champions_tour_open_stages(monkeypatch):
+    title = "Champions Tour 2027: Americas Open Qualifiers"
+    assert competition_tier(title, 2026) == 1  # Disabled: primary scope unchanged.
+    monkeypatch.setattr(events, "OPEN_ERA_TITLE_SEASON", True)
+    assert competition_tier(title, 2026) == 2
+    assert competition_tier("Champions Tour 2026: Americas Open Qualifiers", 2026) == 1
+
+
 def test_open_era_title_season_flag_is_off_by_default():
     assert events.OPEN_ERA_TITLE_SEASON is False
     assert competition_tier("VCT 2027: Pacific Last Chance Qualifier", 2026) == 1
