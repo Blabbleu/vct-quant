@@ -4,18 +4,26 @@ Goal: grow the one-page desk (`frontend/index.html`, `server.js`,
 `dashboard.py`) into an all-in-one Valorant prediction platform: every
 forecast, the evidence behind it, and an honest record of how it has done.
 
-## Match Center API slice (dev branch, pending merge)
+## Match Center API and mobile UI slice (dev branch)
 
 `GET /api/match/:id` reads the append-only prediction log through
 `python -m vct_quant.match_center ID`, without updating data or replaying Elo.
 It returns a `points` array of UTC `observed_at`, `elo`, `market`, and `spread`
 for **pre-start sampled refreshes**, with the latest pairing's A/B orientation.
 Quotes from a different market contract are null rather than joined into one
-line. No log/pre-start observations gives 404; bad IDs also give 404. This is
-not a complete Match Center (form, result, map pools and UI remain); it is a
-single tested per-view endpoint. The backend's Python default now targets the
-repo's `.venv`, while `PYTHON` remains configurable. After an approved merge,
-`server.js` changes require the user's separate live-desk restart approval.
+line. No log/pre-start observations gives 404; bad IDs also give 404.
+
+`GET /match/:id` now serves a mobile Match Center view from the existing
+single-file frontend: fixture-list links, latest Elo and comparable midpoint,
+a 0–100% movement chart with market gaps, and an exact-values list. Its 390px
+viewport has no horizontal overflow in the browser smoke check. Missing IDs
+show an explicit empty state; the baked offline report keeps plain fixture
+names rather than links to a server it cannot reach. This is not the complete
+Match Center (form, result, map pools, veto what-if, and player history remain).
+The backend's Python default targets the repo's `.venv`, while `PYTHON` remains
+configurable. This slice does not yet migrate the frontend to Vite; that
+separate build step was approved for a later phase. Merging `server.js` changes
+and restarting the running desk are separate user approvals.
 
 ## Where the desk is today
 

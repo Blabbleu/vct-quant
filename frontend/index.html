@@ -1,3 +1,8 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>VCT Quant Desk</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
@@ -141,6 +146,23 @@
   .refresh:disabled { cursor: progress; color: var(--ink-3); }
   .refresh:focus-visible { outline: 2px solid var(--elo); outline-offset: 2px; }
   .empty { padding: 16px; color: var(--ink-2); font-size: 13px; }
+  .match-link { color: inherit; text-decoration: underline; text-decoration-color: var(--hairline); text-underline-offset: 3px; }
+  .match-link:hover, .match-link:focus-visible { color: var(--elo); text-decoration-color: currentColor; }
+  .mc-header { display: flex; flex-direction: column; gap: 12px; }
+  .mc-back { font-family: var(--mono); font-size: 12px; width: fit-content; }
+  .mc-odds { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .mc-odds .tile .v { font-size: clamp(20px, 5vw, 30px); }
+  .mc-chart { padding: 12px; }
+  .mc-chart svg { max-height: 320px; }
+  .mc-chart text { font-family: var(--mono); font-size: 11px; fill: var(--ink-2); }
+  .mc-points { list-style: none; margin: 0; padding: 0; }
+  .mc-points li { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 9px 14px; border-top: 1px solid var(--hairline); font-size: 13px; }
+  .mc-points time { min-width: 145px; color: var(--ink-2); }
+  .mc-points b { font-family: var(--mono); font-weight: 500; }
+  .mc-status { padding: 16px; }
+  .mc-status button { margin: 10px 0 0 0; }
+  @media (max-width: 390px) { .mc-odds { grid-template-columns: 1fr 1fr; } .mc-points time { min-width: 0; width: 100%; } }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
   @media (max-width: 720px) {
     .split { grid-template-columns: 1fr; }
     .fx { grid-template-columns: 1fr 1fr; grid-template-areas: "when chips" "teams teams" "track track" "pelo pmkt"; }
@@ -150,6 +172,8 @@
   }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
+</head>
+<body>
 
 <div id="root"></div>
 
@@ -268,14 +292,15 @@ function Track({ fixture: f }) {
   );
 }
 
-function Fixture({ fixture: f }) {
+function Fixture({ fixture: f, served }) {
   const liquid = isLiquid(f);
   const gap = liquid && Math.abs(f.market - f.p_a) >= 0.10;
+  const teams = <>{f.team_a} <span style={{ color: "var(--ink-3)", fontWeight: 400 }}>vs</span> {f.team_b}</>;
   return (
     <div className="fx">
       <div className="when">{stampUTC(f.start).slice(5)}Z</div>
       <div className="tm">
-        <b>{f.team_a} <span style={{ color: "var(--ink-3)", fontWeight: 400 }}>vs</span> {f.team_b}</b>
+        <b>{served ? <a className="match-link" href={`/match/${f.match_id}`} aria-label={`Match Center: ${f.team_a} vs ${f.team_b}`}>{teams}</a> : teams}</b>
         <span>{f.event}{f.series ? " · " + f.series : ""} · Bo{f.best_of}</span>
       </div>
       <Track fixture={f} />
@@ -294,7 +319,7 @@ function Fixture({ fixture: f }) {
   );
 }
 
-function Fixtures({ fixtures }) {
+function Fixtures({ fixtures, served }) {
   return (
     <section>
       <div className="head">
@@ -307,7 +332,7 @@ function Fixtures({ fixtures }) {
       <div className="panel">
         {fixtures.length === 0
           ? <p className="empty">No fixtures with both teams known.</p>
-          : fixtures.map(f => <Fixture key={f.match_id} fixture={f} />)}
+          : fixtures.map(f => <Fixture key={f.match_id} fixture={f} served={served} />)}
       </div>
       <p className="note">
         Each track runs 0-100% for the first-named team. Prices are bid/ask midpoints;
@@ -551,6 +576,109 @@ function Loading({ error, onRetry }) {
   );
 }
 
+function MovementChart({ points, team }) {
+  const width = 600, height = 260, left = 48, right = 16, top = 16, bottom = 34;
+  const times = points.map(p => Date.parse(p.observed_at));
+  const start = Math.min(...times), end = Math.max(...times);
+  const x = i => left + (end === start ? (width - left - right) / 2 :
+    (times[i] - start) / (end - start) * (width - left - right));
+  const y = p => top + (1 - p) * (height - top - bottom);
+  const path = (indexes, field) => indexes.map((i, n) =>
+    `${n ? "L" : "M"}${x(i).toFixed(1)},${y(points[i][field]).toFixed(1)}`).join(" ");
+  const markets = [];
+  let run = [];
+  points.forEach((p, i) => {
+    if (p.market != null) run.push(i);
+    else if (run.length) { markets.push(run); run = []; }
+  });
+  if (run.length) markets.push(run);
+  return (
+    <figure className="panel mc-chart">
+      <svg viewBox={`0 0 ${width} ${height}`} role="img"
+           aria-label={`Sampled pre-start win probability for ${team}; exact values listed below`}>
+        {[0, .25, .5, .75, 1].map(v => <g key={v}>
+          <line x1={left} x2={width - right} y1={y(v)} y2={y(v)} stroke="var(--hairline)" />
+          <text x={left - 7} y={y(v) + 4} textAnchor="end">{Math.round(v * 100)}%</text>
+        </g>)}
+        {markets.map((segment, i) => <path key={i} d={path(segment, "market")}
+          fill="none" stroke="var(--market)" strokeWidth="2.5" />)}
+        {points.map((p, i) => p.market == null ? null :
+          <circle key={`m${i}`} cx={x(i)} cy={y(p.market)} r="3" fill="var(--market)">
+            <title>{stampUTC(p.observed_at)} UTC · market {pct(p.market)}</title>
+          </circle>)}
+        <path d={path(points.map((_, i) => i), "elo")}
+              fill="none" stroke="var(--elo)" strokeWidth="2.5" />
+        {points.map((p, i) => <circle key={i} cx={x(i)} cy={y(p.elo)} r="3" fill="var(--elo)">
+          <title>{stampUTC(p.observed_at)} UTC · Elo {pct(p.elo)}</title>
+        </circle>)}
+        <text x={left} y={height - 7}>{stampUTC(points[0].observed_at).slice(5)} UTC</text>
+        <text x={width - right} y={height - 7} textAnchor="end">
+          {points.length > 1 ? stampUTC(points[points.length - 1].observed_at).slice(5) + " UTC" : ""}
+        </text>
+      </svg>
+      <figcaption className="note">0–100% chance of {team} winning the series; dots are sampled refreshes,
+        not a continuous price feed. Orange gaps mean no comparable market quote.</figcaption>
+    </figure>
+  );
+}
+
+function MatchCenter({ id }) {
+  const [match, setMatch] = useState(null);
+  const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(true);
+  const load = useCallback(async () => {
+    setBusy(true); setError(null);
+    try {
+      const resp = await fetch(`/api/match/${id}`, { cache: "no-store" });
+      if (resp.status === 404) throw new Error("No pre-start forecast history for this match.");
+      if (!resp.ok) throw new Error("The Match Center is temporarily unavailable.");
+      setMatch(await resp.json());
+    } catch (err) { setError(err.message); }
+    finally { setBusy(false); }
+  }, [id]);
+  useEffect(() => { load(); }, [load]);
+  const last = match?.points[match.points.length - 1];
+  return <main className="wrap">
+    <header className="mc-header">
+      <a className="mc-back" href="/">← All forecasts</a>
+      <p className="eyebrow">Match Center · #{id}</p>
+      <h1>{match ? `${match.team_a} vs ${match.team_b}` : "Match Center"}</h1>
+      {match && <p className="lede">Scheduled {stampUTC(match.scheduled_at)} UTC · series win chance for {match.team_a}.</p>}
+    </header>
+    {busy && !match && <p className="panel mc-status" role="status">Loading pre-start forecasts…</p>}
+    {error && <div className="panel mc-status" role="alert"><p>{error}</p>
+      <button type="button" className="refresh" onClick={load}>Try again</button></div>}
+    {match && <>
+      <section>
+        <div className="head"><h2>Latest recorded forecast</h2><span className="eyebrow">{stampUTC(last.observed_at)} UTC</span></div>
+        <div className="mc-odds">
+          <Tile value={pct(last.elo)} label={`Elo · ${match.team_a} win`} />
+          <Tile value={last.market == null ? "—" : pct(last.market)} label="Polymarket midpoint · same contract" />
+        </div>
+        <p className="note">These are separate estimates, not betting advice. A missing market quote is not zero.
+          {last.spread != null && ` Latest bid/ask spread: ${pct(last.spread)}.`}</p>
+      </section>
+      <section>
+        <div className="head"><h2>Probability movement</h2><span className="legend">
+          <span><span className="swatch" style={{ background: "var(--elo)" }} />Elo</span>
+          <span><span className="swatch" style={{ background: "var(--market)" }} />Market</span>
+        </span></div>
+        <MovementChart points={match.points} team={match.team_a} />
+        <p className="note">{match.note} Each forecast was recorded before its then-scheduled kickoff.
+          Same-pairing reschedules may share a history; changed pairings are excluded. No closing-price claim.</p>
+        <details><summary>Every recorded sample ({match.points.length})</summary>
+          <ol className="panel mc-points">{match.points.map((p, i) => <li key={i}>
+            <time dateTime={p.observed_at}>{stampUTC(p.observed_at)} UTC</time>
+            <span>Elo <b>{pct(p.elo)}</b></span>
+            <span>Market <b>{p.market == null ? "—" : pct(p.market)}</b></span>
+            {p.spread != null && <span>spread <b>{pct(p.spread)}</b></span>}
+          </li>)}</ol>
+        </details>
+      </section>
+    </>}
+  </main>;
+}
+
 function App() {
   const [tip, setTip] = useState(null);
   const [data, setData] = useState(bakedPayload);
@@ -581,7 +709,7 @@ function App() {
         <Header coverage={data.coverage} generatedAt={data.generated_at}
                 live={served} onRefresh={load} busy={busy} />
         <Scoreboard backtest={data.backtest} gc={data.gc} live={data.live} />
-        <Fixtures fixtures={data.fixtures} />
+        <Fixtures fixtures={data.fixtures} served={served} />
         <section className="split">
           <Calibration buckets={data.backtest.calibration} />
           <Rankings rankings={data.rankings} season={data.season} />
@@ -594,5 +722,10 @@ function App() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+const matchPath = /^\/match\/([1-9][0-9]*)$/.exec(window.location.pathname);
+ReactDOM.createRoot(document.getElementById("root")).render(
+  matchPath ? <MatchCenter id={matchPath[1]} /> : <App />
+);
 </script>
+</body>
+</html>

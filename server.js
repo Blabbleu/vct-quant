@@ -115,7 +115,8 @@ const server = http.createServer(async (req, res) => {
       return send(res, 500, JSON.stringify({ error: "the match layer failed" }));
     }
   }
-  if (url.pathname === "/" || url.pathname === "/index.html") {
+  if (url.pathname === "/" || url.pathname === "/index.html" ||
+      /^\/match\/[1-9][0-9]*$/.test(url.pathname) && Number.isSafeInteger(Number(url.pathname.slice(7)))) {
     const page = await fs.readFile(path.join(ROOT, "frontend", "index.html"), "utf8");
     return send(res, 200, page, "text/html; charset=utf-8");
   }

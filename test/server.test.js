@@ -38,6 +38,16 @@ async function main() {
     assert.equal((await fetch(base + "/api/match/1%2F2")).status, 404);
     console.log("  /api/match/:id movement and unknown IDs ok");
 
+    const matchPage = await fetch(base + `/match/${matchId}`);
+    assert.equal(matchPage.status, 200);
+    const matchHtml = await matchPage.text();
+    assert.match(matchHtml, /Match Center/);
+    assert.match(matchHtml, /\/api\/match\//);
+    assert.equal((await fetch(base + "/match/0")).status, 404);
+    assert.equal((await fetch(base + "/match/999999999999999999999")).status, 404);
+    assert.equal((await fetch(base + "/match/1%2F2")).status, 404);
+    console.log("  /match/:id serves the Match Center shell; invalid IDs 404");
+
     const page = await fetch(base + "/");
     assert.equal(page.status, 200);
     assert.match(page.headers.get("content-type"), /text\/html/);
