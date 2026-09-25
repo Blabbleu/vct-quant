@@ -141,6 +141,17 @@ def live_audit(base_url: str, limit: int, within_hours: float | None = None) -> 
             counts["stale_final_detail"] += 1
             lines.append(f"{match_id}: detail already final despite future fixture start={start.isoformat()}")
             continue
+        if str(detail.get("status") or "").strip().lower() in {"live", "in progress", "in-progress", "ongoing"}:
+            counts["stale_started_detail"] += 1
+            lines.append(f"{match_id}: detail already {detail.get('status')!r} despite future fixture start={start.isoformat()}")
+            continue
+        if any(isinstance(m, dict) and isinstance(m.get("score"), dict)
+               and any(str(m["score"].get(side) or "").strip() not in {"", "0"}
+                       for side in ("team1", "team2"))
+               for m in detail.get("maps") or []):
+            counts["stale_played_map"] += 1
+            lines.append(f"{match_id}: detail has a played map despite future fixture start={start.isoformat()}")
+            continue
         veto = str(detail.get("map_vetos") or "").strip()
         parsed = parse_full_veto(veto)
         counts["successful_prestart"] += 1

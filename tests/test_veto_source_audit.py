@@ -180,6 +180,55 @@ def test_live_audit_does_not_count_final_detail_as_prestart_veto(monkeypatch):
     assert "final" in lines[0]
 
 
+def test_live_audit_rejects_in_progress_detail_despite_future_feed_time(monkeypatch):
+    class Response:
+        def __init__(self, payload):
+            self.payload = payload
+        def raise_for_status(self):
+            pass
+        def json(self):
+            return self.payload
+    class Session:
+        def get(self, url, *, params, timeout):
+            if params == {"q": "upcoming"}:
+                return Response({"data": {"segments": [
+                    {"match_page": "3/stale", "unix_timestamp": "2099-01-01 00:00:00"},
+                ]}})
+            return Response({"data": {"segments": [{"status": "live", "map_vetos": BO3, "maps": []}]}})
+
+    monkeypatch.setattr("scripts.veto_source_audit.requests.Session", Session)
+    counts, lines = live_audit("http://example.test", 1)
+    assert counts["stale_started_detail"] == 1
+    assert counts["successful_prestart"] == 0
+    assert counts["full_prestart_veto"] == 0
+    assert "live" in lines[0]
+
+
+def test_live_audit_rejects_played_map_despite_scheduled_detail(monkeypatch):
+    class Response:
+        def __init__(self, payload):
+            self.payload = payload
+        def raise_for_status(self):
+            pass
+        def json(self):
+            return self.payload
+    class Session:
+        def get(self, url, *, params, timeout):
+            if params == {"q": "upcoming"}:
+                return Response({"data": {"segments": [
+                    {"match_page": "3/stale", "unix_timestamp": "2099-01-01 00:00:00"},
+                ]}})
+            return Response({"data": {"segments": [{"status": "scheduled", "map_vetos": BO3,
+                                                       "maps": [{"map_name": "Haven", "score": {"team1": 13, "team2": 7}}]}]}})
+
+    monkeypatch.setattr("scripts.veto_source_audit.requests.Session", Session)
+    counts, lines = live_audit("http://example.test", 1)
+    assert counts["stale_played_map"] == 1
+    assert counts["successful_prestart"] == 0
+    assert counts["full_prestart_veto"] == 0
+    assert "played map" in lines[0]
+
+
 def test_live_audit_skips_bad_start_without_window_too(monkeypatch):
     class Response:
         def __init__(self, data):

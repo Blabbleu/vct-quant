@@ -36,9 +36,13 @@ that the canonical map table has not stored it.
   preventing other fixture probes. A detail already marked `final` despite
   its fixture's future start increments `stale_final_detail` and cannot count
   as a pre-start veto: the upcoming date may be stale after rescheduling.
-  Both cases are unknown, not negative veto observations. Tests cover the
-  near-start and unfiltered paths. At 06:08 UTC the live feed still returned
-  HTTP 502; no new veto observation was made.
+  A detail explicitly marked live/in progress, or containing a map with a
+  nonzero round score despite a future feed timestamp, is likewise excluded
+  (`stale_started_detail` / `stale_played_map`). Those guards prevent a stale
+  fixture date from turning post-start veto text into supposed pre-start
+  evidence. These cases are unknown, not negative veto observations. Tests
+  cover the near-start and unfiltered paths. At 06:08 UTC the live feed still
+  returned HTTP 502; no new veto observation was made.
 
 **Decision:** source is promising for *retrospective* complete-veto text but
 unproven for *pre-start* forecasts. Do not backfill and score historical
