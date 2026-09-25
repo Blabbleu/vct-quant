@@ -482,7 +482,11 @@ def _archived_feed_rows(path: Path) -> list[dict]:
     Keep that evidence on disk, warn with its path, and replay only valid rows.
     Historical hand-written raw fixtures without envelope status remain valid.
     """
-    payload = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (ValueError, OSError) as exc:
+        warnings.warn(f"invalid archived vlrggapi feed: {path}: {exc}", stacklevel=2)
+        return []
     data = payload.get("data") if isinstance(payload, dict) else None
     rows = data.get("segments") if isinstance(data, dict) else None
     if (not isinstance(payload, dict)
