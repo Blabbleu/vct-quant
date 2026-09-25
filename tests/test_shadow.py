@@ -105,6 +105,13 @@ def test_unresolved_team_targets_pick_latest_unharvested_tier_one_match(tmp_path
     for match_id, _, number, team_id, name in rows:
         con.execute("INSERT INTO match_team (match_id, team_number, team_id, team_name) VALUES (?, ?, ?, ?)",
                     [match_id, number, team_id, name])
-    (tmp_path / "match_details_12_20260924T000000Z.json").write_text(json.dumps({"data": {}}))
+    (tmp_path / "match_details_12_20260924T000000Z.json").write_text(json.dumps({"data": {
+        "match_id": "12", "teams": [], "maps": [],
+    }}))
+    (tmp_path / "match_details_11_20260924T000000Z.json").write_text(json.dumps({
+        "status": "error", "data": {"segments": None},
+    }))
 
-    assert normalize.unresolved_team_detail_targets(con) == [11]
+    import pytest
+    with pytest.warns(UserWarning, match="match_details_11_"):
+        assert normalize.unresolved_team_detail_targets(con) == [11]

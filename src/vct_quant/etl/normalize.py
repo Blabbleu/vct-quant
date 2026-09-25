@@ -852,21 +852,26 @@ def load_vlrgg_match_results(con: duckdb.DuckDBPyConnection | None = None) -> Lo
 
 
 def _vlrgg_match_details() -> list[dict]:
-    """Latest raw match-detail payload per match."""
-    latest: dict[int, Path] = {}
+    """Latest *valid* raw match-detail payload per match.
+
+    Keep the preceding good snapshot if a later HTTP-200 error was archived.
+    """
+    from ..ingest.vlrgg import detail_segments
+
+    latest: dict[int, list[dict]] = {}
     for path in sorted(RAW_VLRGG_DIR.glob("match_details_*.json")):
         match = re.match(r"match_details_(\d+)_", path.name)
-        if match:
-            latest[int(match.group(1))] = path
-
-    details: list[dict] = []
-    for match_id, path in latest.items():
-        data = json.loads(path.read_text(encoding="utf-8")).get("data", {})
-        segments = data.get("segments") or [data]
-        details.extend(
-            detail for detail in segments if int(detail.get("match_id", 0)) == match_id
-        )
-    return details
+        if not match:
+            continue
+        match_id = int(match.group(1))
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            segments = detail_segments(payload, match_id)
+        except (ValueError, OSError) as exc:
+            warnings.warn(f"Skipping invalid archived detail {path}: {exc}", stacklevel=2)
+            continue
+        latest[match_id] = segments
+    return [detail for segments in latest.values() for detail in segments]
 
 
 def _resolve_team_ids(
@@ -944,11 +949,8 @@ def unresolved_team_detail_targets(
     finally:
         if owned:
             con.close()
-    harvested = {
-        int(match.group(1))
-        for path in RAW_VLRGG_DIR.glob("match_details_*.json")
-        if (match := re.match(r"match_details_(\d+)_", path.name))
-    }
+    # A failed detail envelope is not harvested; retry that unresolved name.
+    harvested = {int(detail["match_id"]) for detail in _vlrgg_match_details()}
     return sorted(int(r[0]) for r in rows if int(r[0]) not in harvested)
 
 

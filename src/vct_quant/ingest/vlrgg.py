@@ -66,10 +66,34 @@ def fetch_upcoming_matches(save: bool = True) -> dict:
     return _fetch_segmented("/v2/match", {"q": "upcoming"}, "match_upcoming", save)
 
 
+def detail_segments(payload: dict, match_id: int | str) -> list[dict]:
+    """Validate a detail envelope and its identity before using it for IDs/maps.
+
+    Older raw snapshots and small test fixtures can carry a flat data object;
+    the current v2 API wraps it in segments. Neither shape may be an error
+    envelope or a detail for a different match.
+    """
+    data = payload.get("data") if isinstance(payload, dict) else None
+    if (not isinstance(data, dict)
+            or payload.get("status", "success") != "success"
+            or data.get("status", 200) != 200):
+        raise ValueError(f"invalid match_details_{match_id} feed")
+    segments = data.get("segments", [data])
+    if (not isinstance(segments, list) or len(segments) != 1
+            or not all(isinstance(d, dict)
+                       and str(d.get("match_id")) == str(match_id)
+                       and isinstance(d.get("teams"), list)
+                       and isinstance(d.get("maps"), list)
+                       for d in segments)):
+        raise ValueError(f"invalid match_details_{match_id} feed")
+    return segments
+
+
 def fetch_match_details(match_id: int | str, save: bool = True) -> dict:
     data = _get("/v2/match/details", {"match_id": match_id})
     if save:
         save_raw(data, f"match_details_{match_id}")
+    detail_segments(data, match_id)
     return data
 
 

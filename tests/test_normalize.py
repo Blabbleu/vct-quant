@@ -186,6 +186,26 @@ def test_archived_error_feed_does_not_poison_event_and_match_replay(tmp_path, mo
     assert matches.match_id.tolist() == [99]
 
 
+def test_match_detail_replay_keeps_valid_snapshot_before_poison(tmp_path, monkeypatch):
+    import json
+    import pytest
+    from vct_quant.etl import normalize
+
+    monkeypatch.setattr(normalize, "RAW_VLRGG_DIR", tmp_path)
+    good = {"status": "success", "data": {"status": 200, "segments": [
+        {"match_id": "42", "teams": [{"id": "17", "name": "NRG"}], "maps": []}
+    ]}}
+    (tmp_path / "match_details_42_20260925T070000Z.json").write_text(json.dumps(good))
+    poison = {"status": "error", "data": {"segments": None}}
+    (tmp_path / "match_details_42_20260925T080000Z.json").write_text(json.dumps(poison))
+    (tmp_path / "match_details_43_20260925T080000Z.json").write_text(json.dumps(poison))
+    with pytest.warns(UserWarning, match="Skipping invalid archived detail") as recorded:
+        assert normalize._vlrgg_match_details() == good["data"]["segments"]
+    assert len(recorded) == 2
+    assert "match_details_42_20260925T080000Z.json" in str(recorded[0].message)
+    assert "match_details_43_20260925T080000Z.json" in str(recorded[1].message)
+
+
 def test_match_details_skip_matches_whose_maps_already_exist(tmp_path, monkeypatch):
     # Kaggle can load a match's maps without any player rows. A detail payload
     # for that match must not re-insert the maps (duplicate map_number).
@@ -200,6 +220,7 @@ def test_match_details_skip_matches_whose_maps_already_exist(tmp_path, monkeypat
     con.execute("INSERT INTO match_map (match_id, map_number, map_name) VALUES (10267, 1, 'Bind')")
     (tmp_path / "match_details_10267_test.json").write_text(json.dumps({"data": {
         "match_id": "10267",
+        "teams": [],
         "maps": [{
             "map_name": "Bind",
             "score": {"team1": 13, "team2": 3},

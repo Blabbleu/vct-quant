@@ -56,3 +56,27 @@ def test_ingest_accepts_valid_empty_feed(monkeypatch, fetch, args):
     payload = {"status": "success", "data": {"status": 200, "segments": []}}
     monkeypatch.setattr(vlrgg, "_get", lambda *a, **kw: payload)
     assert getattr(vlrgg, fetch)(*args, save=False) is payload
+
+
+@pytest.mark.parametrize("bad", [
+    {"status": "error", "data": {"segments": []}},
+    {"status": "success", "data": {"status": 503, "segments": []}},
+    {"status": "success", "data": {"status": 200, "segments": None}},
+    {"status": "success", "data": {"status": 200, "segments": [{"match_id": "45"}]}},
+    {"status": "success", "data": {"status": 200, "segments": [{"match_id": "44"}]}},
+])
+def test_detail_rejects_http_200_poison_after_archiving(monkeypatch, bad):
+    saved = []
+    monkeypatch.setattr(vlrgg, "_get", lambda *a, **kw: bad)
+    monkeypatch.setattr(vlrgg, "save_raw", lambda payload, name: saved.append((payload, name)))
+    with pytest.raises(ValueError, match="invalid match_details_44 feed"):
+        vlrgg.fetch_match_details(44)
+    assert saved == [(bad, "match_details_44")]
+
+
+def test_detail_accepts_valid_v2_payload(monkeypatch):
+    payload = {"status": "success", "data": {"status": 200, "segments": [
+        {"match_id": "44", "teams": [], "maps": []}
+    ]}}
+    monkeypatch.setattr(vlrgg, "_get", lambda *a, **kw: payload)
+    assert vlrgg.fetch_match_details(44, save=False) is payload
