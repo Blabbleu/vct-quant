@@ -231,6 +231,12 @@ list are due around Champions Shanghai.
    significant. The rule helps a lot when rosters move and costs a little,
    not significantly, when they don't, so it fits 2027. Before shipping:
    decide it on 2022 only, then treat 2027 Kickoff as the live check.
+   Prospective coverage audit (`scripts/open_roster_coverage.py`,
+   `docs/open-roster-coverage-2026-09-25.md`): in the dev DB snapshot, 2026
+   Tier-2 lineups with >=5 players are **0/6,640 sides**; Tier-1 is 720/1,180.
+   No 2027 open-stage completed matches yet. The shadow cannot infer a new
+   qualifier team's source without player detail; collect recent 2027 open-stage
+   match details before considering promotion.
 4. ✅ **Newcomer starting rating: no change.** `scripts/newcomer_prior.py`:
    priors 1350-1650 or seeding from the Tier-2 pool all score t≈0 on 2025-26.
 5. ⏳ **Region labels.** Qualifier titles name sub-regions ("North America Open
