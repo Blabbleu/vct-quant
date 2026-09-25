@@ -53,6 +53,17 @@ def save_raw(payload: dict, name: str) -> Path:
     raise FileExistsError(f"raw snapshot names exhausted for {name}_{ts}")
 
 
+def _positive_unique_ids(rows: list[dict], field: str) -> bool:
+    """Do not replay zero IDs or two versions of one entity in one response."""
+    ids = []
+    for row in rows:
+        value = str(row.get(field, ""))
+        if not value.isascii() or not value.isdecimal() or int(value) <= 0:
+            return False
+        ids.append(int(value))
+    return len(ids) == len(set(ids))
+
+
 def valid_feed_rows(rows: list[dict], name: str) -> bool:
     """Check fields consumed by the event replay and upcoming normalizer.
 
@@ -61,13 +72,12 @@ def valid_feed_rows(rows: list[dict], name: str) -> bool:
     """
     if name.startswith("events_page"):
         required = {"event_id", "title", "status", "region", "dates", "prize", "thumb", "url_path"}
-        return all(required <= row.keys() and str(row["event_id"]).isdigit()
-                   and isinstance(row["title"], str) for row in rows)
+        return (_positive_unique_ids(rows, "event_id") and all(
+            required <= row.keys() and isinstance(row["title"], str) for row in rows))
     if name.startswith("event_matches_"):
         required = {"match_id", "date", "status", "event_series", "team1", "team2"}
-        return all(
-            required <= row.keys() and str(row["match_id"]).isdigit()
-            and isinstance(row["status"], str)
+        return _positive_unique_ids(rows, "match_id") and all(
+            required <= row.keys() and isinstance(row["status"], str)
             and (row["status"].lower() != "completed" or all(
                 isinstance(row[side], dict) and {"name", "score"} <= row[side].keys()
                 for side in ("team1", "team2")

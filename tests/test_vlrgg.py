@@ -180,6 +180,27 @@ def test_upcoming_rejects_duplicate_match_ids_before_forecasting(monkeypatch):
         vlrgg.fetch_upcoming_matches(save=False)
 
 
+@pytest.mark.parametrize("fetch,args,row,id_field", [
+    ("fetch_events", (1,), {"event_id": "12", "title": "VCT 2026: Champions",
+     "status": "upcoming", "region": "International", "dates": "Sep 1—30",
+     "prize": "", "thumb": "", "url_path": "/event/12"}, "event_id"),
+    ("fetch_event_matches", (12,), {"match_id": "44", "date": "Fri, September 25, 2026",
+     "status": "Completed", "event_series": "Final",
+     "team1": {"name": "A", "score": "2"},
+     "team2": {"name": "B", "score": "1"}}, "match_id"),
+])
+def test_event_feeds_reject_zero_and_duplicate_ids_before_replay(monkeypatch, fetch, args, row, id_field):
+    saved = []
+    monkeypatch.setattr(vlrgg, "save_raw", lambda payload, name: saved.append(payload))
+    for rows in ([{**row, id_field: "0"}],
+                 [row, {**row, id_field: row[id_field]}]):
+        payload = {"status": "success", "data": {"status": 200, "segments": rows}}
+        monkeypatch.setattr(vlrgg, "_get", lambda *a, **kw: payload)
+        with pytest.raises(ValueError, match="invalid .* feed"):
+            getattr(vlrgg, fetch)(*args)
+        assert saved[-1] is payload
+
+
 def test_detail_accepts_valid_v2_payload(monkeypatch):
     payload = {"status": "success", "data": {"status": 200, "segments": [
         {"match_id": "44", "teams": [], "maps": []}
