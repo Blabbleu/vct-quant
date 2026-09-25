@@ -76,8 +76,23 @@ def valid_feed_rows(rows: list[dict], name: str) -> bool:
     if name == "match_upcoming":
         required = {"match_event", "unix_timestamp", "match_page", "match_series",
                     "team1", "team2", "time_until_match"}
-        return all(required <= row.keys() and isinstance(row["match_event"], str)
-                   for row in rows)
+        match_ids = []
+        for row in rows:
+            if not required <= row.keys() or not all(
+                isinstance(row[field], str)
+                for field in ("match_event", "unix_timestamp", "match_series", "team1", "team2")
+            ):
+                return False
+            page = row["match_page"]
+            if not isinstance(page, str):
+                return False
+            prefix = page.split("/", 1)[0]
+            if not prefix.isascii() or not prefix.isdecimal() or int(prefix) <= 0:
+                return False
+            match_ids.append(int(prefix))
+        # Duplicate IDs (including changed slugs) would log two forecasts for
+        # one fixture, and malformed IDs otherwise disappear during normalization.
+        return len(match_ids) == len(set(match_ids))
     return True  # Results are archived but not used by the event replay.
 
 

@@ -147,6 +147,39 @@ def test_ingest_rejects_structurally_incomplete_rows_after_archiving(monkeypatch
     assert saved == [payload]
 
 
+@pytest.mark.parametrize("change", [
+    {"match_page": "not-a-match"},
+    {"match_page": "0/invalid"},
+    {"match_page": None},
+    {"team1": None},
+    {"team2": {"name": "B"}},
+    {"match_series": None},
+    {"unix_timestamp": None},
+])
+def test_upcoming_rejects_unusable_rows_before_forecasting(monkeypatch, change):
+    row = {"match_event": "Valorant Champions 2026", "unix_timestamp": "TBD",
+           "match_page": "44/fixture", "match_series": "Upper Final",
+           "team1": "A", "team2": "B", "time_until_match": "TBD"}
+    row.update(change)
+    payload = {"status": "success", "data": {"status": 200, "segments": [row]}}
+    saved = []
+    monkeypatch.setattr(vlrgg, "_get", lambda *a, **kw: payload)
+    monkeypatch.setattr(vlrgg, "save_raw", lambda data, name: saved.append(data))
+    with pytest.raises(ValueError, match="invalid match_upcoming feed"):
+        vlrgg.fetch_upcoming_matches()
+    assert saved == [payload]
+
+
+def test_upcoming_rejects_duplicate_match_ids_before_forecasting(monkeypatch):
+    row = {"match_event": "Valorant Champions 2026", "unix_timestamp": "2026-09-25 09:00:00",
+           "match_page": "44/fixture", "match_series": "Upper Final", "team1": "A",
+           "team2": "B", "time_until_match": "1h"}
+    payload = {"status": "success", "data": {"status": 200, "segments": [row, {**row, "match_page": "44/other-slug"}]}}
+    monkeypatch.setattr(vlrgg, "_get", lambda *a, **kw: payload)
+    with pytest.raises(ValueError, match="invalid match_upcoming feed"):
+        vlrgg.fetch_upcoming_matches(save=False)
+
+
 def test_detail_accepts_valid_v2_payload(monkeypatch):
     payload = {"status": "success", "data": {"status": 200, "segments": [
         {"match_id": "44", "teams": [], "maps": []}
