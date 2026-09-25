@@ -17,6 +17,9 @@ OPEN_STAGE = re.compile(r"\bopen (?:qualifier|playoff)s?\b|\bwild ?card\b")
 # 2027 it is the South Asia / Oceania path into the Pacific Kickoff and Cups.
 LAST_CHANCE = re.compile(r"\blast chance\b|\blcq\b")
 OPEN_ERA = 2027
+# Candidate for November 2026 fixtures labeled VCT 2027. Keep disabled until
+# explicit approval: moving an LCQ from Tier 1 to Tier 2 affects Elo history.
+OPEN_ERA_TITLE_SEASON = False
 
 VCT_BRANDED = re.compile(
     r"^(?:vct|valorant champions tour|champions tour|valorant champions|valorant masters)\b"
@@ -24,9 +27,11 @@ VCT_BRANDED = re.compile(
 
 
 def _season(title: str, year: int | None) -> int | None:
+    found = re.search(r"\b(20\d\d)\b", title)
+    if OPEN_ERA_TITLE_SEASON and found:
+        return int(found.group(1))
     if year is not None:
         return year
-    found = re.search(r"\b(20\d\d)\b", title)
     return int(found.group(1)) if found else None
 
 
@@ -59,6 +64,10 @@ def competition_tier(name: str, year: int | None = None) -> int | None:
         return 1 if year is not None and year <= 2022 else 2
 
     if title.startswith("champions tour "):
+        # Some official pages use the long prefix instead of "VCT YYYY:".
+        if (OPEN_ERA_TITLE_SEASON and LAST_CHANCE.search(title)
+                and (_season(title, year) or 0) >= OPEN_ERA):
+            return 2
         # In 2021-2022, events named "... Stage N: Challengers" were the
         # primary regional VCT circuit, not the modern Tier-2 league.
         return 2 if "challengers" in title and year is not None and year >= 2023 else 1

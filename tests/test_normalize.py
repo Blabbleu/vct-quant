@@ -3,6 +3,7 @@ import json
 import pandas as pd
 
 from vct_quant.etl import normalize
+from vct_quant.etl import events
 from vct_quant.etl.events import competition_tier
 from vct_quant.etl.normalize import _duration_seconds, _pct, _unambiguous
 
@@ -64,6 +65,34 @@ def test_vct_2027_open_stages_stay_out_of_tier_1():
     # Pre-2027 LCQs were partner teams playing for Champions: still Tier 1.
     assert competition_tier("Champions Tour 2023: Pacific Last Chance Qualifier", 2023) == 1
     assert competition_tier("VCT 2024: Pacific Last Chance Qualifier") == 1
+
+
+def test_opt_in_uses_2027_event_season_for_november_2026_lcq(monkeypatch):
+    # November qualifiers feed the 2027 circuit, but their fixture calendar
+    # year is 2026. The opt-in must not relabel the 2026 Champions LCQ.
+    monkeypatch.setattr(events, "OPEN_ERA_TITLE_SEASON", True, raising=False)
+    assert competition_tier("VCT 2027: Pacific Last Chance Qualifier", 2026) == 2
+    assert competition_tier("Champions Tour 2027: Pacific LCQ", 2026) == 2
+    assert competition_tier("VCT 2026: Pacific Last Chance Qualifier", 2027) == 1
+
+
+def test_open_era_title_season_flag_is_off_by_default():
+    assert events.OPEN_ERA_TITLE_SEASON is False
+    assert competition_tier("VCT 2027: Pacific Last Chance Qualifier", 2026) == 1
+
+
+def test_stored_event_lcq_reclassification_is_opt_in(monkeypatch):
+    import duckdb
+    from vct_quant.etl.normalize import LoadReport, _classify_stored_events
+
+    con = duckdb.connect()
+    con.execute("CREATE TABLE event (event_id BIGINT, name TEXT, dates_raw TEXT, tier SMALLINT)")
+    con.execute("INSERT INTO event VALUES (1, 'VCT 2027: Pacific LCQ', '2026', 1)")
+    _classify_stored_events(con, LoadReport())
+    assert con.execute("SELECT tier FROM event").fetchone() == (1,)
+    monkeypatch.setattr(events, "OPEN_ERA_TITLE_SEASON", True)
+    _classify_stored_events(con, LoadReport())
+    assert con.execute("SELECT tier FROM event").fetchone() == (2,)
 
 
 def test_untiered_vct_titles_flags_only_unknown_official_events():

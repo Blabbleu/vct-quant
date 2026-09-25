@@ -212,7 +212,12 @@ list are due around Champions Shanghai.
    Tier 2 (`etl/events.py`), so amateur rosters stay out of the Tier-1 pool as
    they did not in 2021-22. Kickoff, Cups, Masters, Champions stay Tier 1. No
    existing event changes tier (checked on all 2,195). `vct update` warns on
-   any VCT-branded title that gets no tier.
+   any VCT-branded title that gets no tier. **Season-boundary candidate**
+   (`docs/open-era-season-boundary.md`): a November 2026 fixture labeled
+   `VCT 2027: ... LCQ` would otherwise be Tier 1 because the feed passes the
+   calendar year. An opt-in title-season rule is implemented but disabled,
+   pending real title validation and approval to alter primary rating scope.
+   Dev snapshot: 0/2,215 existing events change tier with the candidate.
 2. ⏳ **Real titles.** Tests use guessed 2027 names. Replace them with vlr.gg's
    real titles when the November qualifiers are listed; watch
    `data/interim/matchday.log` for the untiered-title WARNING.

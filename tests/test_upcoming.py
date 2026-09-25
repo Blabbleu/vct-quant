@@ -1,6 +1,7 @@
 import duckdb
 import pandas as pd
 
+from vct_quant.etl import events
 from vct_quant.etl.normalize import official_match_details, official_upcoming
 from vct_quant.features.build import (
     add_map_predictions,
@@ -42,6 +43,21 @@ def test_official_upcoming_filters_and_resolves_ids():
         "team_b_id", "team_b_key",
     ]].iloc[0].tolist() == [712824, 10, 3, 1, "1", 2, "2"]
     assert out.tier.tolist() == [1, 3]  # Game Changers kept, as its own pool
+
+
+def test_november_2026_2027_lcq_is_excluded_only_when_opted_in(monkeypatch):
+    con = duckdb.connect()
+    con.execute("CREATE TABLE team (team_id BIGINT, name TEXT)")
+    con.execute("CREATE TABLE match_team (team_id BIGINT, team_name TEXT)")
+    con.execute("CREATE TABLE event (event_id BIGINT, name TEXT, tier SMALLINT)")
+    payload = {"data": {"segments": [{
+        "team1": "A", "team2": "B", "match_event": "VCT 2027: Pacific LCQ",
+        "match_series": "Group Stage", "unix_timestamp": "2026-11-15 09:00:00",
+        "match_page": "999001/a-vs-b", "time_until_match": "30d",
+    }]}}
+    assert official_upcoming(payload, con).match_id.tolist() == [999001]
+    monkeypatch.setattr(events, "OPEN_ERA_TITLE_SEASON", True)
+    assert official_upcoming(payload, con).empty
 
 
 def test_official_match_details_normalizes_later_fixture():
