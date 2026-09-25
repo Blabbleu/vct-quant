@@ -34,11 +34,25 @@ def test_archived_audit_counts_final_and_unusable_veto_separately(tmp_path):
         {"data": {"segments": [{"status": "3h 00m", "map_vetos": ""}]}},
     ]
     for i, payload in enumerate(payloads):
+        payload["data"]["segments"][0]["match_id"] = str(i)
         (tmp_path / f"match_details_{i}_20260925T050000Z.json").write_text(json.dumps(payload))
     counts = archived_audit(tmp_path)
     assert counts == {"detail_snapshots": 3, "final": 2, "nonempty_veto": 2,
                       "full_veto": 1, "incomplete_or_placeholder": 1}
     assert segment({"data": {"segments": []}}) is None
+
+
+def test_archived_audit_rejects_detail_for_another_match(tmp_path):
+    # A poisoned archive must not inflate historical full-veto coverage.
+    for match_id, payload_id in ((123, 999), (124, 124)):
+        path = tmp_path / f"match_details_{match_id}_20260925T050000Z.json"
+        path.write_text(json.dumps({"data": {"segments": [
+            {"match_id": str(payload_id), "status": "final", "map_vetos": BO3}
+        ]}}))
+    counts = archived_audit(tmp_path)
+    assert counts["detail_snapshots"] == 2
+    assert counts["unreadable"] == 1
+    assert counts["full_veto"] == 1
 
 
 def test_live_audit_counts_empty_full_and_api_errors_separately(monkeypatch):

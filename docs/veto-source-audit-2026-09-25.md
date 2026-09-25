@@ -55,7 +55,11 @@ that the canonical map table has not stored it.
   (`stale_series_score`), even if its status says `scheduled` and map rows are
   absent. Numeric and string scores are covered; 0–0 stays eligible. The
   08:15 UTC within-hour probe again received feed HTTP 503, so this guard has
-  no new real near-start observation.
+  no new real near-start observation. The archived audit now requires the
+  payload `match_id` to match its snapshot filename; a wrong-ID detail cannot
+  inflate retrospective veto coverage. All 60 archived snapshots pass this
+  identity check (18 full vetoes); the ~08:22 UTC near-start feed still returned
+  HTTP 502, so pre-start availability remains unobserved.
 
 **Decision:** source is promising for *retrospective* complete-veto text but
 unproven for *pre-start* forecasts. Do not backfill and score historical

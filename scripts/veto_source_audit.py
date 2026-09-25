@@ -84,8 +84,11 @@ def archived_audit(root: Path) -> Counter:
     for path in root.glob("match_details_*.json"):
         counts["detail_snapshots"] += 1
         try:
+            match_id = path.stem.split("_", 3)[2]
             detail = segment(json.loads(path.read_text(encoding="utf-8")))
-        except (ValueError, OSError):
+            if detail is None or not match_id.isdecimal() or str(detail.get("match_id")) != match_id:
+                raise ValueError("archived detail identity does not match filename")
+        except (ValueError, OSError, IndexError):
             detail = None
         if detail is None:
             counts["unreadable"] += 1
