@@ -53,6 +53,34 @@ def save_raw(payload: dict, name: str) -> Path:
     raise FileExistsError(f"raw snapshot names exhausted for {name}_{ts}")
 
 
+def valid_feed_rows(rows: list[dict], name: str) -> bool:
+    """Check fields consumed by the event replay and upcoming normalizer.
+
+    Fail a whole response instead of letting a truncated row masquerade as a
+    valid empty/partial harvest. Keep optional values and unknown fields intact.
+    """
+    if name.startswith("events_page"):
+        required = {"event_id", "title", "status", "region", "dates", "prize", "thumb", "url_path"}
+        return all(required <= row.keys() and str(row["event_id"]).isdigit()
+                   and isinstance(row["title"], str) for row in rows)
+    if name.startswith("event_matches_"):
+        required = {"match_id", "date", "status", "event_series", "team1", "team2"}
+        return all(
+            required <= row.keys() and str(row["match_id"]).isdigit()
+            and isinstance(row["status"], str)
+            and (row["status"].lower() != "completed" or all(
+                isinstance(row[side], dict) and {"name", "score"} <= row[side].keys()
+                for side in ("team1", "team2")
+            )) for row in rows
+        )
+    if name == "match_upcoming":
+        required = {"match_event", "unix_timestamp", "match_page", "match_series",
+                    "team1", "team2", "time_until_match"}
+        return all(required <= row.keys() and isinstance(row["match_event"], str)
+                   for row in rows)
+    return True  # Results are archived but not used by the event replay.
+
+
 def _fetch_segmented(path: str, params: dict, name: str, save: bool) -> dict:
     """Archive a response, then fail closed on HTTP-200 error/malformed feeds.
 
@@ -67,7 +95,8 @@ def _fetch_segmented(path: str, params: dict, name: str, save: bool) -> dict:
     if (not isinstance(payload, dict) or payload.get("status") != "success"
             or not isinstance(data, dict) or data.get("status") != 200
             or not isinstance(rows, list)
-            or not all(isinstance(row, dict) for row in rows)):
+            or not all(isinstance(row, dict) for row in rows)
+            or not valid_feed_rows(rows, name)):
         raise ValueError(f"invalid {name} feed from vlrggapi")
     return payload
 

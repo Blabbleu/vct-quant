@@ -28,6 +28,7 @@ import pandas as pd
 from ..config import RAW_KAGGLE_DIR, RAW_VLRGG_DIR
 from ..db import connect
 from ..ingest.kaggle import list_csvs
+from ..ingest.vlrgg import valid_feed_rows
 from .entity_resolution import normalize_name, vlr_id_from_url
 from .events import competition_tier
 
@@ -488,7 +489,8 @@ def _archived_feed_rows(path: Path) -> list[dict]:
             or payload.get("status", "success") != "success"
             or not isinstance(data, dict) or data.get("status", 200) != 200
             or not isinstance(rows, list)
-            or not all(isinstance(row, dict) for row in rows)):
+            or not all(isinstance(row, dict) for row in rows)
+            or not valid_feed_rows(rows, path.name)):
         warnings.warn(f"invalid archived vlrggapi feed: {path}", stacklevel=2)
         return []
     return rows

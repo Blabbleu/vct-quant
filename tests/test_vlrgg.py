@@ -132,6 +132,21 @@ def test_detail_rejects_nested_poison_before_loading(monkeypatch, detail):
     assert saved == [payload]
 
 
+@pytest.mark.parametrize("fetch,args,segment", [
+    ("fetch_events", (1,), {"event_id": "12"}),
+    ("fetch_event_matches", (12,), {"match_id": "44", "status": "Completed", "team1": None, "team2": {"name": "B", "score": "0"}, "date": "Fri, September 25, 2026", "event_series": "Final"}),
+    ("fetch_upcoming_matches", (), {"match_event": "Valorant Champions 2026"}),
+])
+def test_ingest_rejects_structurally_incomplete_rows_after_archiving(monkeypatch, fetch, args, segment):
+    payload = {"status": "success", "data": {"status": 200, "segments": [segment]}}
+    saved = []
+    monkeypatch.setattr(vlrgg, "_get", lambda *a, **kw: payload)
+    monkeypatch.setattr(vlrgg, "save_raw", lambda data, name: saved.append(data))
+    with pytest.raises(ValueError, match="invalid .* feed"):
+        getattr(vlrgg, fetch)(*args)
+    assert saved == [payload]
+
+
 def test_detail_accepts_valid_v2_payload(monkeypatch):
     payload = {"status": "success", "data": {"status": 200, "segments": [
         {"match_id": "44", "teams": [], "maps": []}

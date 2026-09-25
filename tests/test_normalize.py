@@ -186,6 +186,32 @@ def test_archived_error_feed_does_not_poison_event_and_match_replay(tmp_path, mo
     assert matches.match_id.tolist() == [99]
 
 
+@pytest.mark.parametrize("kind,good_row,bad_row", [
+    ("events_page001", {"event_id": "42", "title": "VCT 2026: Americas Stage 2",
+                        "status": "completed", "region": "na", "dates": "Jul 1—2",
+                        "prize": "$1", "thumb": "logo", "url_path": "/event/42"},
+     {"event_id": "42", "title": "VCT 2026: Americas Stage 2"}),
+    ("event_matches_42", {"match_id": "99", "date": "Wed, July 01, 2026",
+                          "status": "Completed", "event_series": "Final",
+                          "team1": {"name": "A", "score": "2"},
+                          "team2": {"name": "B", "score": "1"}},
+     {"match_id": "99", "date": "Wed, July 01, 2026", "status": "Completed",
+      "event_series": "Final", "team1": None, "team2": {"name": "B", "score": "1"}}),
+])
+def test_archived_incomplete_row_does_not_hide_good_snapshot(tmp_path, monkeypatch,
+                                                                 kind, good_row, bad_row):
+    monkeypatch.setattr(normalize, "RAW_VLRGG_DIR", tmp_path)
+    def envelope(row):
+        return {"status": "success", "data": {"status": 200, "segments": [row]}}
+    (tmp_path / f"{kind}_20260925T000000Z.json").write_text(json.dumps(envelope(good_row)))
+    (tmp_path / f"{kind}_20260925T010000Z.json").write_text(json.dumps(envelope(bad_row)))
+    with pytest.warns(UserWarning, match="invalid archived vlrggapi feed"):
+        if kind.startswith("events"):
+            assert normalize._vlrgg_events().event_id.tolist() == [42]
+        else:
+            assert normalize._vlrgg_event_matches().match_id.tolist() == [99]
+
+
 def test_match_detail_replay_keeps_valid_snapshot_before_poison(tmp_path, monkeypatch):
     import json
     import pytest
