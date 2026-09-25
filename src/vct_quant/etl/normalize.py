@@ -500,10 +500,30 @@ def _archived_feed_rows(path: Path) -> list[dict]:
     return rows
 
 
+def _archive_chronological_paths(pattern: str) -> list[Path]:
+    """Order raw snapshots by fetch time, not page/event ID in their names.
+
+    A listing row can move between pages; a match can be relisted under a
+    different event. The filename's UTC second is authoritative. Within a
+    second, filesystem mtime resolves cross-source ordering (the numbered
+    suffix only orders retries of the *same* source).
+    """
+    def key(path: Path) -> tuple[str, int, str]:
+        stamp = re.search(r"_(\d{8}T\d{6}Z)(?:_\d{4})?\.json$", path.name)
+        try:
+            mtime_ns = path.stat().st_mtime_ns
+        except OSError:
+            # Let _archived_feed_rows warn/skip unreadable or vanished files.
+            mtime_ns = -1
+        return (stamp.group(1) if stamp else "", mtime_ns, path.name)
+
+    return sorted(RAW_VLRGG_DIR.glob(pattern), key=key)
+
+
 def _vlrgg_events() -> pd.DataFrame:
     """Event IDs and titles from the paged vlrggapi event listing."""
     rows: list[dict] = []
-    for path in sorted(RAW_VLRGG_DIR.glob("events_page*.json")):
+    for path in _archive_chronological_paths("events_page*.json"):
         rows.extend(_archived_feed_rows(path))
     if not rows:
         return pd.DataFrame()
@@ -719,7 +739,7 @@ def _vlrgg_event_matches(events: pd.DataFrame | None = None) -> pd.DataFrame:
         — 18,147 of 72,495 rows. A series is never won by more than 3 maps.
     """
     rows: list[dict] = []
-    for path in sorted(RAW_VLRGG_DIR.glob("event_matches_*.json")):
+    for path in _archive_chronological_paths("event_matches_*.json"):
         for seg in _archived_feed_rows(path):
             rows.append({
                 **seg,

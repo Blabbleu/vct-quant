@@ -154,6 +154,74 @@ def test_vlrgg_match_keeps_its_event_id_and_title(tmp_path, monkeypatch):
     ]
 
 
+def test_event_replay_prefers_newer_timestamp_across_listing_pages(tmp_path, monkeypatch):
+    """An event moving page 2 -> 1 must not regain its old title/tier."""
+    monkeypatch.setattr(normalize, "RAW_VLRGG_DIR", tmp_path)
+    def snapshot(title):
+        return {"status": "success", "data": {"status": 200, "segments": [{
+            "event_id": "42", "title": title, "status": "upcoming", "region": "na",
+            "dates": "Nov 2026", "prize": "", "thumb": "", "url_path": "/event/42",
+        }]}}
+
+    old = "VCT 2026: Americas Stage 2"
+    new = "VCT 2027: Americas Open Qualifier"
+    (tmp_path / "events_page002_20260924T000000Z.json").write_text(json.dumps(snapshot(old)))
+    (tmp_path / "events_page001_20260925T000000Z.json").write_text(json.dumps(snapshot(new)))
+    row = normalize._vlrgg_events().iloc[0]
+    assert row["name"] == new
+    assert row["tier"] == 2
+
+
+def test_event_replay_prefers_same_second_newer_snapshot_across_pages(tmp_path, monkeypatch):
+    monkeypatch.setattr(normalize, "RAW_VLRGG_DIR", tmp_path)
+    def snapshot(title):
+        return {"status": "success", "data": {"status": 200, "segments": [{
+            "event_id": "42", "title": title, "status": "upcoming", "region": "na",
+            "dates": "Nov 2026", "prize": "", "thumb": "", "url_path": "/event/42",
+        }]}}
+
+    (tmp_path / "events_page002_20260925T000000Z.json").write_text(json.dumps(snapshot("old")))
+    (tmp_path / "events_page001_20260925T000000Z_0001.json").write_text(json.dumps(snapshot("new")))
+    assert normalize._vlrgg_events().iloc[0]["name"] == "new"
+
+
+def test_match_replay_prefers_newer_snapshot_across_event_ids(tmp_path, monkeypatch):
+    """A corrected event assignment must not revert on archive path ordering."""
+    monkeypatch.setattr(normalize, "RAW_VLRGG_DIR", tmp_path)
+    def snapshot(series):
+        return {"status": "success", "data": {"status": 200, "segments": [{
+            "match_id": "99", "url": "/99/a-vs-b", "date": "Wed, July 01, 2026",
+            "status": "Completed", "event_series": series,
+            "team1": {"name": "A", "score": "2"},
+            "team2": {"name": "B", "score": "1"},
+        }]}}
+
+    (tmp_path / "event_matches_99_20260924T000000Z.json").write_text(json.dumps(snapshot("old")))
+    (tmp_path / "event_matches_42_20260925T000000Z.json").write_text(json.dumps(snapshot("corrected")))
+    row = normalize._vlrgg_event_matches().iloc[0]
+    assert row["event_id"] == 42
+    assert row["event_series"] == "corrected"
+
+
+def test_unreadable_archived_feed_does_not_abort_timestamp_sort(tmp_path, monkeypatch):
+    monkeypatch.setattr(normalize, "RAW_VLRGG_DIR", tmp_path)
+    event = {"event_id": "42", "title": "VCT 2026: Americas Stage 2",
+             "status": "completed", "region": "na", "dates": "Jul 1—2",
+             "prize": "$1", "thumb": "logo", "url_path": "/event/42"}
+    (tmp_path / "events_page001_20260925T000000Z.json").write_text(
+        json.dumps({"status": "success", "data": {"status": 200, "segments": [event]}}))
+    bad = tmp_path / "events_page002_20260925T010000Z.json"
+    bad.write_text("{}")
+    original = type(bad).stat
+    def unreadable(self, *args, **kwargs):
+        if self == bad:
+            raise PermissionError("denied")
+        return original(self, *args, **kwargs)
+    monkeypatch.setattr(type(bad), "stat", unreadable)
+    with pytest.warns(UserWarning, match="invalid archived vlrggapi feed"):
+        assert normalize._vlrgg_events().event_id.tolist() == [42]
+
+
 def test_archived_error_feed_does_not_poison_event_and_match_replay(tmp_path, monkeypatch):
     """An HTTP-200 failure archived by ingestion must not mask older good raw."""
     monkeypatch.setattr(normalize, "RAW_VLRGG_DIR", tmp_path)
