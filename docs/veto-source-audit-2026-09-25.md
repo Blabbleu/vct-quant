@@ -1,0 +1,41 @@
+# Full-veto source audit — 2026-09-25
+
+**Read-only probe:** `python scripts/veto_source_audit.py --live --limit 8`
+against the configured self-hosted [vlrggapi](https://github.com/axsddlr/vlrggapi)
+`/v2/match` and `/v2/match/details` endpoints. The API exposes a `map_vetos`
+string separately from its `maps` array. Example retrospective [VLR match
+595657](https://www.vlr.gg/595657/) returned a seven-decision text veto, even
+though map rows' `picked_by` fields were blank. Thus the prior DB-only 0/1,853
+pick count does **not** establish that vlr.gg lacks veto text; it establishes
+that the canonical map table has not stored it.
+
+- Of 60 existing immutable match-detail snapshots, 56 are `final`, 19 have
+  nonempty `map_vetos`, and 18 contain parseable seven-map Bo3/Bo5 sequences
+  with 2/4 picks and a decider. One nonempty field is `VOD Unavaliable` and is
+  not a veto. **All 18 complete sequences were observed in final-page
+  snapshots**, not before match start. Their retrospective availability cannot
+  validate a pre-series model.
+- At 2026-09-25 05:03 UTC, the first 8 upcoming fixtures (starting between
+  09:00 UTC that day and 12:00 UTC on Sep 29) each returned a detail page
+  **before** its scheduled start, but all 8 `map_vetos` were empty and their
+  three map names were `TBD`. The read-only probe did not preserve these API
+  responses under `data/raw`; it is a feasibility observation, **not** a
+  training/validation set. The API may publish vetoes closer to kickoff or
+  only after it; this probe cannot tell.
+- `/v2/match/details` can have missing segments or errors. The audit counts
+  those separately rather than declaring a missing veto. `--live --limit N`
+  is a bounded read-only recheck; leave historical raw untouched and do not
+  add a dev-worktree collector aimed at the live raw symlink.
+
+**Decision:** source is promising for *retrospective* complete-veto text but
+unproven for *pre-start* forecasts. Do not backfill and score historical
+`map_vetos` as if they were contemporaneous. Continue occasional pre-start
+checks, especially within 1h of kickoff; only a full sequence fetched and
+recorded before the scheduled start can enter a prospective pre-series cohort.
+A real collector needs prior approval because it would write immutable raw
+snapshots on the live side. Specify match ID, request and response UTC times,
+scheduled UTC start, full untouched payload, parse validity, and revision
+history; reject response times at/after start, placeholders, incomplete seven-
+map sequences, and fixture reschedules unless reconciled. The map model itself
+remains rejected on the prior conditional played-map test (series-mean t=-0.79
+on 2023–24 validation); source feasibility is separate from model quality.

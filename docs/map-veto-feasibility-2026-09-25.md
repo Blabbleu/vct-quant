@@ -27,10 +27,14 @@ would select on the realized series length and omit unplayed deciders; even
 This is a data constraint, not a negative paired-t model result, and primary
 forecasts remain unchanged.
 
-**Next prerequisite:** collect a source that publishes the ordered *full*
-Bo3/Bo5 veto before the series starts, with retrieval timestamp, match ID and
-all picks/decider. Store immutable raw evidence only through an approved
-live-side ingest path. Separately, a map-level outcome benchmark can test
+**Next prerequisite:** the [source audit](veto-source-audit-2026-09-25.md)
+found complete `map_vetos` text on 18 historical final-page detail snapshots,
+although no picks were stored in the canonical `match_map` rows. Eight
+pre-start detail probes had empty vetoes and `TBD` maps. Determine whether
+ordered *full* Bo3/Bo5 vetoes appear before series start, with retrieval
+timestamp, match ID and all picks/decider. Store immutable raw evidence only
+through an approved live-side ingest path. Separately, a map-level outcome
+benchmark can test
 per-map predictions from prior map history, but must group updates by match
 ID (do not learn map 1 before predicting map 2 in a pre-series forecast),
 use prior matches only, and cannot claim to evaluate a pre-veto series
