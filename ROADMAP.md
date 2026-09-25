@@ -268,8 +268,8 @@ list are due around Champions Shanghai.
    return 200 even while `/v2/events` is 502 and `/v2/match?q=upcoming` is 503
    (observed September 25). A dev-only source gate in `scripts/matchday.sh`
    checks both read-only endpoints before ingestion; it exits nonzero rather
-   than retrying an upstream outage or claiming a fresh forecast. Pending
-   merge approval, this does not repair the vlr.gg block or refresh live data.
+   than retrying an upstream outage or claiming a fresh forecast. Merged by
+   approved A46; this does not repair the vlr.gg block or refresh live data.
 7. ✅ **Checkpoint-2 grading split.** `grade_predictions.py` preserves the
    pre-registered pooled paired score and reports 2026/2027 cohort n, losses
    and paired t separately by scheduled fixture year (UTC). A cohort with
@@ -278,6 +278,14 @@ list are due around Champions Shanghai.
 
 ## Cross-cutting
 
+* **Completed/TBD result contamination**: two retained Tier-1 rows in the
+  additive DB (IDs 10802 and 97028) have a TBD side. A preregistered read-only
+  joint-exclusion replay (`docs/placeholder-sensitivity.md`) on 2025–26
+  resolved Tier-1 matches scored 0.658685307 versus 0.658685279 current
+  (n=1,096, paired t=−0.076); max probability change 0.000025730. This
+  negative performance result does not validate the placeholder results;
+  reconcile upstream provenance and get separate approval before any primary
+  forecast/DB correction. The dev snapshot is not a clean rebuild.
 * **Tests worth having**: a leakage regression test (assert no feature for match
   *i* changes when match *i*'s outcome is flipped) is worth more than broad
   coverage elsewhere.
