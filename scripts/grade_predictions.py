@@ -20,6 +20,9 @@ BACKTEST_BRIER = 0.2320
 SHADOWS = {
     "p_team_a_win_ensemble": "fast/slow ensemble",
     "p_team_a_win_calibrated": "online shrink",
+    # Logged from 2026-09-24; differs from Elo only for new team keys that
+    # inherit a rating (docs/roster-carryover-2026-09-24.md).
+    "p_team_a_win_carryover": "roster carry-over",
 }
 
 

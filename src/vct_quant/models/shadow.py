@@ -11,10 +11,12 @@ into another tuning set.
 from __future__ import annotations
 
 import math
+from typing import Mapping
 
 import numpy as np
 import pandas as pd
 
+from ..features.carryover import carryover_probability
 from ..features.ratings import DEFAULT_BASE, compute_elo, expected_score
 
 # Fast/slow Elo blend in logit space: slow tracks the organisation, fast tracks
@@ -87,16 +89,27 @@ def calibrated_probability(p: pd.Series, a: float) -> pd.Series:
 
 
 def shadow_columns(
-    fixtures: pd.DataFrame, history: pd.DataFrame, production_p: np.ndarray
+    fixtures: pd.DataFrame,
+    history: pd.DataFrame,
+    production_p: np.ndarray,
+    rosters: Mapping[tuple[int, int], frozenset] | None = None,
 ) -> pd.DataFrame:
-    """Add p_team_a_win_ensemble and p_team_a_win_calibrated to official fixtures."""
+    """Add the shadow probabilities to official fixtures.
+
+    p_team_a_win_ensemble, p_team_a_win_calibrated, and p_team_a_win_carryover
+    (roster carry-over, features/carryover.py; equal to Elo unless a side is a
+    new team key fielding an en-bloc roster). Without `rosters` the carry-over
+    column is exactly production Elo.
+    """
     out = fixtures.copy()
     if out.empty or history.empty:
         out["p_team_a_win_ensemble"] = math.nan
         out["p_team_a_win_calibrated"] = math.nan
+        out["p_team_a_win_carryover"] = math.nan
         return out
     out["p_team_a_win_ensemble"] = ensemble_probability(out, history)
     a = calibration_a(history, production_p)
     out["calibration_a"] = a
     out["p_team_a_win_calibrated"] = calibrated_probability(out.p_team_a_win, a)
+    out = out.join(carryover_probability(out, history, rosters or {}))
     return out

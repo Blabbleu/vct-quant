@@ -121,6 +121,20 @@ GROUP BY 1, 2
 """
 
 
+def load_rosters(
+    con: duckdb.DuckDBPyConnection | None = None,
+) -> dict[tuple[int, int], frozenset]:
+    """(match_id, team_number) -> the players who lined up, from player-map stats."""
+    owned = con is None
+    con = con or db.connect(read_only=True)
+    try:
+        r = con.execute(_ROSTERS_SQL).df()
+    finally:
+        if owned:
+            con.close()
+    return {(int(m), int(t)): frozenset(x) for m, t, x in r.itertuples(index=False)}
+
+
 def _roster_churn(df: pd.DataFrame, con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     """Fraction of each side's roster that is new since that team's last match.
 
@@ -289,6 +303,7 @@ def predict_upcoming(
     Fixtures carrying `tier == 3` (Game Changers) are rated from the GC pool;
     everything else from the official pool. The two are never mixed.
     """
+    rosters = None
     if history is None:
         gc = fixtures.get("tier", pd.Series(1, index=fixtures.index)).eq(3)
         if gc.any() and not gc.all():
@@ -297,6 +312,8 @@ def predict_upcoming(
                 ignore_index=True,
             )
         history = match_sequence(tiers=(3,) if gc.any() else (1, 2))
+        if not gc.any():
+            rosters = load_rosters()  # for the roster carry-over shadow
     replay, ratings = compute_elo(
         zip(
             history.match_id,
@@ -324,7 +341,9 @@ def predict_upcoming(
     if "tier" in history and not history.tier.eq(3).any():
         from ..models.shadow import shadow_columns
 
-        out = shadow_columns(out, history, np.array([row["p_a_win"] for row in replay]))
+        out = shadow_columns(
+            out, history, np.array([row["p_a_win"] for row in replay]), rosters
+        )
     return add_score_predictions(out)
 
 
