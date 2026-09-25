@@ -257,6 +257,49 @@ def test_second_event_page_error_retains_observations_but_marks_incomplete(monke
     assert "season_2027_titles" not in report
 
 
+def test_live_pagination_stops_after_first_failure_but_still_checks_upcoming(monkeypatch, capsys):
+    fetched = []
+    def fetch(page, save):
+        fetched.append(page)
+        if page == 2:
+            raise ValueError("page 2 down")
+        return payload([{"title": "VCT 2027: Pacific LCQ", "event_id": "123"}])
+
+    monkeypatch.setattr(titles.vlrgg, "fetch_events", fetch)
+    monkeypatch.setattr(titles.vlrgg, "fetch_upcoming_matches", lambda save: payload([]))
+    monkeypatch.setattr(sys, "argv", ["open_era_title_audit.py", "--event-pages", "9"])
+    with pytest.raises(SystemExit) as exc:
+        titles.main()
+    assert exc.value.code == 1
+    report = json.loads(capsys.readouterr().out)
+    assert fetched == [1, 2]  # Do not hammer a failing upstream eight more times.
+    assert report["event_pages_requested"] == 9
+    assert report["event_pages_checked"] == [1]
+    assert report["event_pages_skipped"] == [3, 4, 5, 6, 7, 8, 9]
+    assert "events_page_2" in report["errors"]
+    assert report["fixture_rows"] == 0
+    assert report["observed_2027_titles"][0]["event_id"] == "123"
+
+
+def test_archive_page_failure_does_not_hide_later_independent_files(tmp_path, monkeypatch, capsys):
+    first = tmp_path / "first.json"
+    missing = tmp_path / "missing.json"
+    third = tmp_path / "third.json"
+    feed = tmp_path / "feed.json"
+    first.write_text(json.dumps(payload([])))
+    third.write_text(json.dumps(payload([{"title": "VCT 2027: Pacific LCQ", "event_id": "123"}])))
+    feed.write_text(json.dumps(payload([])))
+    monkeypatch.setattr(sys, "argv", ["open_era_title_audit.py", "--events-json",
+                                   str(first), str(missing), str(third), "--upcoming-json", str(feed)])
+    with pytest.raises(SystemExit) as exc:
+        titles.main()
+    assert exc.value.code == 1
+    report = json.loads(capsys.readouterr().out)
+    assert report["event_pages_checked"] == [1, 3]
+    assert report["event_pages_skipped"] == []
+    assert report["observed_2027_titles"][0]["event_id"] == "123"
+
+
 def test_partial_feed_failure_exits_nonzero_without_claiming_no_titles(monkeypatch, capsys):
     def unavailable(*args, **kwargs):
         raise ValueError("feed unavailable")

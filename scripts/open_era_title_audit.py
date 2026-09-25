@@ -184,6 +184,7 @@ def main() -> None:
     errors = {}
     event_pages = []
     checked = []
+    skipped = []
     seen_nonempty_pages = {}
     paths = args.events_json if args.events_json else [None] * args.event_pages
     for page_num, path in enumerate(paths, 1):
@@ -203,6 +204,12 @@ def main() -> None:
         except (OSError, ValueError, KeyError, TypeError, requests.RequestException) as exc:
             # A failed page is unknown, never a negative 2027 observation.
             errors["events" if page_num == 1 else f"events_page_{page_num}"] = f"{type(exc).__name__}: {exc}"
+            if not args.events_json:
+                # Live pagination is sequential; subsequent pages cannot make
+                # this scan complete, and repeated requests stress the outage.
+                # Archive paths are independent files, so keep reading those.
+                skipped = list(range(page_num + 1, len(paths) + 1))
+                break
     upcoming = None
     try:
         upcoming = (json.loads(args.upcoming_json.read_text(encoding="utf-8"))
@@ -214,7 +221,9 @@ def main() -> None:
     rows = audit(event_pages, upcoming)
     report = {"source": "archive" if args.events_json else "live",
               "complete": not errors,
+              "event_pages_requested": len(paths),
               "event_pages_checked": checked,
+              "event_pages_skipped": skipped,
               "event_rows": sum(len(segments(page)) for page in event_pages) if checked else None,
               "fixture_rows": len(segments(upcoming)) if upcoming is not None else None,
               "yearless_open_event_candidates": yearless_open_event_candidates(event_pages),
