@@ -85,6 +85,43 @@ function send(res, status, body, type = "application/json; charset=utf-8") {
   res.end(body);
 }
 
+// Built multipage app (web/, `npm run build` -> web/dist). Hashed assets are
+// served from dist/assets; every other non-API path gets index.html so the
+// client router can render /matches, /match/:id, /rankings, ... on reload.
+const DIST = path.join(ROOT, "web", "dist");
+const TYPES = {
+  ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
+  ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon",
+  ".json": "application/json; charset=utf-8", ".woff2": "font/woff2", ".txt": "text/plain; charset=utf-8",
+};
+
+async function serveApp(res, pathname) {
+  const rel = path.normalize(decodeURIComponent(pathname)).replace(/^([/\\])+/, "");
+  const file = path.join(DIST, rel);
+  const ext = path.extname(rel);
+  if (rel && ext && ext !== ".html" && file.startsWith(DIST + path.sep)) {
+    try {
+      const body = await fs.readFile(file);
+      res.writeHead(200, {
+        "content-type": TYPES[ext] || "application/octet-stream",
+        "content-length": body.length,
+        "cache-control": rel.startsWith("assets/") ? "public, max-age=31536000, immutable" : "no-cache",
+      });
+      return res.end(body);
+    } catch {
+      return send(res, 404, JSON.stringify({ error: "not found" }));
+    }
+  }
+  try {
+    const page = await fs.readFile(path.join(DIST, "index.html"), "utf8");
+    return send(res, 200, page, "text/html; charset=utf-8");
+  } catch {
+    // Not built yet: fall back to the legacy single-file desk.
+    const page = await fs.readFile(path.join(ROOT, "frontend", "index.html"), "utf8");
+    return send(res, 200, page, "text/html; charset=utf-8");
+  }
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   if (req.method !== "GET" && req.method !== "HEAD") {
@@ -115,12 +152,15 @@ const server = http.createServer(async (req, res) => {
       return send(res, 500, JSON.stringify({ error: "the match layer failed" }));
     }
   }
-  if (url.pathname === "/" || url.pathname === "/index.html" ||
-      /^\/match\/[1-9][0-9]*$/.test(url.pathname) && Number.isSafeInteger(Number(url.pathname.slice(7)))) {
+  if (url.pathname.startsWith("/api/")) {
+    return send(res, 404, JSON.stringify({ error: "not found", routes: Object.keys(ROUTES) }));
+  }
+  // The legacy single-page desk stays reachable while the web app grows.
+  if (url.pathname === "/legacy" || url.pathname.startsWith("/legacy/")) {
     const page = await fs.readFile(path.join(ROOT, "frontend", "index.html"), "utf8");
     return send(res, 200, page, "text/html; charset=utf-8");
   }
-  send(res, 404, JSON.stringify({ error: "not found", routes: Object.keys(ROUTES) }));
+  return serveApp(res, url.pathname);
 });
 
 if (require.main === module) {

@@ -38,25 +38,26 @@ async function main() {
     assert.equal((await fetch(base + "/api/match/1%2F2")).status, 404);
     console.log("  /api/match/:id movement and unknown IDs ok");
 
-    const matchPage = await fetch(base + `/match/${matchId}`);
-    assert.equal(matchPage.status, 200);
-    const matchHtml = await matchPage.text();
-    assert.match(matchHtml, /Match Center/);
-    assert.match(matchHtml, /\/api\/match\//);
-    assert.equal((await fetch(base + "/match/0")).status, 404);
-    assert.equal((await fetch(base + "/match/999999999999999999999")).status, 404);
-    assert.equal((await fetch(base + "/match/1%2F2")).status, 404);
-    console.log("  /match/:id serves the Match Center shell; invalid IDs 404");
+    // Every page route returns an HTML shell; the client router renders it.
+    // With web/dist built that is the multipage app, otherwise the legacy desk.
+    for (const pagePath of ["/", "/matches", `/match/${matchId}`, "/rankings", "/edge", "/track-record", "/about"]) {
+      const page = await fetch(base + pagePath);
+      assert.equal(page.status, 200, `${pagePath} answered ${page.status}`);
+      assert.match(page.headers.get("content-type"), /text\/html/);
+      assert.match(await page.text(), /<div id="root">|VCT Quant Desk/);
+    }
+    console.log("  page routes serve the app shell");
 
-    const page = await fetch(base + "/");
-    assert.equal(page.status, 200);
-    assert.match(page.headers.get("content-type"), /text\/html/);
-    assert.match(await page.text(), /VCT Quant Desk/);
-    console.log("  / serves the page");
+    const legacy = await fetch(base + "/legacy");
+    assert.equal(legacy.status, 200);
+    assert.match(await legacy.text(), /VCT Quant Desk/);
+    console.log("  /legacy serves the original single-file desk");
 
-    assert.equal((await fetch(base + "/nope")).status, 404);
+    assert.equal((await fetch(base + "/api/nope")).status, 404);
+    assert.equal((await fetch(base + "/assets/missing.js")).status, 404);
+    assert.equal((await fetch(base + "/assets/..%2F..%2Fserver.js")).status, 404);
     assert.equal((await fetch(base + "/api/snapshot", { method: "POST" })).status, 405);
-    console.log("  404 and read-only 405 ok");
+    console.log("  unknown API/asset 404, traversal blocked, read-only 405 ok");
     console.log("all checks passed");
   } finally {
     server.close();

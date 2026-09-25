@@ -1,0 +1,84 @@
+import { Link, useParams } from "react-router-dom";
+import { useMovement, useSnapshot } from "../lib/api";
+import { liquid, pct, relative, when } from "../lib/format";
+import LineChart from "../components/LineChart";
+import { Failure, Loading, PageHead, SplitBar, Tile } from "../components/ui";
+
+export default function MatchCenter() {
+  const id = Number(useParams().id);
+  const snap = useSnapshot();
+  const move = useMovement(id);
+  if (!Number.isSafeInteger(id) || id <= 0) return <Failure error="Not a match ID." />;
+  if (snap.loading || move.loading) return <Loading what="match" />;
+  if (snap.error || move.error) return <Failure error={(snap.error || move.error) as string} />;
+
+  const f = snap.data?.fixtures.find(x => x.match_id === id);
+  const m = move.data;
+  if (!f && !m) return <Failure error="This match is not in the forecast log." />;
+
+  const teamA = f?.team_a ?? m!.team_a, teamB = f?.team_b ?? m!.team_b;
+  const start = f?.start ?? m!.scheduled_at;
+  const last = m?.points.at(-1);
+  const p = f?.p_a ?? last?.elo ?? 0.5;
+  const market = f ? f.market : last?.market ?? null;
+  const trusted = f ? liquid(f.spread, f.volume) : market != null;
+  const first = m?.points[0];
+  const drift = first && last ? last.elo - first.elo : null;
+  const bo = f?.best_of ?? 3;
+  const sweep = f?.p_sweep ?? null;
+
+  return (
+    <>
+      <Link to="/matches" className="back">← All matches</Link>
+      <PageHead eyebrow={f ? `${f.event} · ${f.series}` : `Match #${id}`}
+        title={<>{teamA} <span className="vs">vs</span> {teamB}</>}>
+        {when(start)} ({relative(start)}){f?.best_of ? ` · best of ${f.best_of}` : ""}
+      </PageHead>
+
+      <section className="panel pad">
+        <div className="odds">
+          <div><div className="big num">{pct(p)}</div><div className="muted small">{teamA}</div></div>
+          <div className="odds-mid"><SplitBar p={p} /><div className="muted small center">model series odds</div></div>
+          <div className="right"><div className="big num dim">{pct(1 - p)}</div><div className="muted small">{teamB}</div></div>
+        </div>
+      </section>
+
+      <div className="tiles">
+        <Tile value={market == null ? "–" : pct(market)} label={<>Market for {teamA}{market != null && !trusted ? " · thin, low trust" : ""}</>} />
+        <Tile value={market == null ? "–" : `${p - market > 0 ? "+" : ""}${((p - market) * 100).toFixed(1)} pts`} label="Model minus market" />
+        {sweep != null && <Tile value={pct(sweep, 0)} label={`Ends ${bo === 5 ? "3-0" : "2-0"} either way`} />}
+        {drift != null && <Tile value={`${drift > 0 ? "+" : ""}${(drift * 100).toFixed(1)} pts`} label={`Model move since ${when(first!.observed_at)}`} />}
+      </div>
+
+      {f && (
+        <section className="panel pad">
+          <h2>Ratings</h2>
+          <div className="kv"><span>{teamA}</span><b className="num">{f.elo_a.toFixed(0)}</b><span className="muted small">{f.matches_a} rated matches</span></div>
+          <div className="kv"><span>{teamB}</span><b className="num">{f.elo_b.toFixed(0)}</b><span className="muted small">{f.matches_b} rated matches</span></div>
+          <p className="muted small">A 100-point Elo edge is roughly 64% to win the series.</p>
+        </section>
+      )}
+
+      {m && m.points.length > 0 && (
+        <section className="panel pad">
+          <div className="head"><h2>How the odds moved</h2>
+            <span className="legend"><i className="swatch elo" />Model <i className="swatch mkt" />Market</span></div>
+          <LineChart points={m.points} />
+          <p className="muted small">Chance of {teamA} winning. Dots are refreshes of our forecast log ({m.points.length} so far), not a live price feed.</p>
+          <details>
+            <summary>All {m.points.length} snapshots</summary>
+            <div className="scroll"><table>
+              <thead><tr><th>When</th><th className="n">Model</th><th className="n">Market</th><th className="n">Spread</th></tr></thead>
+              <tbody>{[...m.points].reverse().map(pt => (
+                <tr key={pt.observed_at}><td>{when(pt.observed_at)}</td><td className="n">{pct(pt.elo)}</td>
+                  <td className="n">{pct(pt.market)}</td><td className="n">{pct(pt.spread)}</td></tr>
+              ))}</tbody>
+            </table></div>
+          </details>
+        </section>
+      )}
+
+      {f && <p className="small"><a href={f.url} target="_blank" rel="noreferrer">Match page on vlr.gg ↗</a></p>}
+    </>
+  );
+}
