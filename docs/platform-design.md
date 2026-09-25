@@ -111,8 +111,21 @@ them or list the ingest they would need.
 3. **Later:** edge board and paper trading, Discord alerts, 2027 hub, ops
    panel, public deployment decision.
 
-## Open decisions (user)
+## Decisions (user, 2026-09-25)
 
-- Audience: private tool, friends, or public site?
-- Include the edge board / paper trading?
-- OK to add a frontend build step (npm deps, Vite)?
+- **Audience: friends.** A small invited group, not public. Needs a login
+  (per-friend access) and a way in from outside: the host is behind NAT
+  (private 10.88.x address), so no port-forwarding. Recommended: Cloudflare
+  Tunnel + Cloudflare Access (email allowlist, no open ports); alternative:
+  Tailscale with shared nodes. Not chosen yet; exposure needs the user's
+  account setup and approval. Until then build and test on 127.0.0.1.
+- **Edge board and paper trading: yes.** Paper only; no real-money actions.
+- **Frontend build step: yes.** Vite + React + TypeScript under `frontend/`,
+  npm dependencies installed in the dev worktree only (`frontend/node_modules`,
+  lockfile committed). `server.js` stays dependency-free and serves the built
+  `frontend/dist/`.
+
+Friends-audience consequences: mobile-first, readable without project
+context (plain-language labels, a short "how to read this" per page),
+no admin/ops details or autodev approvals visible to friends (ops panel
+is owner-only), and read-only everything.
