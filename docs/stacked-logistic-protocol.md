@@ -1,0 +1,9 @@
+# Stacked logistic completion protocol (frozen before this rerun)
+
+The earlier `scripts/model_lab2.py` built the entire feature matrix inside each grid cell and timed out after the Elo-only settings. Complete that *same* 27-cell grid with one feature build, without changing the primary model.
+
+- Official Tier-1 only, non-draws, ascending match ID; use only pre-match Elo, prior-player form, current known lineup churn and prior-match counts. Zero-fill missing form/churn, add a missing-form indicator. No Tier-2 outcome labels.
+- Refit at each calendar-year boundary using strictly earlier Tier-1 rows (all available years). No training on the test year, even for matches late in that year. The existing training weights are `0.5 ** ((year - 1 - train.year) / half_life)`; half-life 0 uses uniform weights.
+- Grid: Elo logit only; Elo + player-form difference + missing flag; Elo + form + churn difference + log prior-experience difference. C in {0.03, 0.3, 3.0}, recency half-life in {0, 1, 2} years. Pick the lowest pooled 2023-24 log loss, breaking ties by the listed grid order. Freeze this choice before scoring 2025 and 2026, which were previously consulted by other experiments and are therefore *not clean holdouts*.
+- Compare selected probabilities to production margin-aware Elo on the same Tier-1 matches in 2025 and 2026, and pooled: log loss, Brier, paired per-match loss t (positive favors logistic). The control must match production Elo from `build_features` to within floating precision. Diagnose feature coverage and the number of scored rows.
+- Verdict: reject if validation fails or selected model loses; otherwise label not proven even if paired t > 2, since these years have been consulted. No primary forecast change or live-log tuning; a future shadow needs a separately approved promotion rule before use.
