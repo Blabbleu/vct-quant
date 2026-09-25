@@ -22,7 +22,7 @@ const PORT = Number(process.env.PORT || 8000);
 const HOST = process.env.HOST || "127.0.0.1";
 const DB = path.join(ROOT, "data", "vct.duckdb");
 const PYTHON = process.env.PYTHON ||
-  path.join(ROOT, process.platform === "win32" ? "venv/Scripts/python.exe" : "venv/bin/python");
+  path.join(ROOT, process.platform === "win32" ? ".venv/Scripts/python.exe" : ".venv/bin/python");
 
 let cache = { stamp: null, payload: null };
 let inFlight = null;
@@ -50,6 +50,20 @@ async function snapshot() {
   const payload = await inFlight;
   cache = { stamp, payload };
   return payload;
+}
+
+function computeMatch(matchId) {
+  return new Promise((resolve, reject) => {
+    execFile(PYTHON, ["-m", "vct_quant.match_center", matchId],
+      { cwd: ROOT, maxBuffer: 8 << 20, timeout: 30000 }, (err, stdout, stderr) => {
+        if (err) return reject(new Error(stderr.trim() || err.message));
+        try {
+          resolve(JSON.parse(stdout));
+        } catch (parseError) {
+          reject(new Error(`bad JSON from match center: ${parseError.message}`));
+        }
+      });
+  });
 }
 
 const ROUTES = {
@@ -87,6 +101,18 @@ const server = http.createServer(async (req, res) => {
         detail: err.message,
         hint: "run `vct init-db` and `vct update` first, or set PYTHON to your interpreter",
       }));
+    }
+  }
+  const match = /^\/api\/match\/([1-9][0-9]*)$/.exec(url.pathname);
+  if (match && Number.isSafeInteger(Number(match[1]))) {
+    try {
+      const result = await computeMatch(match[1]);
+      return result === null
+        ? send(res, 404, JSON.stringify({ error: "match not found in prediction log" }))
+        : send(res, 200, JSON.stringify(result));
+    } catch (err) {
+      console.error(`[500] ${url.pathname}: ${err.message}`);
+      return send(res, 500, JSON.stringify({ error: "the match layer failed" }));
     }
   }
   if (url.pathname === "/" || url.pathname === "/index.html") {

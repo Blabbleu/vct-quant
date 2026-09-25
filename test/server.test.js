@@ -26,6 +26,18 @@ async function main() {
     assert.ok(snapshot.backtest.log_loss > 0.3 && snapshot.backtest.log_loss < 0.7,
       `implausible log loss ${snapshot.backtest.log_loss}`);
 
+    const matchId = snapshot.fixtures[0]?.match_id;
+    assert.ok(matchId, "snapshot needs a fixture for the Match Center check");
+    const match = await fetch(base + `/api/match/${matchId}`);
+    assert.equal(match.status, 200);
+    const matchBody = await match.json();
+    assert.equal(matchBody.match_id, matchId);
+    assert.ok(Array.isArray(matchBody.points) && matchBody.points.length > 0);
+    assert.equal((await fetch(base + "/api/match/0")).status, 404);
+    assert.equal((await fetch(base + "/api/match/999999999")).status, 404);
+    assert.equal((await fetch(base + "/api/match/1%2F2")).status, 404);
+    console.log("  /api/match/:id movement and unknown IDs ok");
+
     const page = await fetch(base + "/");
     assert.equal(page.status, 200);
     assert.match(page.headers.get("content-type"), /text\/html/);

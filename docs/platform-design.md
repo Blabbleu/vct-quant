@@ -4,6 +4,19 @@ Goal: grow the one-page desk (`frontend/index.html`, `server.js`,
 `dashboard.py`) into an all-in-one Valorant prediction platform: every
 forecast, the evidence behind it, and an honest record of how it has done.
 
+## Match Center API slice (dev branch, pending merge)
+
+`GET /api/match/:id` reads the append-only prediction log through
+`python -m vct_quant.match_center ID`, without updating data or replaying Elo.
+It returns a `points` array of UTC `observed_at`, `elo`, `market`, and `spread`
+for **pre-start sampled refreshes**, with the latest pairing's A/B orientation.
+Quotes from a different market contract are null rather than joined into one
+line. No log/pre-start observations gives 404; bad IDs also give 404. This is
+not a complete Match Center (form, result, map pools and UI remain); it is a
+single tested per-view endpoint. The backend's Python default now targets the
+repo's `.venv`, while `PYTHON` remains configurable. After an approved merge,
+`server.js` changes require the user's separate live-desk restart approval.
+
 ## Where the desk is today
 
 One scrolling page, one `/api/snapshot` payload:
