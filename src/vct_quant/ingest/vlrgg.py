@@ -66,6 +66,24 @@ def fetch_upcoming_matches(save: bool = True) -> dict:
     return _fetch_segmented("/v2/match", {"q": "upcoming"}, "match_upcoming", save)
 
 
+def _valid_detail_shape(detail: dict) -> bool:
+    """Reject nested values that the replay loader cannot safely traverse."""
+    if not all(isinstance(team, dict) for team in detail["teams"]):
+        return False
+    for game_map in detail["maps"]:
+        if not isinstance(game_map, dict):
+            return False
+        for key in ("score", "score_t", "score_ct", "score_ot", "players"):
+            if key in game_map and not isinstance(game_map[key], dict):
+                return False
+        players = game_map.get("players", {})
+        for side in ("team1", "team2"):
+            if side in players and (not isinstance(players[side], list)
+                                    or not all(isinstance(p, dict) for p in players[side])):
+                return False
+    return True
+
+
 def detail_segments(payload: dict, match_id: int | str) -> list[dict]:
     """Validate a detail envelope and its identity before using it for IDs/maps.
 
@@ -84,6 +102,7 @@ def detail_segments(payload: dict, match_id: int | str) -> list[dict]:
                        and str(d.get("match_id")) == str(match_id)
                        and isinstance(d.get("teams"), list)
                        and isinstance(d.get("maps"), list)
+                       and _valid_detail_shape(d)
                        for d in segments)):
         raise ValueError(f"invalid match_details_{match_id} feed")
     return segments

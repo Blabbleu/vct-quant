@@ -74,6 +74,23 @@ def test_detail_rejects_http_200_poison_after_archiving(monkeypatch, bad):
     assert saved == [(bad, "match_details_44")]
 
 
+@pytest.mark.parametrize("detail", [
+    {"match_id": "44", "teams": [None], "maps": []},
+    {"match_id": "44", "teams": [], "maps": [None]},
+    {"match_id": "44", "teams": [], "maps": [{"score": None}]},
+    {"match_id": "44", "teams": [], "maps": [{"players": {"team1": [None]}}]},
+    {"match_id": "44", "teams": [], "maps": [{"players": {"team1": None}}]},
+])
+def test_detail_rejects_nested_poison_before_loading(monkeypatch, detail):
+    payload = {"status": "success", "data": {"status": 200, "segments": [detail]}}
+    saved = []
+    monkeypatch.setattr(vlrgg, "_get", lambda *a, **kw: payload)
+    monkeypatch.setattr(vlrgg, "save_raw", lambda data, name: saved.append(data))
+    with pytest.raises(ValueError, match="invalid match_details_44 feed"):
+        vlrgg.fetch_match_details(44)
+    assert saved == [payload]
+
+
 def test_detail_accepts_valid_v2_payload(monkeypatch):
     payload = {"status": "success", "data": {"status": 200, "segments": [
         {"match_id": "44", "teams": [], "maps": []}
