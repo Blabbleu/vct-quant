@@ -50,7 +50,12 @@ that the canonical map table has not stored it.
   set (`duplicate_fixture_rows`), not probed twice. At 08:09 UTC the within-hour
   probe still received HTTP 502, and the independent event/upcoming title audit
   returned 503/503: neither is a new observation. These are source-integrity
-  guards, not evidence of pre-start veto availability.
+  guards, not evidence of pre-start veto availability. A future feed date
+  with a nonzero team series score in the detail page is also excluded
+  (`stale_series_score`), even if its status says `scheduled` and map rows are
+  absent. Numeric and string scores are covered; 0–0 stays eligible. The
+  08:15 UTC within-hour probe again received feed HTTP 503, so this guard has
+  no new real near-start observation.
 
 **Decision:** source is promising for *retrospective* complete-veto text but
 unproven for *pre-start* forecasts. Do not backfill and score historical

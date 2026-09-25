@@ -206,6 +206,56 @@ def test_live_audit_rejects_in_progress_detail_despite_future_feed_time(monkeypa
     assert "live" in lines[0]
 
 
+@pytest.mark.parametrize("score", ["1", 2])
+def test_live_audit_rejects_nonzero_series_score_with_future_fixture(monkeypatch, score):
+    class Response:
+        def __init__(self, payload):
+            self.payload = payload
+        def raise_for_status(self):
+            pass
+        def json(self):
+            return self.payload
+    class Session:
+        def get(self, url, *, params, timeout):
+            if params == {"q": "upcoming"}:
+                return Response({"data": {"segments": [
+                    {"match_page": "3/stale", "unix_timestamp": "2099-01-01 00:00:00"},
+                ]}})
+            return Response({"data": {"segments": [{"match_id": "3", "status": "scheduled",
+                                                       "map_vetos": BO3, "maps": [],
+                                                       "teams": [{"score": score}, {"score": "0"}]}]}})
+    monkeypatch.setattr("scripts.veto_source_audit.requests.Session", Session)
+    counts, lines = live_audit("http://example.test", 1)
+    assert counts["stale_series_score"] == 1
+    assert counts["successful_prestart"] == 0
+    assert counts["full_prestart_veto"] == 0
+    assert "series score" in lines[0]
+
+
+def test_live_audit_keeps_zero_series_score_as_eligible(monkeypatch):
+    class Response:
+        def __init__(self, payload):
+            self.payload = payload
+        def raise_for_status(self):
+            pass
+        def json(self):
+            return self.payload
+    class Session:
+        def get(self, url, *, params, timeout):
+            if params == {"q": "upcoming"}:
+                return Response({"data": {"segments": [
+                    {"match_page": "3/future", "unix_timestamp": "2099-01-01 00:00:00"},
+                ]}})
+            return Response({"data": {"segments": [{"match_id": "3", "status": "scheduled",
+                                                       "map_vetos": "", "maps": [],
+                                                       "teams": [{"score": "0"}, {"score": 0}]}]}})
+    monkeypatch.setattr("scripts.veto_source_audit.requests.Session", Session)
+    counts, lines = live_audit("http://example.test", 1)
+    assert counts["successful_prestart"] == 1
+    assert counts["empty_prestart_veto"] == 1
+    assert counts["stale_series_score"] == 0
+
+
 def test_live_audit_rejects_played_map_despite_scheduled_detail(monkeypatch):
     class Response:
         def __init__(self, payload):

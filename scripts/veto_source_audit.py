@@ -181,6 +181,15 @@ def live_audit(base_url: str, limit: int, within_hours: float | None = None) -> 
             counts["stale_started_detail"] += 1
             lines.append(f"{match_id}: detail already {detail.get('status')!r} despite future fixture start={start.isoformat()}")
             continue
+        # A stale fixture start can also point to a series with a recorded
+        # map win even when the API omits map rows or leaves status unchanged.
+        if any(isinstance(team, dict)
+               and str(team.get("score") or "").strip().isdecimal()
+               and int(str(team["score"]).strip()) > 0
+               for team in detail.get("teams") or []):
+            counts["stale_series_score"] += 1
+            lines.append(f"{match_id}: detail has a nonzero series score despite future fixture start={start.isoformat()}")
+            continue
         if any(isinstance(m, dict) and isinstance(m.get("score"), dict)
                and any(str(m["score"].get(side) or "").strip() not in {"", "0"}
                        for side in ("team1", "team2"))
