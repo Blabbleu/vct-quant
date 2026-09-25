@@ -220,7 +220,16 @@ list are due around Champions Shanghai.
    Dev snapshot: 0/2,215 existing events change tier with the candidate.
 2. ⏳ **Real titles.** Tests use guessed 2027 names. Replace them with vlr.gg's
    real titles when the November qualifiers are listed; watch
-   `data/interim/matchday.log` for the untiered-title WARNING.
+   `data/interim/matchday.log` for the untiered-title WARNING. A read-only live
+   audit on 2026-09-25 around 12:01 UTC completed nine local vlrggapi event
+   pages (471 cards) and the upcoming feed (17 fixtures). Its sole title
+   containing 2027 was the non-VCT [Esports Nations Cup 2027](https://www.vlr.gg/event/3008/esports-nations-cup-2027),
+   with zero upcoming fixtures in that feed. No yearless VCT open-stage or
+   Kickoff/Cup candidates appeared in those scanned pages/fixtures. This
+   establishes only the requested page/feed coverage at that time, not the
+   absence of qualifiers elsewhere or later. The source was 502/503 earlier
+   the same morning; rerun `scripts/open_era_title_audit.py --event-pages 9`
+   before validating titles or enabling the disabled season-boundary rule.
 3. ⏳ **Roster-based rating carry-over** (`scripts/open_era.py`). When a team
    key first appears with >= 3 of 5 players from a rated team whose last lineup
    still held them (an en-bloc move: rebrand, org swap), start it at that
