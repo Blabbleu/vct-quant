@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -19,6 +20,8 @@ def test_matchday_skips_update_when_source_endpoint_is_down(tmp_path, failed_end
     (root / ".venv" / "bin" / "activate").write_text("")
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
+    # matchday.sh calls `python` after sourcing the venv; the stub venv has none.
+    (bin_dir / "python").symlink_to(sys.executable)
     calls = tmp_path / "calls"
     for name, body in {
         "curl": ("#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$CALLS\"\n"
@@ -52,6 +55,8 @@ def test_matchday_skips_http_200_error_envelope_before_any_write(tmp_path):
     (root / ".venv" / "bin" / "activate").write_text("")
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
+    # matchday.sh calls `python` after sourcing the venv; the stub venv has none.
+    (bin_dir / "python").symlink_to(sys.executable)
     calls = tmp_path / "calls"
     curl = bin_dir / "curl"
     curl.write_text("#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$CALLS\"\n"
