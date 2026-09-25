@@ -30,6 +30,18 @@ if ! flock -n 9; then
   exit 0
 fi
 
+# The API root can be healthy while the vlr.gg upstream circuit is open.
+# Check both sources before any ingest/write; do not retry a known source outage.
+for endpoint in 'events?page=1' 'match?q=upcoming'; do
+  if ! curl -sf -m 10 -o /dev/null "http://127.0.0.1:3001/v2/$endpoint"; then
+    case "$endpoint" in
+      events*) echo "events feed unavailable; skipping update" ;;
+      *) echo "upcoming feed unavailable; skipping update" ;;
+    esac
+    exit 1
+  fi
+done
+
 . .venv/bin/activate
 for attempt in 1 2; do
   if vct update; then

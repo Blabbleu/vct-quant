@@ -255,7 +255,12 @@ list are due around Champions Shanghai.
    unchanged (n=135, k=0 best; 2025–26 test n=126). Replace title assumptions
    and verify coverage when vlr.gg lists real qualifiers; region offsets remain
    rejected, and this is a research-script fix, not a production forecast.
-6. ✅ **Matchday refresh** runs through 2027-12-31.
+6. ✅ **Matchday refresh** runs through 2027-12-31. The local API root can
+   return 200 even while `/v2/events` is 502 and `/v2/match?q=upcoming` is 503
+   (observed September 25). A dev-only source gate in `scripts/matchday.sh`
+   checks both read-only endpoints before ingestion; it exits nonzero rather
+   than retrying an upstream outage or claiming a fresh forecast. Pending
+   merge approval, this does not repair the vlr.gg block or refresh live data.
 7. ✅ **Checkpoint-2 grading split.** `grade_predictions.py` preserves the
    pre-registered pooled paired score and reports 2026/2027 cohort n, losses
    and paired t separately by scheduled fixture year (UTC). A cohort with
