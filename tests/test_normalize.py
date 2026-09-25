@@ -84,6 +84,15 @@ def test_opt_in_classifies_long_champions_tour_open_stages(monkeypatch):
     assert competition_tier("Champions Tour 2026: Americas Open Qualifiers", 2026) == 1
 
 
+def test_explicit_candidate_override_is_pure_and_keeps_primary_off():
+    title = "Champions Tour 2027: Americas Open Qualifiers"
+    assert events.OPEN_ERA_TITLE_SEASON is False
+    assert competition_tier(title, 2026, title_season_override=True) == 2
+    assert competition_tier(title, 2026) == 1
+    assert competition_tier(title, 2026, title_season_override=False) == 1
+    assert events.OPEN_ERA_TITLE_SEASON is False
+
+
 def test_open_era_title_season_flag_is_off_by_default():
     assert events.OPEN_ERA_TITLE_SEASON is False
     assert competition_tier("VCT 2027: Pacific Last Chance Qualifier", 2026) == 1

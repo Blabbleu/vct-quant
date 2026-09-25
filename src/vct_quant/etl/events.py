@@ -26,23 +26,27 @@ VCT_BRANDED = re.compile(
 )
 
 
-def _season(title: str, year: int | None) -> int | None:
+def _season(title: str, year: int | None, title_season_override: bool) -> int | None:
     found = re.search(r"\b(20\d\d)\b", title)
-    if OPEN_ERA_TITLE_SEASON and found:
+    if title_season_override and found:
         return int(found.group(1))
     if year is not None:
         return year
     return int(found.group(1)) if found else None
 
 
-def competition_tier(name: str, year: int | None = None) -> int | None:
+def competition_tier(name: str, year: int | None = None, *,
+                     title_season_override: bool | None = None) -> int | None:
     """Return 1/2 for official VCT events, 3 for Game Changers, otherwise None.
 
     `year` matters because regional Challengers were the primary VCT circuit in
     2021-2022, before the separate Challengers League system launched in 2023,
     and because Last Chance Qualifiers change meaning in 2027. Without `year`
-    the season is read from the title when it contains one.
+    the season is read from the title when it contains one. The keyword override
+    is for read-only candidate audits; omitted uses the disabled-by-default flag.
     """
+    if title_season_override is None:
+        title_season_override = OPEN_ERA_TITLE_SEASON
     title = str(name).strip().lower()
     if not title or "off//season" in title:
         return None
@@ -65,7 +69,7 @@ def competition_tier(name: str, year: int | None = None) -> int | None:
 
     if title.startswith("champions tour "):
         # Some official pages use the long prefix instead of "VCT YYYY:".
-        if (OPEN_ERA_TITLE_SEASON and (_season(title, year) or 0) >= OPEN_ERA
+        if (title_season_override and (_season(title, year, title_season_override) or 0) >= OPEN_ERA
                 and (OPEN_STAGE.search(title) or LAST_CHANCE.search(title))):
             return 2
         # In 2021-2022, events named "... Stage N: Challengers" were the
@@ -78,7 +82,7 @@ def competition_tier(name: str, year: int | None = None) -> int | None:
         or re.match(r"^valorant champions \d{4}\b", title)
         or title.startswith("valorant masters ")
     ):
-        season = _season(title, year)
+        season = _season(title, year, title_season_override)
         if OPEN_STAGE.search(title):
             return 2
         if LAST_CHANCE.search(title) and season is not None and season >= OPEN_ERA:

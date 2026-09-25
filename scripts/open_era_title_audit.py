@@ -50,6 +50,7 @@ def audit(events: dict | list[dict] | None, upcoming: dict | None) -> list[dict]
                                         "upcoming_fixtures": 0 if upcoming is not None else None,
                                         "fixture_calendar_years": [] if upcoming is not None else None,
                                         "calendar_tier_mismatches": [] if upcoming is not None else None,
+                                        "candidate_scope_changes": [] if upcoming is not None else None,
                                         "unparsed_fixture_dates": 0 if upcoming is not None else None})
         row["event_url"] = event.get("url_path")
         row["event_id"] = event.get("event_id")
@@ -60,6 +61,7 @@ def audit(events: dict | list[dict] | None, upcoming: dict | None) -> list[dict]
         row = titles.setdefault(title, {"title": title, "event_url": None, "event_id": None,
                                         "upcoming_fixtures": 0, "fixture_calendar_years": [],
                                         "calendar_tier_mismatches": [],
+                                        "candidate_scope_changes": [],
                                         "unparsed_fixture_dates": 0})
         row["upcoming_fixtures"] += 1
         when = str(fixture.get("unix_timestamp") or "")
@@ -70,8 +72,14 @@ def audit(events: dict | list[dict] | None, upcoming: dict | None) -> list[dict]
             continue  # A missing or malformed date is not evidence of a safe tier.
         if year not in row["fixture_calendar_years"]:
             row["fixture_calendar_years"].append(year)
-        calendar_tier = competition_tier(title, year)
-        title_tier = competition_tier(title)
+        calendar_tier = competition_tier(title, year, title_season_override=False)
+        title_tier = competition_tier(title, title_season_override=False)
+        candidate_tier = competition_tier(title, year, title_season_override=True)
+        if calendar_tier != candidate_tier:
+            row["candidate_scope_changes"].append({
+                "match_page": fixture.get("match_page"), "scheduled_at": when,
+                "current_tier": calendar_tier, "candidate_tier": candidate_tier,
+            })
         if calendar_tier != title_tier:
             row["calendar_tier_mismatches"].append({
                 "match_page": fixture.get("match_page"), "scheduled_at": when,
@@ -81,8 +89,10 @@ def audit(events: dict | list[dict] | None, upcoming: dict | None) -> list[dict]
     for row in titles.values():
         title = row["title"]
         row["vct_branded"] = bool(VCT_BRANDED.match(title.lower()))
-        row["tier_if_2026"] = competition_tier(title, 2026)
-        row["tier_by_title"] = competition_tier(title)
+        row["tier_if_2026"] = competition_tier(title, 2026, title_season_override=False)
+        row["tier_by_title"] = competition_tier(title, title_season_override=False)
+        row["candidate_tier_if_2026"] = competition_tier(title, 2026, title_season_override=True)
+        row["candidate_tier_by_title"] = competition_tier(title, title_season_override=True)
         if row["fixture_calendar_years"] is not None:
             row["fixture_calendar_years"].sort()
         result.append(row)

@@ -55,7 +55,38 @@ def test_calendar_tier_audit_uses_each_fixture_start_year_not_a_fixed_2026():
         "calendar_tier": 1, "title_tier": 2,
     }]
     assert row["tier_if_2026"] == 1
+    assert row["candidate_scope_changes"] == [{
+        "match_page": "101/november", "scheduled_at": "2026-11-15 09:00:00",
+        "current_tier": 1, "candidate_tier": 2,
+    }]
     assert "tier_current" not in row
+
+
+def test_candidate_scope_audit_catches_long_prefix_hidden_from_current_mismatch():
+    title = "Champions Tour 2027: Pacific LCQ"
+    events = payload([{"title": title, "event_id": "123"}])
+    upcoming = payload([
+        {"match_event": title, "unix_timestamp": "2026-11-15 09:00:00",
+         "match_page": "101/november"},
+        {"match_event": title, "unix_timestamp": "2027-01-15 09:00:00",
+         "match_page": "102/january"},
+    ])
+    row = titles.audit(events, upcoming)[0]
+    assert row["calendar_tier_mismatches"] == []  # Both current paths say Tier 1.
+    assert row["candidate_tier_if_2026"] == 2
+    assert row["candidate_tier_by_title"] == 2
+    assert row["candidate_scope_changes"] == [
+        {"match_page": "101/november", "scheduled_at": "2026-11-15 09:00:00",
+         "current_tier": 1, "candidate_tier": 2},
+        {"match_page": "102/january", "scheduled_at": "2027-01-15 09:00:00",
+         "current_tier": 1, "candidate_tier": 2},
+    ]
+
+
+def test_candidate_scope_audit_does_not_assume_year_on_feed_outage():
+    row = titles.audit(payload([{"title": "Champions Tour 2027: Pacific LCQ"}]), None)[0]
+    assert row["candidate_tier_if_2026"] == 2
+    assert row["candidate_scope_changes"] is None
 
 
 def test_unknown_fixture_date_is_not_counted_as_no_calendar_disagreement():
