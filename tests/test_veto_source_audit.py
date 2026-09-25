@@ -60,9 +60,9 @@ def test_live_audit_counts_empty_full_and_api_errors_separately(monkeypatch):
                     for i in range(3)
                 ]}})
             details = [
-                {"data": {"segments": [{"status": "scheduled", "map_vetos": "",
+                {"data": {"segments": [{"match_id": "0", "status": "scheduled", "map_vetos": "",
                                         "maps": [{"map_name": "TBD"}]}]}},
-                {"data": {"segments": [{"status": "scheduled", "map_vetos": BO3,
+                {"data": {"segments": [{"match_id": "1", "status": "scheduled", "map_vetos": BO3,
                                         "maps": []}]}},
                 {"data": {"segments": []}},
             ]
@@ -118,7 +118,8 @@ def test_live_audit_near_start_window_filters_and_orders_before_limiting(monkeyp
                     {"match_page": f"{i}/fixture", "unix_timestamp": when.strftime("%Y-%m-%d %H:%M:%S")}
                     for i, when in enumerate(starts)
                 ]}})
-            return Response({"data": {"segments": [{"status": "scheduled", "map_vetos": "", "maps": []}]}})
+            return Response({"data": {"segments": [{"match_id": str(params["match_id"]),
+                                                       "status": "scheduled", "map_vetos": "", "maps": []}]}})
     monkeypatch.setattr("scripts.veto_source_audit.requests.Session", Session)
     counts, lines = live_audit("http://example.test", 2, within_hours=1)
     assert counts["successful_prestart"] == 2
@@ -145,7 +146,8 @@ def test_live_audit_skips_tbd_and_malformed_start_without_losing_valid_fixture(m
                     {"match_page": "3/valid", "unix_timestamp": "2099-01-01 00:00:00"},
                 ]}})
             assert params == {"match_id": "3"}
-            return Response({"data": {"segments": [{"status": "scheduled", "map_vetos": "", "maps": []}]}})
+            return Response({"data": {"segments": [{"match_id": str(params["match_id"]),
+                                                       "status": "scheduled", "map_vetos": "", "maps": []}]}})
 
     monkeypatch.setattr("scripts.veto_source_audit.requests.Session", Session)
     counts, lines = live_audit("http://example.test", 3, within_hours=999999)
@@ -170,7 +172,7 @@ def test_live_audit_does_not_count_final_detail_as_prestart_veto(monkeypatch):
                 return Response({"data": {"segments": [
                     {"match_page": "3/stale", "unix_timestamp": "2099-01-01 00:00:00"},
                 ]}})
-            return Response({"data": {"segments": [{"status": "final", "map_vetos": BO3, "maps": []}]}})
+            return Response({"data": {"segments": [{"match_id": "3", "status": "final", "map_vetos": BO3, "maps": []}]}})
 
     monkeypatch.setattr("scripts.veto_source_audit.requests.Session", Session)
     counts, lines = live_audit("http://example.test", 1)
@@ -194,7 +196,7 @@ def test_live_audit_rejects_in_progress_detail_despite_future_feed_time(monkeypa
                 return Response({"data": {"segments": [
                     {"match_page": "3/stale", "unix_timestamp": "2099-01-01 00:00:00"},
                 ]}})
-            return Response({"data": {"segments": [{"status": "live", "map_vetos": BO3, "maps": []}]}})
+            return Response({"data": {"segments": [{"match_id": "3", "status": "live", "map_vetos": BO3, "maps": []}]}})
 
     monkeypatch.setattr("scripts.veto_source_audit.requests.Session", Session)
     counts, lines = live_audit("http://example.test", 1)
@@ -218,7 +220,7 @@ def test_live_audit_rejects_played_map_despite_scheduled_detail(monkeypatch):
                 return Response({"data": {"segments": [
                     {"match_page": "3/stale", "unix_timestamp": "2099-01-01 00:00:00"},
                 ]}})
-            return Response({"data": {"segments": [{"status": "scheduled", "map_vetos": BO3,
+            return Response({"data": {"segments": [{"match_id": "3", "status": "scheduled", "map_vetos": BO3,
                                                        "maps": [{"map_name": "Haven", "score": {"team1": 13, "team2": 7}}]}]}})
 
     monkeypatch.setattr("scripts.veto_source_audit.requests.Session", Session)
@@ -253,6 +255,7 @@ def test_live_audit_does_not_treat_malformed_http_200_feed_as_empty(monkeypatch,
 @pytest.mark.parametrize("detail", [
     {"status": "error", "data": {"status": 503, "segments": [{"status": "scheduled", "maps": [], "map_vetos": BO3}]}},
     {"status": "success", "data": {"status": 200, "segments": [{"match_id": "999", "status": "scheduled", "maps": [], "map_vetos": BO3}]}},
+    {"status": "success", "data": {"status": 200, "segments": [{"status": "scheduled", "maps": [], "map_vetos": BO3}]}},
 ])
 def test_live_audit_does_not_count_poisoned_or_wrong_match_detail(monkeypatch, detail):
     class Response:
@@ -304,6 +307,42 @@ def test_live_audit_skips_bad_fixture_link_and_malformed_detail(monkeypatch):
     assert len(lines) == 2
 
 
+def test_live_detail_requires_explicit_matching_match_id():
+    # A missing identity cannot establish a pre-start observation even if the
+    # detail contains a parseable veto and otherwise looks scheduled.
+    with pytest.raises(ValueError, match="identity"):
+        segment({"data": {"segments": [{"status": "scheduled", "maps": [],
+                                          "map_vetos": BO3}]}}, "3")
+    assert segment({"data": {"segments": [{"match_id": "3", "maps": []}]}}, "3") == {
+        "match_id": "3", "maps": []}
+
+
+def test_live_audit_excludes_duplicate_fixture_ids_before_near_start_probe(monkeypatch):
+    class Response:
+        def __init__(self, payload):
+            self.payload = payload
+        def raise_for_status(self):
+            pass
+        def json(self):
+            return self.payload
+
+    class Session:
+        def get(self, url, *, params, timeout):
+            assert params == {"q": "upcoming"}  # no ambiguous detail request
+            return Response({"data": {"segments": [
+                {"match_page": "3/first", "unix_timestamp": "2099-01-01 00:00:00"},
+                {"match_page": "3/second", "unix_timestamp": "2099-01-01 00:10:00"},
+            ]}})
+
+    monkeypatch.setattr("scripts.veto_source_audit.requests.Session", Session)
+    counts, lines = live_audit("http://example.test", 8, within_hours=999999)
+    assert counts["duplicate_fixture_rows"] == 2
+    assert counts["window_eligible"] == 0
+    assert counts["prestart_attempts"] == 0
+    assert counts["successful_prestart"] == 0
+    assert "3" in lines[0]
+
+
 def test_live_audit_skips_bad_start_without_window_too(monkeypatch):
     class Response:
         def __init__(self, data):
@@ -320,7 +359,8 @@ def test_live_audit_skips_bad_start_without_window_too(monkeypatch):
                     {"match_page": "1/tbd", "unix_timestamp": "TBD"},
                     {"match_page": "3/valid", "unix_timestamp": "2099-01-01 00:00:00"},
                 ]}})
-            return Response({"data": {"segments": [{"status": "scheduled", "map_vetos": "", "maps": []}]}})
+            return Response({"data": {"segments": [{"match_id": str(params["match_id"]),
+                                                       "status": "scheduled", "map_vetos": "", "maps": []}]}})
 
     monkeypatch.setattr("scripts.veto_source_audit.requests.Session", Session)
     counts, lines = live_audit("http://example.test", 2)

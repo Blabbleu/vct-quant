@@ -71,9 +71,9 @@ def segment(payload: dict, match_id: str | None = None) -> dict | None:
     rows = _segments(payload)
     if not rows:
         return None
-    if len(rows) != 1 or (match_id is not None and rows[0].get("match_id") is not None
-                          and str(rows[0]["match_id"]) != match_id):
-        raise ValueError("wrong match detail identity")
+    if len(rows) != 1 or (match_id is not None
+                          and str(rows[0].get("match_id")) != match_id):
+        raise ValueError("wrong or missing match detail identity")
     if match_id is not None and not isinstance(rows[0].get("maps"), list):
         raise ValueError("invalid match detail maps")
     return rows[0]
@@ -115,12 +115,14 @@ def live_audit(base_url: str, limit: int, within_hours: float | None = None) -> 
     # A TBD/rescheduled fixture can have no parseable start. Keep it distinct
     # from an observed negative veto and never let it abort the other probes.
     dated = []
+    fixture_ids: Counter = Counter()
     for fixture in fixtures:
         page = fixture.get("match_page")
         if not isinstance(page, str) or not page.split("/", 1)[0].isdigit():
             counts["invalid_fixture"] += 1
             lines.append(f"{page!r}: invalid fixture link")
             continue
+        fixture_ids[page.split("/", 1)[0]] += 1
         try:
             start = datetime.strptime(fixture["unix_timestamp"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
         except (ValueError, TypeError, KeyError):
@@ -128,6 +130,14 @@ def live_audit(base_url: str, limit: int, within_hours: float | None = None) -> 
             lines.append(f"{fixture.get('match_page', '<unknown>')}: invalid start {fixture.get('unix_timestamp')!r}")
             continue
         dated.append((start, fixture))
+    # A duplicated ID can carry two conflicting starts/slugs. Neither row is
+    # reliable pre-start evidence, even if only one has a parseable date.
+    duplicates = {match_id for match_id, n in fixture_ids.items() if n > 1}
+    if duplicates:
+        counts["duplicate_fixture_rows"] = sum(fixture_ids[match_id] for match_id in duplicates)
+        lines.append(f"Duplicate fixture IDs excluded: {', '.join(sorted(duplicates))}")
+        dated = [(start, fixture) for start, fixture in dated
+                 if fixture["match_page"].split("/", 1)[0] not in duplicates]
     if within_hours is not None:
         cutoff = datetime.now(timezone.utc) + timedelta(hours=within_hours)
         near = []

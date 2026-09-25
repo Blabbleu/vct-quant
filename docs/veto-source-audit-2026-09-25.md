@@ -44,9 +44,13 @@ that the canonical map table has not stored it.
   cover the near-start and unfiltered paths. At 07:55 UTC the live feed still
   returned HTTP 502; no new veto observation was made. The read-only probe now
   rejects HTTP-200 error/malformed envelopes, bad fixture links, malformed
-  detail maps, and mismatched detail match IDs rather than counting a false
-  negative or accepting a false positive. This is a source-integrity guard,
-  not evidence of pre-start veto availability.
+  detail maps, and missing/mismatched detail match IDs rather than counting a
+  false negative or accepting a false positive. Duplicate fixture IDs with
+  conflicting slugs or start times are excluded entirely from the eligible
+  set (`duplicate_fixture_rows`), not probed twice. At 08:09 UTC the within-hour
+  probe still received HTTP 502, and the independent event/upcoming title audit
+  returned 503/503: neither is a new observation. These are source-integrity
+  guards, not evidence of pre-start veto availability.
 
 **Decision:** source is promising for *retrospective* complete-veto text but
 unproven for *pre-start* forecasts. Do not backfill and score historical
