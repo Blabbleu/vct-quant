@@ -2,6 +2,7 @@ import json
 import sys
 
 import pandas as pd
+import pytest
 
 from vct_quant import cli
 from vct_quant import config
@@ -74,13 +75,42 @@ def test_update_refreshes_results_before_predictions(monkeypatch, tmp_path, caps
     cli.main()
 
     assert calls == [
-        "fetch events", "fetch event 1", "load results",
+        "fetch events", "fetch event 1", "fetch upcoming", "load results",
         "find unresolved", "fetch details 42", "load details",
-        "fetch upcoming", "predict upcoming",
+        "predict upcoming",
     ]
     out = capsys.readouterr().out
     assert "retained 1 official" in out
     assert "1 match details for unresolved Tier-1 teams" in out
+
+
+@pytest.mark.parametrize("failed_source", ["events", "event_matches", "upcoming"])
+def test_update_source_failure_precedes_database_and_forecast_writes(monkeypatch, failed_source):
+    from vct_quant.ingest import vlrgg
+
+    calls = []
+    monkeypatch.setattr(sys, "argv", ["vct", "update"])
+
+    def fetch(name, result):
+        calls.append(name)
+        if name == failed_source:
+            raise ValueError(f"bad {name} feed")
+        return result
+
+    monkeypatch.setattr(vlrgg, "fetch_events", lambda page: fetch("events", {
+        "data": {"segments": [{"event_id": 1, "title": "Valorant Champions 2026"}]}
+    }))
+    monkeypatch.setattr(vlrgg, "fetch_event_matches", lambda event_id: fetch("event_matches", {}))
+    monkeypatch.setattr(vlrgg, "fetch_upcoming_matches", lambda: fetch("upcoming", {}))
+    monkeypatch.setattr(normalize, "load_vlrgg_match_results",
+                        lambda: calls.append("load results"))
+    monkeypatch.setattr(cli, "_materialize_upcoming",
+                        lambda data: calls.append("write forecasts"))
+
+    with pytest.raises(ValueError, match="bad .* feed"):
+        cli.main()
+    assert "load results" not in calls
+    assert "write forecasts" not in calls
 
 
 def test_prediction_prints_cached_match(monkeypatch, tmp_path, capsys):

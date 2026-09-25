@@ -135,6 +135,10 @@ def main() -> None:
         official = [e for e in events if competition_tier(e["title"]) is not None]
         for event in official:
             vlrgg.fetch_event_matches(event["event_id"])
+        # Fetch every required source before the first DB write. Otherwise a
+        # late upstream failure can leave results loaded but forecasts stale.
+        # Reuse this validated snapshot rather than requesting upcoming again.
+        upcoming = vlrgg.fetch_upcoming_matches()
         print(f"Refreshed {len(official)} recent official events")
         for title in untiered_vct_titles(e["title"] for e in events):
             print(f"WARNING: VCT-branded event has no tier and is skipped: {title!r}"
@@ -151,7 +155,6 @@ def main() -> None:
             print(f"Fetched {len(targets)} match details for unresolved Tier-1 teams")
             print(normalize.load_vlrgg_match_details())
 
-        upcoming = vlrgg.fetch_upcoming_matches()
         fixtures, path = _materialize_upcoming(upcoming)
         upcoming_count = len(upcoming.get("data", {}).get("segments", []))
         print(
