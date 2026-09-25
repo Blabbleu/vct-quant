@@ -278,14 +278,18 @@ list are due around Champions Shanghai.
 
 ## Cross-cutting
 
-* **Completed/TBD result contamination**: two retained Tier-1 rows in the
-  additive DB (IDs 10802 and 97028) have a TBD side. A preregistered read-only
-  joint-exclusion replay (`docs/placeholder-sensitivity.md`) on 2025–26
-  resolved Tier-1 matches scored 0.658685307 versus 0.658685279 current
-  (n=1,096, paired t=−0.076); max probability change 0.000025730. This
-  negative performance result does not validate the placeholder results;
-  reconcile upstream provenance and get separate approval before any primary
-  forecast/DB correction. The dev snapshot is not a clean rebuild.
+* **Completed/TBD provenance is mixed**: two retained Tier-1 rows in the
+  additive DB (IDs 10802 and 97028) have a TBD side. Source reconciliation in
+  `docs/placeholder-sensitivity.md` shows 10802 was **played** (Kaggle Ascent
+  13–10, HONK win, player stats), with an anonymous opponent; 97028 was a
+  **scoreless forfeit by TBD**, but the DB marks TBD winner despite both archived
+  event/detail payloads marking IlluZion winner. A preregistered read-only
+  joint-exclusion replay on 2025–26 resolved Tier-1 matches scored 0.658685307
+  versus 0.658685279 current (n=1,096, paired t=−0.076); max probability
+  change 0.000025730. That insensitive score does **not** justify blanket
+  deletion: preserve genuine played matches, repair forfeit semantics and any
+  already-loaded rows only after a source-specific review and separate primary
+  forecast/DB approval. The dev snapshot is not a clean rebuild.
 * **Tests worth having**: a leakage regression test (assert no feature for match
   *i* changes when match *i*'s outcome is flipped) is worth more than broad
   coverage elsewhere.
