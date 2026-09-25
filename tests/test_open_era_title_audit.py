@@ -138,6 +138,43 @@ def test_yearless_event_candidates_include_upcoming_open_stages_without_fixtures
     assert titles.yearless_open_event_candidates([]) is None
 
 
+def test_yearless_primary_stage_leads_include_kickoff_and_cups_not_open_stages():
+    events = [payload([
+        {"title": "VCT Americas: Kickoff", "status": "upcoming", "event_id": "401"},
+        {"title": "Champions Tour Pacific: Cup 1", "status": "upcoming", "event_id": "402"},
+        {"title": "VCT EMEA: Open Qualifier", "status": "upcoming", "event_id": "403"},
+        {"title": "VCT 2026: Kickoff", "status": "upcoming", "event_id": "404"},
+        {"title": "VCT Pacific: Cup 2", "status": "completed", "event_id": "405"},
+    ])]
+    upcoming = payload([
+        {"match_event": "VCT Americas: Kickoff", "unix_timestamp": "2026-11-15 09:00:00",
+         "match_page": "401/kickoff"},
+        {"match_event": "Champions Tour Pacific: Cup 1", "unix_timestamp": "2027-04-10 09:00:00",
+         "match_page": "402/cup"},
+        {"match_event": "VCT Americas: Kickoff", "unix_timestamp": "2026-10-01 09:00:00"},
+        {"match_event": "VCT EMEA: Open Qualifier", "unix_timestamp": "2027-01-01 09:00:00"},
+        {"match_event": "VCT 2026: Kickoff", "unix_timestamp": "2027-01-01 09:00:00"},
+    ])
+    assert [row["event_id"] for row in titles.yearless_primary_event_candidates(events)] == ["402", "401"]
+    assert [row["title"] for row in titles.yearless_primary_candidates(upcoming)] == [
+        "Champions Tour Pacific: Cup 1", "VCT Americas: Kickoff"]
+    assert titles.yearless_primary_event_candidates([]) is None
+    assert titles.yearless_primary_candidates(None) is None
+
+
+def test_primary_stage_leads_remain_unknown_on_partial_outage(monkeypatch, capsys):
+    monkeypatch.setattr(titles.vlrgg, "fetch_events", lambda page, save: payload([
+        {"title": "VCT Americas: Kickoff", "status": "upcoming", "event_id": "401"}]))
+    monkeypatch.setattr(titles.vlrgg, "fetch_upcoming_matches", lambda save: payload({}))
+    monkeypatch.setattr(sys, "argv", ["open_era_title_audit.py"])
+    with pytest.raises(SystemExit):
+        titles.main()
+    report = json.loads(capsys.readouterr().out)
+    assert report["yearless_primary_event_candidates"][0]["event_id"] == "401"
+    assert report["yearless_primary_candidates"] is None
+    assert report["complete"] is False
+
+
 def test_yearless_event_candidates_survive_partial_upcoming_outage(monkeypatch, capsys):
     monkeypatch.setattr(titles.vlrgg, "fetch_events", lambda page, save: payload([
         {"title": "VCT Pacific: Open Qualifier", "status": "upcoming", "event_id": "301"}]))

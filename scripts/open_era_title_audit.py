@@ -23,6 +23,8 @@ from vct_quant.etl.events import LAST_CHANCE, OPEN_STAGE, VCT_BRANDED, competiti
 from vct_quant.ingest import vlrgg
 
 SEASON = re.compile(r"\b2027\b")
+PRIMARY_STAGE = re.compile(r"\bkickoff\b|\bcups?\b")
+OPEN_CANDIDATE = re.compile(f"(?:{OPEN_STAGE.pattern})|(?:{LAST_CHANCE.pattern})")
 
 
 def segments(payload: dict) -> list[dict]:
@@ -99,12 +101,8 @@ def audit(events: dict | list[dict] | None, upcoming: dict | None) -> list[dict]
     return sorted(result, key=lambda row: row["title"])
 
 
-def yearless_open_event_candidates(events: list[dict]) -> list[dict] | None:
-    """Flag upcoming VCT open-stage event cards even before fixtures are listed.
-
-    Event cards often give month/day but no year; neither status nor a date
-    string verifies which VCT season the event belongs to.
-    """
+def _yearless_event_candidates(events: list[dict], stage: re.Pattern) -> list[dict] | None:
+    """Show upcoming yearless stage cards; a card alone cannot establish season."""
     if not events:
         return None  # An event outage is not an empty candidate set.
     found = {}
@@ -114,7 +112,7 @@ def yearless_open_event_candidates(events: list[dict]) -> list[dict] | None:
         if (str(event.get("status") or "").lower() != "upcoming"
                 or re.search(r"\b20\d\d\b", lower)
                 or not VCT_BRANDED.match(lower)
-                or not (OPEN_STAGE.search(lower) or LAST_CHANCE.search(lower))):
+                or not stage.search(lower)):
             continue
         key = event.get("event_id") or title
         found[key] = {"title": title, "event_id": event.get("event_id"),
@@ -123,12 +121,17 @@ def yearless_open_event_candidates(events: list[dict]) -> list[dict] | None:
     return sorted(found.values(), key=lambda row: row["title"])
 
 
-def yearless_open_candidates(upcoming: dict | None) -> list[dict] | None:
-    """Surface dated open-stage fixtures lacking a year in their event title.
+def yearless_open_event_candidates(events: list[dict]) -> list[dict] | None:
+    """Surface upcoming open-stage event cards before fixtures are listed."""
+    return _yearless_event_candidates(events, OPEN_CANDIDATE)
 
-    A late-2026 match *might* qualify for 2027, but neither its date nor its
-    stage proves the event season. Keep these separate from observed 2027 titles.
-    """
+
+def yearless_primary_event_candidates(events: list[dict]) -> list[dict] | None:
+    """Surface upcoming Kickoff/Cup cards with no season in their title."""
+    return _yearless_event_candidates(events, PRIMARY_STAGE)
+
+
+def _yearless_fixture_candidates(upcoming: dict | None, stage: re.Pattern) -> list[dict] | None:
     if upcoming is None:
         return None  # Feed outage is not an empty candidate set.
     found: dict[str, dict] = {}
@@ -136,7 +139,7 @@ def yearless_open_candidates(upcoming: dict | None) -> list[dict] | None:
         title = str(fixture.get("match_event") or "").strip()
         lower = title.lower()
         if (re.search(r"\b20\d\d\b", lower) or not VCT_BRANDED.match(lower)
-                or not (OPEN_STAGE.search(lower) or LAST_CHANCE.search(lower))):
+                or not stage.search(lower)):
             continue
         when = str(fixture.get("unix_timestamp") or "")
         try:
@@ -149,6 +152,20 @@ def yearless_open_candidates(upcoming: dict | None) -> list[dict] | None:
         row["fixture_count"] += 1
         row["fixtures"].append({"match_page": fixture.get("match_page"), "scheduled_at": when})
     return sorted(found.values(), key=lambda row: row["title"])
+
+
+def yearless_open_candidates(upcoming: dict | None) -> list[dict] | None:
+    """Surface dated open-stage fixtures lacking a year in their event title.
+
+    A late-2026 match *might* qualify for 2027, but neither its date nor its
+    stage proves the event season. Keep these separate from observed 2027 titles.
+    """
+    return _yearless_fixture_candidates(upcoming, OPEN_CANDIDATE)
+
+
+def yearless_primary_candidates(upcoming: dict | None) -> list[dict] | None:
+    """Surface dated Kickoff/Cup fixture leads lacking a year in their title."""
+    return _yearless_fixture_candidates(upcoming, PRIMARY_STAGE)
 
 
 def main() -> None:
@@ -201,7 +218,9 @@ def main() -> None:
               "event_rows": sum(len(segments(page)) for page in event_pages) if checked else None,
               "fixture_rows": len(segments(upcoming)) if upcoming is not None else None,
               "yearless_open_event_candidates": yearless_open_event_candidates(event_pages),
-              "yearless_open_candidates": yearless_open_candidates(upcoming)}
+              "yearless_open_candidates": yearless_open_candidates(upcoming),
+              "yearless_primary_event_candidates": yearless_primary_event_candidates(event_pages),
+              "yearless_primary_candidates": yearless_primary_candidates(upcoming)}
     if errors:
         # Observations from a healthy source survive a partial outage, but an
         # empty list cannot establish that no 2027 title exists across sources.
