@@ -750,9 +750,6 @@ def _vlrgg_event_matches(events: pd.DataFrame | None = None) -> pd.DataFrame:
 
     d = pd.DataFrame(rows)
     d = d[d["status"].str.lower() == "completed"]
-    # A later harvest of an ongoing event supersedes an earlier one.
-    d = d.drop_duplicates("match_id", keep="last")
-
     date = pd.to_datetime(
         d["date"].astype(str).str.replace(r"(Yesterday|Today)$", "", regex=True),
         format="%a, %B %d, %Y",
@@ -766,6 +763,12 @@ def _vlrgg_event_matches(events: pd.DataFrame | None = None) -> pd.DataFrame:
         name_a=[t.get("name") for t in d["team1"]],
         name_b=[t.get("name") for t in d["team2"]],
     )
+    # The API sometimes marks a TBD fixture Completed with a dash score.
+    # Ignore placeholders before choosing the latest valid snapshot of a match.
+    d = d.dropna(subset=["score_a", "score_b"])
+    d = d[d["name_a"].astype(str).str.strip().str.lower().ne("tbd")
+          & d["name_b"].astype(str).str.strip().str.lower().ne("tbd")]
+    d = d.drop_duplicates("match_id", keep="last")
     d = d.dropna(subset=["match_id"]).astype({"match_id": "int64"})
     events = _vlrgg_events() if events is None else events
     if events.empty:

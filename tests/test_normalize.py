@@ -185,6 +185,29 @@ def test_event_replay_prefers_same_second_newer_snapshot_across_pages(tmp_path, 
     assert normalize._vlrgg_events().iloc[0]["name"] == "new"
 
 
+def test_match_replay_ignores_completed_rows_with_tbd_score_before_dedup(tmp_path, monkeypatch):
+    """A later completed/TBD placeholder must not erase a scored older result."""
+    monkeypatch.setattr(normalize, "RAW_VLRGG_DIR", tmp_path)
+    def snapshot(mid, team1, team2):
+        return {"status": "success", "data": {"status": 200, "segments": [{
+            "match_id": str(mid), "date": "Wed, July 01, 2026", "status": "Completed",
+            "event_series": "Final", "team1": team1, "team2": team2,
+        }]}}
+    good = snapshot(99, {"name": "A", "score": "2"}, {"name": "B", "score": "1"})
+    placeholder = snapshot(99, {"name": "A", "score": "2"}, {"name": "TBD", "score": "–"})
+    only_placeholder = snapshot(100, {"name": "TBD", "score": "–"},
+                                {"name": "B", "score": "0"})
+    for name, data in (("event_matches_42_20260925T000000Z.json", good),
+                       ("event_matches_42_20260925T010000Z.json", placeholder),
+                       ("event_matches_42_20260925T020000Z.json", only_placeholder)):
+        (tmp_path / name).write_text(json.dumps(data))
+    matches = normalize._vlrgg_event_matches()
+    assert matches.match_id.tolist() == [99]
+    assert matches.iloc[0][["name_a", "name_b", "score_a", "score_b"]].tolist() == [
+        "A", "B", 2, 1,
+    ]
+
+
 def test_match_replay_prefers_newer_snapshot_across_event_ids(tmp_path, monkeypatch):
     """A corrected event assignment must not revert on archive path ordering."""
     monkeypatch.setattr(normalize, "RAW_VLRGG_DIR", tmp_path)
