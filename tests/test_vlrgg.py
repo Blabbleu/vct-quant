@@ -1,3 +1,5 @@
+import pytest
+
 from vct_quant.ingest import vlrgg
 
 
@@ -20,3 +22,37 @@ def test_get_respects_retry_after(monkeypatch):
 
     assert vlrgg._get("/test") == {"status": "success"}
     assert sleeps == [3.0, vlrgg.REQUEST_DELAY_S]
+
+
+@pytest.mark.parametrize("fetch,args", [
+    ("fetch_events", (1,)),
+    ("fetch_match_results", ()),
+    ("fetch_upcoming_matches", ()),
+    ("fetch_event_matches", (2766,)),
+])
+@pytest.mark.parametrize("bad", [
+    {"status": "error", "data": {"segments": []}},
+    {"status": "success", "data": {"status": 503, "segments": []}},
+    {"status": "success", "data": {"status": 200}},
+    {"status": "success", "data": {"status": 200, "segments": {}}},
+    {"status": "success", "data": {"status": 200, "segments": [None]}},
+])
+def test_ingest_rejects_http_200_error_payload_after_archiving(monkeypatch, fetch, args, bad):
+    saved = []
+    monkeypatch.setattr(vlrgg, "_get", lambda *a, **kw: bad)
+    monkeypatch.setattr(vlrgg, "save_raw", lambda payload, name: saved.append((payload, name)))
+    with pytest.raises(ValueError, match="invalid .* feed"):
+        getattr(vlrgg, fetch)(*args)
+    assert saved and saved[0][0] is bad
+
+
+@pytest.mark.parametrize("fetch,args", [
+    ("fetch_events", (1,)),
+    ("fetch_match_results", ()),
+    ("fetch_upcoming_matches", ()),
+    ("fetch_event_matches", (2766,)),
+])
+def test_ingest_accepts_valid_empty_feed(monkeypatch, fetch, args):
+    payload = {"status": "success", "data": {"status": 200, "segments": []}}
+    monkeypatch.setattr(vlrgg, "_get", lambda *a, **kw: payload)
+    assert getattr(vlrgg, fetch)(*args, save=False) is payload

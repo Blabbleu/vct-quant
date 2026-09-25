@@ -39,18 +39,31 @@ def save_raw(payload: dict, name: str) -> Path:
     return path
 
 
-def fetch_match_results(save: bool = True) -> dict:
-    data = _get("/v2/match", {"q": "results"})
+def _fetch_segmented(path: str, params: dict, name: str, save: bool) -> dict:
+    """Archive a response, then fail closed on HTTP-200 error/malformed feeds.
+
+    The matchday shell preflight can succeed and a later ingestion request fail;
+    an error envelope must never be interpreted as zero events or fixtures.
+    """
+    payload = _get(path, params)
     if save:
-        save_raw(data, "match_results")
-    return data
+        save_raw(payload, name)  # preserve the failed response for diagnosis
+    data = payload.get("data") if isinstance(payload, dict) else None
+    rows = data.get("segments") if isinstance(data, dict) else None
+    if (not isinstance(payload, dict) or payload.get("status") != "success"
+            or not isinstance(data, dict) or data.get("status") != 200
+            or not isinstance(rows, list)
+            or not all(isinstance(row, dict) for row in rows)):
+        raise ValueError(f"invalid {name} feed from vlrggapi")
+    return payload
+
+
+def fetch_match_results(save: bool = True) -> dict:
+    return _fetch_segmented("/v2/match", {"q": "results"}, "match_results", save)
 
 
 def fetch_upcoming_matches(save: bool = True) -> dict:
-    data = _get("/v2/match", {"q": "upcoming"})
-    if save:
-        save_raw(data, "match_upcoming")
-    return data
+    return _fetch_segmented("/v2/match", {"q": "upcoming"}, "match_upcoming", save)
 
 
 def fetch_match_details(match_id: int | str, save: bool = True) -> dict:
@@ -69,10 +82,7 @@ def fetch_team(team_id: int | str, save: bool = True) -> dict:
 
 def fetch_events(page: int = 1, save: bool = True) -> dict:
     """One page of the event listing (~50-72 events, newest first)."""
-    data = _get("/v2/events", {"page": page})
-    if save:
-        save_raw(data, f"events_page{page:03d}")
-    return data
+    return _fetch_segmented("/v2/events", {"page": page}, f"events_page{page:03d}", save)
 
 
 def fetch_event_matches(event_id: int | str, save: bool = True) -> dict:
@@ -83,10 +93,8 @@ def fetch_event_matches(event_id: int | str, save: bool = True) -> dict:
     for a whole event — so a season costs a few dozen requests rather than one
     per match.
     """
-    data = _get("/v2/events/matches", {"event_id": event_id})
-    if save:
-        save_raw(data, f"event_matches_{event_id}")
-    return data
+    return _fetch_segmented("/v2/events/matches", {"event_id": event_id},
+                            f"event_matches_{event_id}", save)
 
 
 def fetch_rankings(region: str, save: bool = True) -> dict:
