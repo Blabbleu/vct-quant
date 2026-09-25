@@ -134,10 +134,38 @@ def test_yearless_candidates_survive_partial_event_outage(monkeypatch, capsys):
 
 def test_error_envelopes_are_not_empty_event_pages():
     for bad in ({"status": "error", "data": {"segments": []}},
+                {"status": "success", "data": None},
+                {"status": "success", "data": {"status": 200}},
                 {"status": "success", "data": {"status": 502, "segments": []}},
                 {"status": "success", "data": {"status": 200, "segments": {}}}):
-        with pytest.raises((ValueError, KeyError)):
+        with pytest.raises(ValueError):
             titles.segments(bad)
+
+
+def test_duplicate_event_page_is_incomplete_not_extra_coverage(monkeypatch, capsys):
+    first = payload([{"title": "VCT 2026: Champions", "event_id": "101"}])
+    monkeypatch.setattr(titles.vlrgg, "fetch_events", lambda page, save: first)
+    monkeypatch.setattr(titles.vlrgg, "fetch_upcoming_matches", lambda save: payload([]))
+    monkeypatch.setattr(sys, "argv", ["open_era_title_audit.py", "--event-pages", "2"])
+    with pytest.raises(SystemExit) as exc:
+        titles.main()
+    assert exc.value.code == 1
+    report = json.loads(capsys.readouterr().out)
+    assert report["complete"] is False
+    assert report["event_pages_checked"] == [1]
+    assert report["event_rows"] == 1
+    assert "duplicate of page 1" in report["errors"]["events_page_2"]
+    assert report["observed_2027_titles"] == []
+
+
+def test_distinct_empty_event_pages_do_not_falsely_trigger_duplicate(monkeypatch, capsys):
+    monkeypatch.setattr(titles.vlrgg, "fetch_events", lambda page, save: payload([]))
+    monkeypatch.setattr(titles.vlrgg, "fetch_upcoming_matches", lambda save: payload([]))
+    monkeypatch.setattr(sys, "argv", ["open_era_title_audit.py", "--event-pages", "2"])
+    titles.main()
+    report = json.loads(capsys.readouterr().out)
+    assert report["complete"] is True
+    assert report["event_pages_checked"] == [1, 2]
 
 
 def test_second_event_page_error_retains_observations_but_marks_incomplete(monkeypatch, capsys):

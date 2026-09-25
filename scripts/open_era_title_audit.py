@@ -27,9 +27,12 @@ SEASON = re.compile(r"\b2027\b")
 
 def segments(payload: dict) -> list[dict]:
     """Reject API error envelopes instead of interpreting them as empty pages."""
-    if payload.get("status") != "success" or payload.get("data", {}).get("status") != 200:
+    if not isinstance(payload, dict) or payload.get("status") != "success":
         raise ValueError("API did not report success")
-    rows = payload["data"]["segments"]
+    data = payload.get("data")
+    if not isinstance(data, dict) or data.get("status") != 200:
+        raise ValueError("API did not report success")
+    rows = data.get("segments")
     if not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows):
         raise ValueError("invalid segments")
     return rows
@@ -154,12 +157,20 @@ def main() -> None:
     errors = {}
     event_pages = []
     checked = []
+    seen_nonempty_pages = {}
     paths = args.events_json if args.events_json else [None] * args.event_pages
     for page_num, path in enumerate(paths, 1):
         try:
             payload = (json.loads(path.read_text(encoding="utf-8")) if path
                        else vlrgg.fetch_events(page_num, save=False))
-            segments(payload)
+            rows = segments(payload)
+            # A repeated nonempty page is a pagination failure, not more coverage.
+            # Empty pages can legitimately repeat at the end of the listing.
+            if rows:
+                signature = json.dumps(rows, sort_keys=True)
+                if signature in seen_nonempty_pages:
+                    raise ValueError(f"duplicate of page {seen_nonempty_pages[signature]}")
+                seen_nonempty_pages[signature] = page_num
             event_pages.append(payload)
             checked.append(page_num)
         except (OSError, ValueError, KeyError, TypeError, requests.RequestException) as exc:
