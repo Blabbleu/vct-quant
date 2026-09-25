@@ -1,6 +1,7 @@
 import json
 
 import pandas as pd
+import pytest
 
 from vct_quant.etl import normalize
 from vct_quant.etl import events
@@ -151,6 +152,38 @@ def test_vlrgg_match_keeps_its_event_id_and_title(tmp_path, monkeypatch):
     assert matches.iloc[0][["event_id", "event_name", "event_series"]].tolist() == [
         42, "VCT 2026: Americas Stage 2", "Grand Final",
     ]
+
+
+def test_archived_error_feed_does_not_poison_event_and_match_replay(tmp_path, monkeypatch):
+    """An HTTP-200 failure archived by ingestion must not mask older good raw."""
+    monkeypatch.setattr(normalize, "RAW_VLRGG_DIR", tmp_path)
+    event = {
+        "event_id": "42", "title": "VCT 2026: Americas Stage 2",
+        "status": "completed", "region": "na", "dates": "Jul 1—2",
+        "prize": "$1", "thumb": "logo", "url_path": "/event/42",
+    }
+    match = {
+        "match_id": "99", "url": "/99/a-vs-b", "date": "Wed, July 01, 2026",
+        "status": "Completed", "event_series": "Grand Final",
+        "team1": {"name": "A", "score": "2"},
+        "team2": {"name": "B", "score": "1"},
+    }
+    def good(row):
+        return {"status": "success", "data": {"status": 200, "segments": [row]}}
+
+    (tmp_path / "events_page001_20260925T000000Z.json").write_text(json.dumps(good(event)))
+    (tmp_path / "event_matches_42_20260925T000000Z.json").write_text(json.dumps(good(match)))
+    # Invalid success and explicit error envelopes are both saved for diagnosis.
+    (tmp_path / "events_page001_20260925T010000Z.json").write_text(json.dumps({
+        "status": "error", "data": {"status": 503, "message": "Circuit open"}}))
+    (tmp_path / "event_matches_42_20260925T010000Z.json").write_text(json.dumps({
+        "status": "success", "data": {"status": 200, "segments": None}}))
+    with pytest.warns(UserWarning, match="invalid archived vlrggapi feed") as caught:
+        events = normalize._vlrgg_events()
+        matches = normalize._vlrgg_event_matches(events)
+    assert len(caught) == 2
+    assert events.event_id.tolist() == [42]
+    assert matches.match_id.tolist() == [99]
 
 
 def test_match_details_skip_matches_whose_maps_already_exist(tmp_path, monkeypatch):

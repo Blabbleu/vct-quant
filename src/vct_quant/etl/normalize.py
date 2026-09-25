@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import re
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -473,12 +474,31 @@ def load_kaggle(con: duckdb.DuckDBPyConnection | None = None,
     return report
 
 
+def _archived_feed_rows(path: Path) -> list[dict]:
+    """Ignore diagnosed bad API envelopes without poisoning an earlier harvest.
+
+    HTTP-200 failures are archived verbatim by the fetcher before it raises.
+    Keep that evidence on disk, warn with its path, and replay only valid rows.
+    Historical hand-written raw fixtures without envelope status remain valid.
+    """
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    data = payload.get("data") if isinstance(payload, dict) else None
+    rows = data.get("segments") if isinstance(data, dict) else None
+    if (not isinstance(payload, dict)
+            or payload.get("status", "success") != "success"
+            or not isinstance(data, dict) or data.get("status", 200) != 200
+            or not isinstance(rows, list)
+            or not all(isinstance(row, dict) for row in rows)):
+        warnings.warn(f"invalid archived vlrggapi feed: {path}", stacklevel=2)
+        return []
+    return rows
+
+
 def _vlrgg_events() -> pd.DataFrame:
     """Event IDs and titles from the paged vlrggapi event listing."""
     rows: list[dict] = []
     for path in sorted(RAW_VLRGG_DIR.glob("events_page*.json")):
-        payload = json.loads(path.read_text(encoding="utf-8"))
-        rows.extend(payload.get("data", {}).get("segments", []))
+        rows.extend(_archived_feed_rows(path))
     if not rows:
         return pd.DataFrame()
 
@@ -694,8 +714,7 @@ def _vlrgg_event_matches(events: pd.DataFrame | None = None) -> pd.DataFrame:
     """
     rows: list[dict] = []
     for path in sorted(RAW_VLRGG_DIR.glob("event_matches_*.json")):
-        payload = json.loads(path.read_text(encoding="utf-8"))
-        for seg in payload.get("data", {}).get("segments", []):
+        for seg in _archived_feed_rows(path):
             rows.append({
                 **seg,
                 "event_id": int(re.search(r"event_matches_(\d+)_", path.name).group(1)),
