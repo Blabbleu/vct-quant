@@ -6,6 +6,7 @@
 # DuckDB is single-writer. flock stops refreshes from overlapping, and one retry
 # covers the desk server holding a read connection at the wrong moment.
 set -u
+set -o pipefail
 cd "$(dirname "$0")/.."
 LOG=data/interim/matchday.log
 STOP_AFTER=${VCT_MATCHDAY_UNTIL:-2027-12-31}   # through the 2027 season (Kickoff qualifiers start Nov 2026)
@@ -31,9 +32,11 @@ if ! flock -n 9; then
 fi
 
 # The API root can be healthy while the vlr.gg upstream circuit is open.
-# Check both sources before any ingest/write; do not retry a known source outage.
+# Check both sources and validate their JSON envelope before ingest/write.
+# pipefail preserves curl's nonzero status even if the Python parser fails too.
+. .venv/bin/activate
 for endpoint in 'events?page=1' 'match?q=upcoming'; do
-  if ! curl -sf -m 10 -o /dev/null "http://127.0.0.1:3001/v2/$endpoint"; then
+  if ! curl -sf -m 10 "http://127.0.0.1:3001/v2/$endpoint" | python scripts/check_vlrgg_feed.py; then
     case "$endpoint" in
       events*) echo "events feed unavailable; skipping update" ;;
       *) echo "upcoming feed unavailable; skipping update" ;;
@@ -42,7 +45,6 @@ for endpoint in 'events?page=1' 'match?q=upcoming'; do
   fi
 done
 
-. .venv/bin/activate
 for attempt in 1 2; do
   if vct update; then
     python scripts/grade_predictions.py
