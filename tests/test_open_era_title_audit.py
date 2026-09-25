@@ -54,3 +54,36 @@ def test_partial_feed_failure_exits_nonzero_without_claiming_no_titles(monkeypat
     assert report["complete"] is False
     assert "events" in report["errors"]
     assert "season_2027_titles" not in report
+    assert report["event_rows"] is None and report["fixture_rows"] == 0
+    assert report["observed_2027_titles"] == []
+
+
+def test_partial_upcoming_outage_preserves_event_title_without_false_zero(monkeypatch, capsys):
+    monkeypatch.setattr(titles.vlrgg, "fetch_events", lambda page, save: payload([
+        {"title": "VCT 2027: Pacific LCQ", "event_id": "123"}]))
+    monkeypatch.setattr(titles.vlrgg, "fetch_upcoming_matches", lambda save: payload({}))
+    monkeypatch.setattr(sys, "argv", ["open_era_title_audit.py"])
+    with pytest.raises(SystemExit) as exc:
+        titles.main()
+    assert exc.value.code == 1
+    report = json.loads(capsys.readouterr().out)
+    assert report["complete"] is False
+    assert report["event_rows"] == 1 and report["fixture_rows"] is None
+    assert "upcoming" in report["errors"]
+    assert report["observed_2027_titles"][0]["event_id"] == "123"
+    assert report["observed_2027_titles"][0]["upcoming_fixtures"] is None
+    assert "season_2027_titles" not in report
+
+
+def test_partial_event_outage_preserves_fixture_title_without_event_lineage(monkeypatch, capsys):
+    monkeypatch.setattr(titles.vlrgg, "fetch_events", lambda page, save: payload({}))
+    monkeypatch.setattr(titles.vlrgg, "fetch_upcoming_matches", lambda save: payload([
+        {"match_event": "VCT 2027: Pacific LCQ"}]))
+    monkeypatch.setattr(sys, "argv", ["open_era_title_audit.py"])
+    with pytest.raises(SystemExit) as exc:
+        titles.main()
+    assert exc.value.code == 1
+    report = json.loads(capsys.readouterr().out)
+    assert report["event_rows"] is None and report["fixture_rows"] == 1
+    assert report["observed_2027_titles"][0]["event_id"] is None
+    assert report["observed_2027_titles"][0]["upcoming_fixtures"] == 1

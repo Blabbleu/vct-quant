@@ -32,18 +32,18 @@ def segments(payload: dict) -> list[dict]:
     return rows
 
 
-def audit(events: dict, upcoming: dict) -> list[dict]:
-    """Return one row per 2027 title, retaining source lineage and fixture count."""
+def audit(events: dict | None, upcoming: dict | None) -> list[dict]:
+    """Return observed 2027 titles; unknown fixture counts remain null on outage."""
     titles: dict[str, dict] = {}
-    for event in segments(events):
+    for event in segments(events) if events is not None else []:
         title = str(event.get("title") or "").strip()
         if not SEASON.search(title):
             continue
         row = titles.setdefault(title, {"title": title, "event_url": None, "event_id": None,
-                                        "upcoming_fixtures": 0})
+                                        "upcoming_fixtures": 0 if upcoming is not None else None})
         row["event_url"] = event.get("url_path")
         row["event_id"] = event.get("event_id")
-    for fixture in segments(upcoming):
+    for fixture in segments(upcoming) if upcoming is not None else []:
         title = str(fixture.get("match_event") or "").strip()
         if not SEASON.search(title):
             continue
@@ -75,20 +75,26 @@ def main() -> None:
     }
     for name, (path, fetch) in sources.items():
         try:
-            payloads[name] = json.loads(path.read_text(encoding="utf-8")) if path else fetch()
-            segments(payloads[name])
+            payload = json.loads(path.read_text(encoding="utf-8")) if path else fetch()
+            segments(payload)
+            payloads[name] = payload
         except (OSError, ValueError, KeyError, TypeError, requests.RequestException) as exc:
             # A failed source is unknown, never a negative 2027 observation.
             errors[name] = f"{type(exc).__name__}: {exc}"
+    rows = audit(payloads.get("events"), payloads.get("upcoming"))
+    report = {"source": "archive" if args.events_json else "live",
+              "complete": not errors,
+              "event_rows": len(segments(payloads["events"])) if "events" in payloads else None,
+              "fixture_rows": len(segments(payloads["upcoming"])) if "upcoming" in payloads else None}
     if errors:
-        print(json.dumps({"source": "archive" if args.events_json else "live",
-                          "errors": errors, "complete": False}, indent=2))
+        # Observations from a healthy source survive a partial outage, but an
+        # empty list cannot establish that no 2027 title exists across sources.
+        report["errors"] = errors
+        report["observed_2027_titles"] = rows
+        print(json.dumps(report, indent=2))
         raise SystemExit(1)
-    rows = audit(payloads["events"], payloads["upcoming"])
-    print(json.dumps({"source": "archive" if args.events_json else "live",
-                      "complete": True, "event_rows": len(segments(payloads["events"])),
-                      "fixture_rows": len(segments(payloads["upcoming"])),
-                      "season_2027_titles": rows}, indent=2))
+    report["season_2027_titles"] = rows
+    print(json.dumps(report, indent=2))
 
 
 if __name__ == "__main__":
