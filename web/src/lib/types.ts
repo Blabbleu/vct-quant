@@ -152,3 +152,27 @@ export interface Movement {
   result?: MatchResult | null;
   points: MovementPoint[]; note: string;
 }
+export interface OpsRun {
+  started_at: string; outcome: "ok" | "skipped" | "failed" | "stopped" | "incomplete";
+  reason: string | null; upcoming_fetched: number | null; upcoming_retained: number | null;
+  graded_n: number | null; warnings: string[];
+}
+export interface OpsSource { fetched_at: string | null; age_hours: number | null; files: number }
+export interface OpsStatus {
+  generated_at: string;
+  matchday: {
+    status: "ok" | "degraded" | "stale" | "unknown"; log_found: boolean; stale_hours: number;
+    last_run: OpsRun | null; last_success: OpsRun | null; last_success_age_hours: number | null;
+    last_24h: Record<string, number>; recent_runs: OpsRun[];
+  };
+  sources: Record<string, OpsSource>;
+  prediction_log: {
+    rows: number; matches: number; last_forecast_at: string | null; age_hours: number | null;
+    upcoming_matches: number; next_scheduled_at: string | null;
+  };
+  database: {
+    modified_at: string | null; age_hours: number | null; matches: number | null;
+    latest_completed_on: string | null; latest_seen_at: string | null;
+  };
+  note: string;
+}

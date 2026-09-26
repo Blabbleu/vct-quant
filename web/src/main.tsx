@@ -13,6 +13,7 @@ import Rankings from "./pages/Rankings";
 import Edge from "./pages/Edge";
 import TrackRecord from "./pages/TrackRecord";
 import About from "./pages/About";
+import Status from "./pages/Status";
 import Champions from "./pages/Champions";
 import NotFound from "./pages/NotFound";
 
@@ -32,6 +33,7 @@ createRoot(document.getElementById("root")!).render(
           <Route path="edge" element={<Edge />} />
           <Route path="track-record" element={<TrackRecord />} />
           <Route path="about" element={<About />} />
+          <Route path="status" element={<Status />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

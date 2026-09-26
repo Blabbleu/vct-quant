@@ -231,3 +231,11 @@ td .team { gap: 5px; flex-wrap: wrap; }
   .fx-teams .tn.auto .tn-short { display: inline; }
 }
 .fx-teams .vs.score { font-size: 16px; font-weight: 700; color: var(--ink); }
+.ops-status { display: flex; align-items: center; gap: 10px; }
+.ops-status b { flex: 1; min-width: 0; }
+.ops-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--ink-3); }
+.ops-dot.ok { background: var(--good); }
+.ops-dot.degraded, .ops-dot.skipped, .ops-dot.stopped, .ops-dot.incomplete { background: var(--warn); }
+.ops-dot.stale, .ops-dot.failed { background: #c0392b; }
+.ops-run { display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 4px 10px; align-items: baseline; padding: 7px 0; border-top: 1px solid var(--hairline); overflow-wrap: anywhere; }
+.ops-run .ops-dot { align-self: center; }

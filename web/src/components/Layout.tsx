@@ -10,6 +10,7 @@ const NAV = [
   { to: "/edge", label: "Edge" },
   { to: "/track-record", label: "Track record" },
   { to: "/about", label: "How it works" },
+  { to: "/status", label: "Status" },
 ];
 
 export default function Layout() {
