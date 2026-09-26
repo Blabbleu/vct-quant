@@ -104,9 +104,22 @@ async function main() {
     assert.ok(paperBody.rows.every(r => r.return_per_unit == null || r.status === "settled"));
     console.log("  /api/paper-ledger frozen entries ok");
 
+    const results = await fetch(base + "/api/results");
+    assert.equal(results.status, 200);
+    const resultsBody = await results.json();
+    assert.ok(Array.isArray(resultsBody.rows));
+    assert.equal(resultsBody.verified + resultsBody.unverified, resultsBody.rows.length);
+    for (const row of resultsBody.rows) {
+      assert.ok(Date.parse(row.forecast_at) < Date.parse(row.scheduled_at), `${row.match_id} forecast after start`);
+      assert.ok(["verified", "unverified"].includes(row.result.status));
+      if (row.result.status !== "verified") assert.equal(row.log_loss, null);
+      else assert.ok(row.log_loss > 0 && ["a", "b"].includes(row.result.winner));
+    }
+    console.log(`  /api/results ${resultsBody.rows.length} finished logged fixtures ok`);
+
     // Every page route returns an HTML shell; the client router renders it.
     // With web/dist built that is the multipage app, otherwise the legacy desk.
-    for (const pagePath of ["/", "/matches", `/match/${matchId}`, `/team/${teamBody.team_id}`, `/player/${playerBody.player_id}`, "/champions/2766", "/rankings", "/edge", "/track-record", "/about"]) {
+    for (const pagePath of ["/", "/matches", "/results", `/match/${matchId}`, `/team/${teamBody.team_id}`, `/player/${playerBody.player_id}`, "/champions/2766", "/rankings", "/edge", "/track-record", "/about"]) {
       const page = await fetch(base + pagePath);
       assert.equal(page.status, 200, `${pagePath} answered ${page.status}`);
       assert.match(page.headers.get("content-type"), /text\/html/);

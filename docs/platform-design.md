@@ -131,6 +131,14 @@ them or list the ingest they would need.
   `/api/team/:id`, `/api/player/:id`, `/api/event/:id/sim`,
   `/api/track-record`. Each runs a small Python entry point; heavy Elo replay
   stays cached in-process.
+- **Results list (built 2026-09-26, auto/dev).** GET `/api/results`
+  (`src/vct_quant/results_list.py`) lists every logged fixture whose canonical
+  match is completed: the last forecast logged strictly before kickoff, the
+  liquid (spread ≤ 0.10, volume ≥ 1,000) market on that same row, and the
+  result verified by `match_result.load_result`. Unverified results carry the
+  reason and no score or loss. Per-tier tallies (favourite won, mean log loss)
+  are descriptive; Game Changers is listed as its own tier. Mobile page
+  `/results`. Never an input to ratings, shadows or the checkpoint rule.
 - **Frontend build.** The no-build single file is at 600 lines. Past two or
   three pages, move to Vite + React + TypeScript with a charts lib (uPlot or
   Recharts). `server.js` serves `dist/`. Keeps the zero-dependency backend.
