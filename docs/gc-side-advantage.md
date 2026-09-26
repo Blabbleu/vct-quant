@@ -124,11 +124,13 @@ changed in this follow-up.
 ## Prospective orientation gate (2026-09-26)
 
 `vctdev python -m scripts.prospective_side_order` compares the last logged
-forecast **strictly before scheduled kickoff** with both canonical sides after
-a completed result. It also flags any side reversal across earlier pre-start
-log rows; name-key to numeric-ID upgrades of the same side do not count as
-reversals. Ambiguous/missing pairings and completion dates preceding the
-scheduled day cannot establish orientation. This is a read-only diagnostic,
+forecast **strictly before the earliest logged scheduled kickoff** with both
+canonical sides after a completed result. Like live grading, a later feed
+reschedule cannot replace the earlier call or create a spurious pre-start
+reversal. It also flags any side reversal across eligible earlier log rows;
+name-key to numeric-ID upgrades of the same side do not count as reversals.
+Ambiguous/missing pairings and completion dates preceding the scheduled day
+cannot establish orientation. This is a read-only diagnostic,
 not a forecast grader and not a clean holdout: a reschedule could put an
 ostensibly pre-scheduled-start snapshot after actual play.
 

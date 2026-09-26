@@ -90,6 +90,20 @@ def test_name_key_upgrade_is_not_mistaken_for_order_reversal():
     assert out["by_tier"]["3"]["same"] == 1
 
 
+def test_reschedule_does_not_replace_or_reverse_pre_original_start_orientation():
+    log = pd.DataFrame([
+        _log(1, "11", "22", at="2026-09-26T08:00:00Z"),
+        _log(1, "22", "11", at="2026-09-26T10:00:00Z",
+             start="2026-09-27T09:00:00Z"),
+    ])
+    out = audit_orientation(log, pd.DataFrame(_canonical(1, 11, "A", 22, "B",
+                                                       day="2026-09-27")))
+    assert out["by_tier"]["3"]["same"] == 1
+    assert out["by_tier"]["3"]["flipped"] == 0
+    assert out["by_tier"]["3"]["changed_prestart_order"] == 0
+    assert out["issues"] == []
+
+
 def test_pool_counts_stay_separate():
     log = pd.DataFrame([_log(1, "11", "22", tier=1), _log(2, "33", "44", tier=3)])
     teams = pd.DataFrame(_canonical(1, 11, "A", 22, "B") +

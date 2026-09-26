@@ -3,9 +3,11 @@
     vctdev python -m scripts.prospective_side_order
 
 This is a provenance gate for the proposed GC side-order shadow, NOT a
-backtest. A log timestamp before a *scheduled* start is not definitive proof
-of actual kickoff when a match was rescheduled; completion dates earlier than
-the scheduled day are withheld, and the remaining scheduling risk is reported.
+backtest. Like the live grader, it accepts only logs before the earliest
+scheduled start recorded for each match. A log timestamp before a *scheduled*
+start is not definitive proof of actual kickoff when a match was rescheduled;
+completion dates earlier than the selected scheduled day are withheld, and
+the remaining scheduling risk is reported.
 Neither the log nor canonical DB is modified.
 """
 from __future__ import annotations
@@ -51,7 +53,11 @@ def audit_orientation(log: pd.DataFrame, canonical: pd.DataFrame) -> dict:
     pre = log.copy()
     for col in ("predicted_at", "scheduled_at"):
         pre[col] = pd.to_datetime(pre[col], utc=True, errors="coerce")
-    pre = pre.loc[pre.predicted_at.lt(pre.scheduled_at)].sort_values("predicted_at")
+    # A rescheduled feed can contain a later call that precedes its revised
+    # start but follows the first announced start. Match the grader's cutoff.
+    first_start = pre.groupby("match_id")["scheduled_at"].transform("min")
+    pre = pre.loc[pre.predicted_at.lt(pre.scheduled_at)
+                  & pre.predicted_at.lt(first_start)].sort_values("predicted_at")
     if pre.empty:
         return out
     for match_id, history in pre.groupby("match_id", sort=True):
