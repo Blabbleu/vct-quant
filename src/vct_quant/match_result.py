@@ -19,6 +19,11 @@ import pandas as pd
 from . import db
 
 
+
+def _safe_source(url: object) -> str | None:
+    """Only https vlr.gg links reach the page (never javascript: or other hosts)."""
+    return url if isinstance(url, str) and url.startswith("https://www.vlr.gg/") else None
+
 def identity_key(team_id, team_name) -> str | None:
     """Same identity rule as ``features.build.match_sequence``."""
     if team_id is not None and not (isinstance(team_id, float) and math.isnan(team_id)) and pd.notna(team_id):
@@ -80,7 +85,7 @@ def result_detail(meta: dict | None, teams: pd.DataFrame, maps: pd.DataFrame,
     base = {"status": "unverified", "reason": None, "winner": None, "maps_a": None,
             "maps_b": None, "maps": [], "maps_complete": False, "pre_start_winner_p": None,
             "completed_on": None if pd.isna(completed) else completed.date().isoformat(),
-            "source_url": meta.get("vlr_url") or None,
+            "source_url": _safe_source(meta.get("vlr_url")),
             "as_of": None if pd.isna(last_seen) else last_seen.isoformat()}
 
     sides = {}

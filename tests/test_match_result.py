@@ -131,3 +131,12 @@ def test_history_keys_keep_logged_keys_when_ambiguous_or_mismatched():
     assert history_keys(None, "1", "2") == ("1", "2")
     same = _history_teams([(1, 5, "X"), (2, 5, "X")])
     assert history_keys(same, "5", "name:x") == ("5", "name:x")
+
+
+def test_source_url_only_allows_https_vlr():
+    from vct_quant.match_result import _safe_source
+    assert _safe_source("https://www.vlr.gg/753449/ge-vs-vit") == "https://www.vlr.gg/753449/ge-vs-vit"
+    assert _safe_source("javascript:alert(1)") is None
+    assert _safe_source("http://www.vlr.gg/1") is None
+    assert _safe_source("https://evil.test/https://www.vlr.gg/") is None
+    assert _safe_source(None) is None
