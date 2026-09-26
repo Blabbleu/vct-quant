@@ -82,6 +82,11 @@ def validate_bracket_spec(spec: dict) -> None:
         raise ValueError("incomplete playoff stage counts")
 
 
+def _is_bo3_final(scores: list[int]) -> bool:
+    """A played group series requires exactly two map wins, never a forfeit guess."""
+    return sorted(scores) in ([0, 2], [1, 2])
+
+
 def detail_result(payload: dict, match_id: int) -> dict:
     """Convert a final, ID-verified detail payload to a group result."""
     detail = detail_segments(payload, match_id)[0]
@@ -95,7 +100,9 @@ def detail_result(payload: dict, match_id: int) -> dict:
             raise ValueError("detail lacks exact IDs or scores")
         ids.append(int(raw_id))
         scores.append(int(raw_score))
-    if (ids[0] == ids[1] or scores[0] == scores[1]
+    if not _is_bo3_final(scores):
+        raise ValueError("group result is not a played best-of-three final")
+    if (ids[0] == ids[1]
             or [team.get("is_winner") for team in teams] != [scores[0] > scores[1], scores[1] > scores[0]]):
         raise ValueError("detail winner is inconsistent")
     return {"team_ids": ids, "scores": scores}
@@ -126,9 +133,10 @@ def group_progress(spec: dict, letter: str, results: dict[int, dict]) -> dict:
         row = results[match_id]
         scores = row.get("scores")
         if (row.get("team_ids") != participants or not isinstance(scores, list)
-                or len(scores) != 2 or any(type(s) is not int or s < 0 for s in scores)
-                or scores[0] == scores[1]):
+                or len(scores) != 2 or any(type(s) is not int or s < 0 for s in scores)):
             raise ValueError(f"unverified or incomplete {key} result")
+        if not _is_bo3_final(scores):
+            raise ValueError(f"{key} result is not a played best-of-three final")
         return (participants[0], participants[1]) if scores[0] > scores[1] else (participants[1], participants[0])
 
     first = outcome("opening_1", group["opening_1"]["team_ids"])

@@ -44,6 +44,22 @@ def test_champions_detail_adapter_rejects_nonfinal_or_inconsistent_winner():
     with pytest.raises(ValueError):
         detail_result(payload, 753455)
 
+@pytest.mark.parametrize("scores", ([1, 0], [3, 0], [2, 2], [2, 3]))
+def test_champions_group_final_requires_two_map_wins(scores):
+    payload = {"status": "success", "data": {"status": 200, "segments": [{
+        "match_id": "753454", "status": "final", "maps": [],
+        "teams": [{"id": "731", "score": str(scores[0]), "is_winner": scores[0] > scores[1]},
+                  {"id": "11058", "score": str(scores[1]), "is_winner": scores[1] > scores[0]}],
+    }]}}
+    with pytest.raises(ValueError, match="best-of-three"):
+        detail_result(payload, 753454)
+    with pytest.raises(ValueError, match="best-of-three"):
+        group_progress(SPEC, "C", {753454: result([731, 11058], scores)})
+
+
+def test_champions_group_accepts_three_map_final():
+    assert group_progress(SPEC, "C", {753454: result([731, 11058], [2, 1])})["qualifiers"] == []
+
 
 def result(teams, scores):
     return {"team_ids": list(teams), "scores": list(scores)}

@@ -39,7 +39,11 @@ from this static schedule.
   specify the exact quarterfinal pairings or lower-bracket crossover. The
   vlr.gg playoff bracket still showed all 14 slots as `TBD vs. TBD` on a
   read-only 2026-09-26 probe, so it cannot verify group seeding either.[3]
-  Those edges are `unresolved` in the JSON. Do not infer them from match IDs
+  Riot says playoff Pick'Ems open **October 4 after the Draw Show completes**
+  and matchups are confirmed.[6] The draw is a future evidence checkpoint,
+  not permission to assume a bracket now. Recheck the official drawn pairings
+  and lower-bracket graph then. Those edges are `unresolved` in the JSON.
+  Do not infer them from match IDs
   or enumerated order. Riot's official event overview confirms group matches
   and all playoff series are Bo3 **except Lower Final and Grand Final, both
   Bo5**; the validated `series_best_of` records this separately.[5] It does
@@ -53,7 +57,10 @@ from this static schedule.
   elimination slots respectively; the winner's loser meets the elimination
   winner in the decider. The two qualifiers are winner's and decider winners.
   The primitive refuses a completed downstream slot without its upstream
-  results or with contradictory participants. A read-only 2026-09-26 ~04:07 UTC
+  results or with contradictory participants. It also requires a played Bo3
+  final score of 2–0 or 2–1: a final-flagged 1–0 forfeit, tie, or impossible
+  3-map win does not establish an ordinary series result and cannot silently
+  advance a team. A read-only 2026-09-26 ~04:07 UTC
   local vlrggapi probe of [2] and `/v2/match/details?match_id=` for the four C/D
   openers matched the next listed pairings: C winner's G2 Esports–Paper Rex
   (753456), C elimination TYLOO–Team Liquid (753457); D winner's Karmine
@@ -92,3 +99,4 @@ API/UI change and no production forecast change.
     `match_details_753454_20260924T171005Z.json` and
     `match_details_753460_20260925T111520Z.json`.
 [5] https://valorantesports.com/en-US/tournament/115576361459045501/overview — Riot official Champions Shanghai overview, "Playoffs" series format.
+[6] https://valorantesports.com/en-US/news/champions-shanghai-pickems-powered-by-aws — Riot's September 11 Pick'Ems article, "Playoffs Pick'Ems" dates: October 4 after Draw Show and matchup confirmation.
