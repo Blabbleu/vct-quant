@@ -59,6 +59,25 @@ export default function MatchCenter() {
         </section>
       )}
 
+      {m?.recent_form && (
+        <section className="panel pad">
+          <h2>Recent Tier-1 form</h2>
+          <p className="muted small">Last five played series known at the latest forecast refresh; excludes undated results, forfeits, draws and anonymous teams. Not an adjustment to the odds.</p>
+          {([['a', teamA], ['b', teamB]] as const).map(([side, name]) => (
+            <div key={side}>
+              <h3>{name}</h3>
+              {m.recent_form[side].length ? m.recent_form[side].map(row => (
+                <div className="kv" key={row.match_id}>
+                  <b className="num">{row.result}</b>
+                  <span>vs {row.opponent}</span>
+                  <span className="muted small">{new Date(row.completed_at).toLocaleDateString(undefined, { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" })}</span>
+                </div>
+              )) : <p className="muted small">No eligible played series in the recorded history.</p>}
+            </div>
+          ))}
+        </section>
+      )}
+
       {m && m.points.length > 0 && (
         <section className="panel pad">
           <div className="head"><h2>How the odds moved</h2>

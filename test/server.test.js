@@ -33,6 +33,14 @@ async function main() {
     const matchBody = await match.json();
     assert.equal(matchBody.match_id, matchId);
     assert.ok(Array.isArray(matchBody.points) && matchBody.points.length > 0);
+    for (const side of ["a", "b"]) {
+      assert.ok(Array.isArray(matchBody.recent_form?.[side]));
+      assert.ok(matchBody.recent_form[side].length <= 5);
+      for (const row of matchBody.recent_form[side]) {
+        assert.ok(["W", "L"].includes(row.result));
+        assert.ok(Date.parse(row.completed_at) < Date.parse(matchBody.points.at(-1).observed_at));
+      }
+    }
     assert.equal((await fetch(base + "/api/match/0")).status, 404);
     assert.equal((await fetch(base + "/api/match/999999999")).status, 404);
     assert.equal((await fetch(base + "/api/match/1%2F2")).status, 404);

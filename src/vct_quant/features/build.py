@@ -44,6 +44,7 @@ _MATCH_SEQUENCE_SQL = """
 SELECT
     m.match_id,
     e.tier,
+    m.completed_at,
     -- The Kaggle load parks the year in date_raw (there is no real date column
     -- anywhere in the corpus). TRY_CAST so a future vlrggapi load, which writes
     -- a real date string here, yields NULL rather than blowing up.

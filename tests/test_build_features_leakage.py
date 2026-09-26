@@ -19,7 +19,7 @@ def test_build_features_does_not_see_its_own_result_or_player_rating():
     con = duckdb.connect(":memory:")
     try:
         con.execute("CREATE TABLE event (event_id INTEGER, tier INTEGER)")
-        con.execute('CREATE TABLE match (match_id INTEGER, event_id INTEGER, date_raw VARCHAR)')
+        con.execute('CREATE TABLE match (match_id INTEGER, event_id INTEGER, date_raw VARCHAR, completed_at TIMESTAMP)')
         con.execute("""CREATE TABLE match_team (
             match_id INTEGER, team_number INTEGER, team_id INTEGER,
             team_name VARCHAR, is_winner BOOLEAN, series_score INTEGER)""")
@@ -29,7 +29,7 @@ def test_build_features_does_not_see_its_own_result_or_player_rating():
             match_map_id INTEGER, team_number INTEGER, player_id INTEGER,
             player_handle VARCHAR, player_slot INTEGER, rating DOUBLE)""")
         con.execute("INSERT INTO event VALUES (1, 1), (2, 2)")
-        con.execute("INSERT INTO match VALUES (1, 2, '2025'), (2, 1, '2025'), (3, 1, '2025')")
+        con.execute("INSERT INTO match (match_id, event_id, date_raw) VALUES (1, 2, '2025'), (2, 1, '2025'), (3, 1, '2025')")
         # Shared players and teams establish prior Elo and player form on both sides.
         for match_id, a, b in [(1, 'A', 'B'), (2, 'A', 'B'), (3, 'A', 'B')]:
             con.executemany("INSERT INTO match_team VALUES (?, ?, NULL, ?, ?, ?)", [

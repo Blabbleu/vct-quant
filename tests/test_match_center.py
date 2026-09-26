@@ -1,7 +1,46 @@
 """The Match Center movement series uses only comparable pre-start observations."""
 import pandas as pd
 
-from vct_quant.match_center import movement
+from vct_quant.match_center import movement, recent_form
+
+
+def test_recent_form_is_point_in_time_and_separates_rating_pools():
+    rows = pd.DataFrame([
+        (3, 1, "1", "9", "A", "X", 1., 2, 0, "2026-09-20T10:00Z"),
+        (4, 2, "1", "8", "A", "Y", 0., 0, 2, "2026-09-21T10:00Z"),
+        (5, 1, "7", "1", "Z", "A", 1., 2, 1, "2026-09-22T10:00Z"),
+        (6, 1, "1", "6", "A", "TBD", 1., 2, 0, "2026-09-23T10:00Z"),
+        (7, 1, "1", "5", "A", "F", 1., None, None, "2026-09-23T11:00Z"),
+        (8, 1, "1", "4", "A", "D", 0., 1, 2, "2026-09-26T10:00Z"),
+        (9, 1, "1", "3", "A", "B", 1., 2, 0, "2026-09-24T10:00Z"),
+        (10, 1, "1", "2", "A", "B", 1., 2, 0, "2026-09-23T10:00Z"),
+        (11, 1, "1", "2", "A", "B", 1., 2, 0, None),
+        (1, 1, "1", "2", "A", "B", 1., 2, 0, "2026-09-25T00:00Z"),
+    ], columns=["match_id", "tier", "team_a", "team_b", "team_a_name",
+                "team_b_name", "score_a", "maps_a", "maps_b", "completed_at"])
+    result = recent_form(rows, "1", "2", 10, "2026-09-25T20:00Z")
+    assert [(x["match_id"], x["result"], x["opponent"]) for x in result["a"]] == [
+        (9, "W", "B"), (5, "L", "Z"), (3, "W", "X")]
+    assert result["b"] == []
+
+
+def test_recent_form_sorts_by_completion_date_not_match_id():
+    rows = pd.DataFrame([
+        (2, 1, "1", "3", "A", "Old", 1., 2, 0, "2026-09-22T00:00Z"),
+        (3, 1, "1", "4", "A", "New ID", 1., 2, 0, "2026-09-21T00:00Z"),
+    ], columns=["match_id", "tier", "team_a", "team_b", "team_a_name",
+                "team_b_name", "score_a", "maps_a", "maps_b", "completed_at"])
+    assert [x["match_id"] for x in recent_form(rows, "1", "5", 4, "2026-09-23T00:00Z")["a"]] == [2, 3]
+
+
+def test_recent_form_excludes_gc_and_future_id_even_when_date_is_past():
+    rows = pd.DataFrame([
+        (1, 3, "1", "2", "A", "B", 1., 2, 0, "2026-09-20T10:00Z"),
+        (21, 1, "1", "2", "A", "B", 1., 2, 0, "2026-09-20T10:00Z"),
+    ], columns=["match_id", "tier", "team_a", "team_b", "team_a_name",
+                "team_b_name", "score_a", "maps_a", "maps_b", "completed_at"])
+    assert recent_form(rows, "1", "2", 10, "2026-09-25T00:00Z") == {"a": [], "b": []}
+
 
 
 def test_movement_keeps_prestart_snapshots_of_the_latest_pairing():
