@@ -4,6 +4,15 @@
   "source_url": "https://www.vlr.gg/event/matches/2766/?series_id=all",
   "source_snapshot": "event_matches_2766_20260926T021503Z.json",
   "format_url": "https://valorantesports.com/news/champions-shanghai-everything-you-need-to-know",
+  "series_format_url": "https://valorantesports.com/en-US/tournament/115576361459045501/overview",
+  "series_best_of": {
+    "groups": 3,
+    "playoffs": {
+      "Upper Quarterfinals": 3, "Upper Semifinals": 3, "Upper Final": 3,
+      "Lower Round 1": 3, "Lower Round 2": 3, "Lower Round 3": 3,
+      "Lower Final": 5, "Grand Final": 5
+    }
+  },
   "playoff_seeding": "unresolved",
   "playoff_advancement": "unresolved",
   "groups": {

@@ -37,11 +37,15 @@ from this static schedule.
   advancement edge against an official bracket or a scored/drawn fixture
   graph. Riot's format summary confirms double elimination but does **not**
   specify the exact quarterfinal pairings or lower-bracket crossover. The
-  vlr.gg playoff bracket shows all quarterfinal participants as blank as of
-  this probe, so it cannot verify group seeding either.[3] Those edges are
-  `unresolved` in the JSON. Do not infer them from match IDs or enumerated
-  order. A final with bracket-reset semantics is likewise not assumed;
-  confirm the final rule before modeling title odds.
+  vlr.gg playoff bracket still showed all 14 slots as `TBD vs. TBD` on a
+  read-only 2026-09-26 probe, so it cannot verify group seeding either.[3]
+  Those edges are `unresolved` in the JSON. Do not infer them from match IDs
+  or enumerated order. Riot's official event overview confirms group matches
+  and all playoff series are Bo3 **except Lower Final and Grand Final, both
+  Bo5**; the validated `series_best_of` records this separately.[5] It does
+  not state that a grand-final bracket reset is played. The vlr.gg graph has
+  one grand-final slot, but slot count alone is not proof of reset semantics;
+  confirm the rule before modeling title odds.
 - Group advancement is now implemented **only as a fail-closed routing
   primitive**, not as odds or an API. Each result must have an ID-checked final
   match detail, distinct positive team IDs, integer unequal series scores and
@@ -87,3 +91,4 @@ API/UI change and no production forecast change.
     753449, 753450, 753455 and 753459. Archived raw detail filenames are
     `match_details_753454_20260924T171005Z.json` and
     `match_details_753460_20260925T111520Z.json`.
+[5] https://valorantesports.com/en-US/tournament/115576361459045501/overview — Riot official Champions Shanghai overview, "Playoffs" series format.

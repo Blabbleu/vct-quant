@@ -22,6 +22,13 @@ def validate_bracket_spec(spec: dict) -> None:
         raise ValueError("unsupported event or incomplete groups")
     if spec.get("playoff_seeding") != "unresolved" or spec.get("playoff_advancement") != "unresolved":
         raise ValueError("playoff routing has not been source verified")
+    formats = spec.get("series_best_of")
+    if (not isinstance(formats, dict) or type(formats.get("groups")) is not int
+            or formats["groups"] != 3 or formats.get("playoffs") != {
+                stage: (5 if stage in ("Lower Final", "Grand Final") else 3)
+                for stage in _PLAYOFF_STAGES
+            } or set(formats) != {"groups", "playoffs"}):
+        raise ValueError("series format does not match official Champions overview")
     ids: set[int] = set()
     entrants: list[str] = []
     entrant_ids: list[int] = []

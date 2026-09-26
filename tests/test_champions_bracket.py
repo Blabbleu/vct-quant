@@ -19,6 +19,29 @@ def test_champions_bracket_has_complete_distinct_slots():
     assert validate_bracket_spec(spec) is None
 
 
+def test_champions_series_formats_follow_riot_official_overview():
+    spec = load_bracket_spec(2766)
+    assert spec["series_best_of"] == {
+        "groups": 3,
+        "playoffs": {stage: (5 if stage in ("Lower Final", "Grand Final") else 3)
+                     for stage in (
+                         "Upper Quarterfinals", "Upper Semifinals", "Upper Final",
+                         "Lower Round 1", "Lower Round 2", "Lower Round 3",
+                         "Lower Final", "Grand Final"
+                     )},
+    }
+    for broken in (None, {"groups": 5, "playoffs": spec["series_best_of"]["playoffs"]},
+                   {"groups": 3, "playoffs": {**spec["series_best_of"]["playoffs"], "Grand Final": 3}},
+                   {"groups": True, "playoffs": spec["series_best_of"]["playoffs"]}):
+        altered = json.loads(json.dumps(spec))
+        if broken is None:
+            del altered["series_best_of"]
+        else:
+            altered["series_best_of"] = broken
+        with pytest.raises(ValueError, match="series format"):
+            validate_bracket_spec(altered)
+
+
 def test_champions_bracket_matches_archived_event_stage_and_openers():
     if not ARCHIVE.exists():
         pytest.skip("raw event snapshot is not checked into git")
