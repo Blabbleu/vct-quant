@@ -1,0 +1,76 @@
+/* ==========================================================================
+   Match page (Terminal Arena rebuild). Foundation classes (.arena-grid,
+   .arena-grid-main/-aside, .page-head, .back, .muted, .chart, .arena-row,
+   .scroll, table styles) come from styles.css; this file holds only
+   Match-page-specific layout for the hero, form, H2H and series-score.
+   ========================================================================== */
+
+.match-meta { font-family: var(--font-num); font-size: var(--fs-meta); text-transform: uppercase; letter-spacing: .04em; }
+.page-head-countdown { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
+
+/* --- Hero panel: pre-match odds head-to-head, or the finished ResultPanel -- */
+.match-hero { margin-top: var(--s-1); }
+.match-hero-in { display: flex; flex-direction: column; gap: var(--s-3); }
+
+.match-hero-teams {
+  display: grid; grid-template-columns: 1fr auto 1fr; gap: var(--s-2); align-items: center;
+}
+.match-hero-side { display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
+.match-hero-side-right { justify-content: flex-end; text-align: right; }
+.match-hero-side-loser { color: var(--text-3); }
+.match-hero-side-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.match-hero-side-text-right { align-items: flex-end; }
+.match-hero-side-text .team-label { font-size: 16px; }
+.match-hero-nums { display: flex; align-items: baseline; gap: var(--s-2); flex: none; justify-content: center; }
+.match-hero-pct { font-size: var(--fs-num-l); font-weight: 800; color: var(--text-3); }
+.match-hero-pct-fav { color: var(--model); }
+.match-hero-pct-inline { display: none; }
+
+.match-hero-lowdata { display: flex; gap: var(--s-2); }
+
+.match-hero-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-2); }
+.match-hero-gap { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
+
+/* --- Recent form (aside) --------------------------------------------------- */
+.match-form-team + .match-form-team { margin-top: var(--s-3); padding-top: var(--s-3); border-top: 1px solid var(--line); }
+.match-form-team-name { font-family: var(--font-display); font-weight: 700; text-transform: uppercase; font-size: 13px; margin-bottom: var(--s-1); }
+.match-form-rows { display: flex; flex-direction: column; gap: var(--s-1); }
+.match-form-row { display: flex; align-items: center; gap: var(--s-2); min-height: 28px; }
+.match-form-opp { flex: 1 1 auto; min-width: 0; font-size: 13px; color: var(--text-2); }
+
+.match-maps-team + .match-maps-team { margin-top: var(--s-4); padding-top: var(--s-3); border-top: 1px solid var(--line); }
+.match-maps-board { display: flex; flex-direction: column; }
+
+/* --- Head to head ----------------------------------------------------------- */
+.h2h-tally { display: flex; gap: var(--s-4); }
+.h2h-tally-side { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 0; }
+.h2h-tally-name { font-size: 13px; color: var(--text-2); }
+.h2h-tally-num { font-size: var(--fs-num-m); font-weight: 800; }
+.h2h-rows { display: flex; flex-direction: column; }
+.h2h-row { display: grid; grid-template-columns: auto 1fr auto auto; gap: var(--s-2); align-items: center; min-height: 36px; }
+.h2h-row-date { white-space: nowrap; }
+.h2h-row-winner { font-weight: 700; min-width: 0; }
+
+/* --- Series score section --------------------------------------------------- */
+.series-score { display: flex; flex-direction: column; gap: var(--s-2); }
+
+/* --- Desktop: hero teams get more room, stat cells stay compact ------------ */
+@media (min-width: 1200px) {
+  .match-hero-side-text .team-label { font-size: 22px; }
+  .match-hero-pct { font-size: 40px; }
+  .match-maps-board { flex-direction: row; gap: var(--s-5); }
+  .match-maps-board .match-maps-team { flex: 1 1 0; min-width: 0; }
+  .match-maps-board .match-maps-team + .match-maps-team { margin-top: 0; padding-top: 0; border-top: 0; border-left: 1px solid var(--line); padding-left: var(--s-5); }
+}
+
+/* --- Phone: keep the hero readable at 390px, no squeeze --------------------- */
+@media (max-width: 480px) {
+  .match-hero-teams { grid-template-columns: 1fr; gap: var(--s-3); }
+  .match-hero-side, .match-hero-side-right { justify-content: space-between; width: 100%; }
+  .match-hero-side-text .team-label { font-size: 16px; }
+  .match-hero-nums { display: none; }
+  .match-hero-pct-inline { display: inline-block; font-size: 22px; }
+  .match-hero-stats { grid-template-columns: repeat(3, 1fr); gap: var(--s-1); }
+  .h2h-row { grid-template-columns: auto 1fr auto; }
+  .h2h-row > a { display: none; }
+}

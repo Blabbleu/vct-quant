@@ -1,0 +1,12 @@
+/* Map-by-map strip: one cut-corner cell per map, --line hairline separated. */
+.mapstrip { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.mapstrip-cell {
+  flex: 1 1 120px; min-width: 100px; background: var(--surface-2); padding: var(--s-2) var(--s-3);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.mapstrip-cell-placeholder { color: var(--text-ph); }
+.mapstrip-num { font-size: 10px; color: var(--text-3); }
+.mapstrip-map { font-family: var(--font-display); font-weight: 700; font-size: 13px; }
+.mapstrip-score { font-size: var(--fs-num-m); font-weight: 800; color: var(--text-3); }
+.mapstrip-win { color: var(--result); }
+.mapstrip-lose { color: var(--text-3); }

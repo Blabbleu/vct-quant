@@ -1,0 +1,18 @@
+/* Series-score outcome tiles: 2x2 (Bo3) or 3x2 (Bo5) grid of cut-corner tiles. */
+.series-score-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s-2);
+}
+@media (min-width: 480px) {
+  .series-score-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+}
+.series-score-tile-wrap { min-width: 0; }
+.series-score-tile { padding: var(--s-2) var(--s-3); display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.series-score-tile-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); }
+.series-score-tile-label { font-family: var(--font-display); font-weight: 700; font-size: 12px; color: var(--text-2); text-transform: uppercase; }
+.series-score-tile-score { font-size: var(--fs-num-m); font-weight: 800; }
+.series-score-tile-track { display: flex; gap: 1px; height: 6px; }
+.series-score-tile-block { flex: 1 1 0; height: 100%; background: var(--model-off); }
+.series-score-tile-block-filled { background: var(--model); }
+.series-score-tile-block-filled.series-score-tile-block-b { background: var(--model-2); }
+.series-score-tile-pct { font-size: 12px; color: var(--text-3); }
+
