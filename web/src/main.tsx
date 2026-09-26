@@ -1,7 +1,15 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import "@fontsource/chakra-petch/latin-500.css";
+import "@fontsource/chakra-petch/latin-600.css";
+import "@fontsource/chakra-petch/latin-700.css";
+import "@fontsource/jetbrains-mono/latin-400.css";
+import "@fontsource/jetbrains-mono/latin-500.css";
+import "@fontsource/jetbrains-mono/latin-700.css";
+import "@fontsource/jetbrains-mono/latin-800.css";
 import "./styles.css";
+import "./lib/theme";
 import Layout from "./components/Layout";
 import Home from "./pages/Home";
 import Matches from "./pages/Matches";
@@ -16,6 +24,7 @@ import About from "./pages/About";
 import Status from "./pages/Status";
 import Champions from "./pages/Champions";
 import NotFound from "./pages/NotFound";
+import ArenaKit from "./pages/ArenaKit";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
@@ -34,6 +43,7 @@ createRoot(document.getElementById("root")!).render(
           <Route path="track-record" element={<TrackRecord />} />
           <Route path="about" element={<About />} />
           <Route path="status" element={<Status />} />
+          <Route path="arena" element={<ArenaKit />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
