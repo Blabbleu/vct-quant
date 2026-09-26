@@ -2,6 +2,7 @@ import { Link, useParams } from "react-router-dom";
 import { useMovement, useSnapshot } from "../lib/api";
 import { liquid, pct, relative, when } from "../lib/format";
 import LineChart from "../components/LineChart";
+import ResultPanel from "../components/ResultPanel";
 import TeamLogo from "../components/TeamLogo";
 import TeamName from "../components/TeamName";
 import { Failure, Loading, PageHead, SplitBar, Tile } from "../components/ui";
@@ -45,10 +46,12 @@ export default function MatchCenter() {
       <section className="panel pad">
         <div className="odds">
           <div className="side"><TeamLogo src={logoA} name={teamA} size={56} /><div className="big num">{pct(p)}</div><div className="muted small">{idA ? <Link className="team-link" to={`/team/${idA}`}><TeamName name={teamA} tag={tagA} mode="auto" /> →</Link> : <TeamName name={teamA} tag={tagA} mode="auto" />}</div></div>
-          <div className="odds-mid"><SplitBar p={p} /><div className="muted small center">model series odds</div></div>
+          <div className="odds-mid"><SplitBar p={p} /><div className="muted small center">{m?.result ? "last pre-start model odds" : "model series odds"}</div></div>
           <div className="side right"><TeamLogo src={logoB} name={teamB} size={56} /><div className="big num dim">{pct(1 - p)}</div><div className="muted small">{idB ? <Link className="team-link" to={`/team/${idB}`}><TeamName name={teamB} tag={tagB} mode="auto" /> →</Link> : <TeamName name={teamB} tag={tagB} mode="auto" />}</div></div>
         </div>
       </section>
+
+      {m?.result && <ResultPanel r={m.result} teamA={teamA} teamB={teamB} />}
 
       <div className="tiles">
         <Tile value={market == null ? "–" : pct(market)} label={<>Market for {teamA}{market != null && !trusted ? " · thin, low trust" : ""}</>} />

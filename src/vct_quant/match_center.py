@@ -11,6 +11,7 @@ from . import db
 from .config import PROCESSED_DIR
 from .features.build import match_sequence
 from .logos import load_logos, load_tags
+from .match_result import load_result
 
 
 def recent_form(matches: pd.DataFrame, team_a_key: str, team_b_key: str,
@@ -176,6 +177,12 @@ def main() -> None:
         )
         result["map_pool"] = map_pool(
             result["team_a_key"], result["team_b_key"], args.match_id, as_of,
+        )
+        # Verified finished result (None while not completed); the last
+        # pre-start logged probability is echoed for the winner, never refit.
+        result["result"] = load_result(
+            args.match_id, result["team_a_key"], result["team_b_key"],
+            result["points"][-1]["elo"],
         )
         logos = load_logos()
         result["logo_a"] = logos.get(result["team_a_key"])

@@ -41,6 +41,8 @@ async function main() {
         assert.ok(Date.parse(row.completed_at) < Date.parse(matchBody.points.at(-1).observed_at));
       }
     }
+    assert.ok("result" in matchBody, "match payload must carry a result field (null until verified-finished)");
+    if (matchBody.result) assert.ok(["verified", "unverified"].includes(matchBody.result.status));
     assert.equal((await fetch(base + "/api/match/0")).status, 404);
     assert.equal((await fetch(base + "/api/match/999999999")).status, 404);
     assert.equal((await fetch(base + "/api/match/1%2F2")).status, 404);

@@ -119,11 +119,19 @@ export interface ChampionsStatus {
   event_id: number; as_of: string | null; playoff_routing: "unresolved";
   title_odds: null; groups: Record<"A" | "B" | "C" | "D", ChampionsGroup>;
 }
+export interface ResultMap { number: number; map: string; rounds_a: number; rounds_b: number }
+export interface MatchResult {
+  status: "verified" | "unverified"; reason: string | null; winner: "a" | "b" | null;
+  maps_a: number | null; maps_b: number | null; maps: ResultMap[]; maps_complete: boolean;
+  pre_start_winner_p: number | null; completed_on: string | null;
+  source_url: string | null; as_of: string | null;
+}
 export interface Movement {
   match_id: number; team_a: string; team_b: string; scheduled_at: string;
   team_a_key: string; team_b_key: string;
   logo_a?: string | null; logo_b?: string | null; tag_a?: string | null; tag_b?: string | null;
   recent_form: { a: FormResult[]; b: FormResult[] };
   map_pool: { a: MapRecord[]; b: MapRecord[] };
+  result?: MatchResult | null;
   points: MovementPoint[]; note: string;
 }
