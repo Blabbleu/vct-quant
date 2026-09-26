@@ -38,4 +38,44 @@ select K, so 2025-26 remains untouched for this parameter.
 
 ## Result
 
-(filled in after the single test run; see below)
+Run 2026-09-26 on the dev DB snapshot (11,688 GC matches),
+`python scripts/gc_k_lab.py tune`, then `test --k 192`.
+
+Tune (years <= 2024, n = 5,779 scored), mean log loss:
+
+| K | 16 | 24 | 32 | 48 | 64 | 96 | 128 | **192** | 256 |
+|---|---|---|---|---|---|---|---|---|---|
+| loss | .6635 | .6534 | .6450 | .6318 | .6218 | .6081 | .5998 | **.5927** | .5945 |
+
+Pick K = 192 (interior, no grid extension needed).
+
+Test (2025-26, n = 5,664 scored, scored once):
+
+* K = 48 **0.622389** -> K = 192 **0.603787**, paired **t = +5.09**;
+  Brier 0.21747 -> 0.20988.
+* 2025: n = 3,298, 0.6250 -> 0.6020, t = +5.09. 2026: n = 2,366,
+  0.6187 -> 0.6063, t = +2.05.
+* With SKIP_UNSCORED_FORFEITS on (A72): n = 5,652, 0.622556 -> 0.603818,
+  t = +5.09. The two changes do not interact.
+
+**Decision under the frozen rule: propose GC_K = 192** (owner approval; it
+changes published GC probabilities and the desk's GC backtest block).
+
+Calibration on the test years: K = 48 is badly *under*confident (60-70%
+bucket won 77%, 80-90% won 96%): a K of 48 cannot keep up with a pool whose
+strength spread is wide and whose one-off open-qualifier teams lose repeatedly.
+At K = 192 the 60-100% buckets are within 5 points (70-80: .748 vs .744,
+90-100: .951 vs .947); the low buckets (< 40%) still run hot for the
+underdog (10-20% predicted, 28.5% won).
+
+Descriptive neighbours (NOT a re-selection; the pick stays 192): on the test
+years K = 96 scores 0.6056 (t = +11.44), K = 128 0.6017 (t = +9.16),
+K = 256 0.6148 (t = +1.53, 2026 t = -0.16). The optimum on later data
+has drifted a little lower than on the tune years and the loss rises faster
+above 192 than below, so K = 192 sits near the steep edge. Every K in 96-192
+beats 48 in both test years. If the owner prefers a margin of safety, 128 is
+the conservative alternative, but choosing it now would be selection on the
+test period; the pre-registered proposal is 192.
+
+Not tested here: a margin-free (binary) GC signal, per-season decay, and
+GC shadows (ensemble/shrink are Tier-1-only by design).

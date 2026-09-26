@@ -32,8 +32,11 @@ BEST_K = 48.0
 # matches, because the mostly isolated rating pools are not directly comparable.
 # Keep Tier-2 rows for roster/player-form features, but do not move shared Elo.
 TIER_2_WEIGHT = 0.0
-# Game Changers pool. Placeholder until scripts/benchmark_gc.py retunes it.
+# Game Changers pool. Placeholder copied from Tier 1. docs/gc-k-retune.md tuned
+# K=192 on GC <= 2024 and it beat 48 on 2025-26 (0.6038 vs 0.6224, t=+5.09);
+# switching needs the owner's approval (A73) because it moves GC forecasts.
 GC_K = 48.0
+GC_K_CANDIDATE = 192.0
 # Forfeits with no scored map (0-0 with no winner, or one side's score missing)
 # carry no performance signal, and the stored labels are wrong: a 0-0 replays
 # as a draw, and a forfeit by a TBD placeholder was stored with the winner
