@@ -120,3 +120,21 @@ descriptive residual (independent fixed-Bernoulli approximation), not an
 inferential test across dependent matches. Require pre-kickoff side snapshots
 in the live log to check the GC shadow, as stated above. No model or rule
 changed in this follow-up.
+
+## Prospective orientation gate (2026-09-26)
+
+`vctdev python -m scripts.prospective_side_order` compares the last logged
+forecast **strictly before scheduled kickoff** with both canonical sides after
+a completed result. It also flags any side reversal across earlier pre-start
+log rows; name-key to numeric-ID upgrades of the same side do not count as
+reversals. Ambiguous/missing pairings and completion dates preceding the
+scheduled day cannot establish orientation. This is a read-only diagnostic,
+not a forecast grader and not a clean holdout: a reschedule could put an
+ostensibly pre-scheduled-start snapshot after actual play.
+
+On the dev snapshot, 14 matches have a pre-scheduled-start forecast: GC 2/2
+completed with unchanged orientation, 0 flips or pre-start reversals; Tier 1
+4/4 completed unchanged and 8 still pending. Six completed matches are too
+few to establish stable GC source ordering. Re-run after A74 logs the GC
+shadow and more GC matches finish; investigate any flip before interpreting
+shadow performance. No forecast/log/DB change was made.
