@@ -7,6 +7,7 @@ import Home from "./pages/Home";
 import Matches from "./pages/Matches";
 import MatchCenter from "./pages/MatchCenter";
 import Team from "./pages/Team";
+import Player from "./pages/Player";
 import Rankings from "./pages/Rankings";
 import Edge from "./pages/Edge";
 import TrackRecord from "./pages/TrackRecord";
@@ -22,6 +23,7 @@ createRoot(document.getElementById("root")!).render(
           <Route path="matches" element={<Matches />} />
           <Route path="match/:id" element={<MatchCenter />} />
           <Route path="team/:id" element={<Team />} />
+          <Route path="player/:id" element={<Player />} />
           <Route path="rankings" element={<Rankings />} />
           <Route path="edge" element={<Edge />} />
           <Route path="track-record" element={<TrackRecord />} />

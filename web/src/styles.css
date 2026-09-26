@@ -170,6 +170,11 @@ section { display: flex; flex-direction: column; gap: 12px; }
 .team-link { color: var(--ink-2); }
 .team-link:hover { color: var(--elo); }
 
+/* Player profile */
+.player-map { border-top: 1px solid var(--hairline); padding: 6px 0 10px; min-width: 0; }
+.player-map .team-row { border-top: 0; padding: 2px 0 4px; }
+.player-map a, .player-map span { overflow-wrap: anywhere; }
+
 /* Team logos */
 .logo { display: inline-block; flex: none; object-fit: contain; border-radius: 4px; }
 .logo.fallback { display: inline-flex; align-items: center; justify-content: center; background: var(--surface-2); color: var(--ink-2); font-family: var(--display); font-weight: 700; letter-spacing: -.02em; border: 1px solid var(--hairline); }

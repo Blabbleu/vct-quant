@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { Movement, Snapshot, TeamProfile } from "./types";
+import type { Movement, Snapshot, TeamProfile, PlayerProfile } from "./types";
 
 type State<T> = { data: T | null; error: string | null; loading: boolean };
 
@@ -39,4 +39,8 @@ export function useMovement(id: number): State<Movement> {
 
 export function useTeamProfile(id: number): State<TeamProfile> {
   return useFetch(`team:${id}`, () => getJson<TeamProfile>(`/api/team/${id}`));
+}
+
+export function usePlayerProfile(id: number): State<PlayerProfile> {
+  return useFetch(`player:${id}`, () => getJson<PlayerProfile>(`/api/player/${id}`));
 }

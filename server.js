@@ -80,6 +80,20 @@ function computeTeam(teamId) {
   });
 }
 
+function computePlayer(playerId) {
+  return new Promise((resolve, reject) => {
+    execFile(PYTHON, ["-m", "vct_quant.player_profile", playerId],
+      { cwd: ROOT, maxBuffer: 8 << 20, timeout: 30000 }, (err, stdout, stderr) => {
+        if (err) return reject(new Error(stderr.trim() || err.message));
+        try {
+          resolve(JSON.parse(stdout));
+        } catch (parseError) {
+          reject(new Error(`bad JSON from player profile: ${parseError.message}`));
+        }
+      });
+  });
+}
+
 const ROUTES = {
   "/api/snapshot": data => data,
   "/api/fixtures": data => data.fixtures,
@@ -176,6 +190,18 @@ const server = http.createServer(async (req, res) => {
     } catch (err) {
       console.error(`[500] ${url.pathname}: ${err.message}`);
       return send(res, 500, JSON.stringify({ error: "the team layer failed" }));
+    }
+  }
+  const player = /^\/api\/player\/([1-9][0-9]*)$/.exec(url.pathname);
+  if (player && Number.isSafeInteger(Number(player[1]))) {
+    try {
+      const result = await computePlayer(player[1]);
+      return result === null
+        ? send(res, 404, JSON.stringify({ error: "player ID not found" }))
+        : send(res, 200, JSON.stringify(result));
+    } catch (err) {
+      console.error(`[500] ${url.pathname}: ${err.message}`);
+      return send(res, 500, JSON.stringify({ error: "the player layer failed" }));
     }
   }
   if (url.pathname.startsWith("/api/")) {

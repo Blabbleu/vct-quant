@@ -25,6 +25,23 @@ configurable. This slice does not yet migrate the frontend to Vite; that
 separate build step was approved for a later phase. Merging `server.js` changes
 and restarting the running desk are separate user approvals.
 
+## Exact-ID player profile (dev branch)
+
+`GET /api/player/:id` runs `python -m vct_quant.player_profile ID` against
+read-only DuckDB. A positive safe numeric ID must exist in `player`; unknown
+IDs are 404. It aggregates recorded Tier-1 scored maps with exact player and
+team IDs, completed before the current UTC date. This conservative cutoff
+excludes the current day because historical completion timestamps often carry
+only a date at midnight. Game Changers, undated maps, incomplete round scores,
+TBD opponents and null team IDs are excluded. A player with no eligible maps
+has an explicit empty profile rather than a 404. Agent labels are grouped
+case-insensitively, and team counts group by ID across name changes; all-map
+counts and a latest-20 map list are descriptive, **not** player forecasts.
+The mobile `/player/:id` page links exact team IDs, shows agent/team histories
+and per-map K/D/A, ACS and rating. It does not claim current roster membership.
+No player discovery links exist yet from the team or Match Center pages; a
+read-only recent-lineup API is a separate next slice.
+
 ## Where the desk is today
 
 One scrolling page, one `/api/snapshot` payload:

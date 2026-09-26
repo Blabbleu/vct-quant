@@ -71,6 +71,20 @@ export interface TeamProfile {
   }[];
   note: string;
 }
+export interface PlayerProfile {
+  player_id: number; handle: string; country: string | null; recorded_maps: number;
+  maps: {
+    match_id: number; completed_at: string; map_number: number; map: string;
+    team_id: number; team: string; opponent_id: number; opponent: string;
+    agent: string | null; result: "W" | "L" | "D";
+    rounds_for: number; rounds_against: number;
+    rating: number | null; acs: number | null;
+    kills: number | null; deaths: number | null; assists: number | null;
+  }[];
+  agents: { agent: string; maps: number }[];
+  teams: { team_id: number; name: string; maps: number }[];
+  note: string;
+}
 export interface Movement {
   match_id: number; team_a: string; team_b: string; scheduled_at: string;
   team_a_key: string; team_b_key: string;
