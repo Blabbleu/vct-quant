@@ -1,0 +1,58 @@
+/* ==========================================================================
+   Results (/results): finished matches, score-bug style, tier filter chips.
+   Phone: stacked cards. Desktop (>=1200): a dense table board, one row per
+   match, with extra columns (log loss) that don't fit on phone.
+   ========================================================================== */
+
+.results-head { display: flex; flex-direction: column; gap: var(--s-2); }
+.results-title {
+  font-family: var(--font-display); font-weight: 700; text-transform: uppercase;
+  font-size: var(--fs-display); line-height: var(--lh-tight); letter-spacing: .01em; margin: 0;
+}
+.results-lede { color: var(--text-2); max-width: 64ch; }
+
+/* --- Tier filter: slanted tab chips ---------------------------------------- */
+.results-filters { display: flex; gap: var(--s-2); flex-wrap: wrap; }
+.results-filter-btn {
+  display: inline-flex; align-items: center; justify-content: center; min-height: var(--hit); padding: 0 var(--s-3);
+  font-family: var(--font-display); font-weight: 700; font-size: var(--fs-label); text-transform: uppercase;
+  letter-spacing: var(--track-label); color: var(--text-2); background: var(--surface-2); border: none; cursor: pointer;
+  transform: skewX(var(--slant));
+}
+.results-filter-btn > span { display: inline-block; transform: skewX(calc(var(--slant) * -1)); }
+.results-filter-btn.on { background: var(--model); color: var(--result-ink); }
+
+.results-summary { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-5); }
+
+/* --- Row (one match) -------------------------------------------------------
+   Phone: a cut-corner card, stacked. Desktop: a dense grid row, no card
+   framing, in one board (hairlines between rows, like the ranking table). */
+.results-list { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.results-row {
+  display: flex; flex-direction: column; gap: var(--s-2); color: inherit; min-width: 0;
+  padding: var(--s-3) 0; border-bottom: 1px solid var(--line);
+}
+.results-row:hover { text-decoration: none; }
+.results-row-meta { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); }
+.results-row-date { font-family: var(--font-num); font-size: 12px; color: var(--text-2); }
+.results-row-event { color: var(--text-3); font-size: 12px; }
+.results-row-teams { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: var(--s-2); }
+.results-side { display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
+.results-side.right { flex-direction: row-reverse; text-align: right; }
+.results-side-lost { opacity: .85; }
+.results-side-lost .team-label { color: var(--text-3); }
+.results-score { font-family: var(--font-num); font-weight: 800; font-size: 20px; font-variant-numeric: tabular-nums; color: var(--result); white-space: nowrap; }
+.results-row-stats { display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; font-size: 13px; color: var(--text-2); }
+.results-row-stats .num { color: var(--text); font-weight: 700; }
+.results-row-unverified { color: var(--text-3); font-size: 13px; }
+.results-loglos { color: var(--text-3); }
+
+@media (min-width: 1200px) {
+  .results-row {
+    flex-direction: row; align-items: center; gap: var(--s-3); min-height: 56px;
+  }
+  .results-row-meta { flex-direction: column; align-items: flex-start; gap: 2px; flex: 0 0 130px; }
+  .results-row-teams { flex: 1 1 auto; gap: var(--s-3); }
+  .results-row-stats { flex: 0 0 auto; gap: var(--s-4); flex-wrap: nowrap; }
+  .results-loglos { display: inline; }
+}

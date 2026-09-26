@@ -1,6 +1,11 @@
 import { Link, useParams } from "react-router-dom";
-import { Failure, Loading, PageHead, Tile } from "../components/ui";
+import SectionHead from "../components/arena/SectionHead";
+import Panel from "../components/arena/Panel";
+import { Chip } from "../components/arena/Chip";
+import { EmptyState } from "../components/arena/States";
+import { Failure, Loading } from "../components/ui";
 import { usePlayerProfile } from "../lib/api";
+import "./Player.css";
 
 function dateOnly(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" });
@@ -15,42 +20,89 @@ export default function Player() {
   if (error) return <Failure error={error} />;
   if (!data) return <Failure error="Player ID not found in recorded history." />;
 
-  return <>
-    <Link to="/matches" className="back">← All matches</Link>
-    <PageHead eyebrow="Tier-1 player" title={data.handle}>
-      Exact vlr.gg player ID {data.player_id}{data.country ? ` · ${data.country.toUpperCase()}` : ""} · recorded maps only
-    </PageHead>
-    <div className="tiles">
-      <Tile value={data.recorded_maps} label="Recorded Tier-1 maps" />
-      <Tile value={data.agents.length} label="Agents in recorded maps" />
-      <Tile value={data.teams.length} label="Teams in recorded maps" />
-    </div>
-    <p className="muted small">{data.note} Agent/team counts cover all eligible maps; the list below shows the latest 20.</p>
-    <div className="grid-2">
-      <section className="panel pad">
-        <h2>Agent history</h2>
-        {data.agents.length ? data.agents.map(a => <div className="team-row" key={a.agent}>
-          <span>{a.agent}</span><span className="num">{a.maps} {a.maps === 1 ? "map" : "maps"}</span>
-        </div>) : <p className="muted small">No scored Tier-1 maps recorded.</p>}
-      </section>
-      <section className="panel pad">
-        <h2>Team history</h2>
-        {data.teams.length ? data.teams.map(t => <div className="team-row" key={`${t.team_id}:${t.name}`}>
-          <Link to={`/team/${t.team_id}`}>{t.name}</Link><span className="num">{t.maps} {t.maps === 1 ? "map" : "maps"}</span>
-        </div>) : <p className="muted small">No recorded teams yet.</p>}
-      </section>
-    </div>
-    <section className="panel pad">
-      <h2>Recent map stats</h2>
-      {data.maps.length ? data.maps.map(m => <div className="player-map" key={`${m.match_id}:${m.map_number}`}>
-        <div className="team-row">
-          <span><span className="muted small">{dateOnly(m.completed_at)} · {m.map} · {m.agent || "Unknown agent"}</span><br />
-            <Link to={`/team/${m.team_id}`}>{m.team}</Link> vs <Link to={`/team/${m.opponent_id}`}>{m.opponent}</Link></span>
-          <span className="right"><b className={m.result === "W" ? "team-win num" : "num"}>{m.result} {m.rounds_for}–{m.rounds_against}</b><br />
-            <a className="small" href={`https://www.vlr.gg/${m.match_id}`} target="_blank" rel="noopener noreferrer">Source ↗</a></span>
+  return (
+    <>
+      <Link to="/matches" className="profile-back">← All matches</Link>
+      <header className="profile-head">
+        <div className="profile-head-text">
+          <h1 className="profile-title">{data.handle}</h1>
+          <span className="profile-sub">
+            Exact vlr.gg player ID {data.player_id}{data.country ? ` · ${data.country.toUpperCase()}` : ""} · recorded maps only
+          </span>
         </div>
-        <div className="muted small num">K/D/A {m.kills ?? "—"}/{m.deaths ?? "—"}/{m.assists ?? "—"} · ACS {m.acs?.toFixed(0) ?? "—"} · rating {m.rating?.toFixed(2) ?? "—"}</div>
-      </div>) : <p className="muted small">No eligible map statistics yet.</p>}
-    </section>
-  </>;
+      </header>
+
+      <div className="profile-stats">
+        <Chip variant="ghost">{data.recorded_maps} RECORDED MAPS</Chip>
+        <Chip variant="ghost">{data.agents.length} AGENTS</Chip>
+        <Chip variant="ghost">{data.teams.length} TEAMS</Chip>
+      </div>
+      <p className="muted small">{data.note} Agent/team counts cover all eligible maps; the list below shows the latest 20.</p>
+
+      <div className="arena-grid">
+        <div className="arena-grid-main">
+          <SectionHead title="Recent map stats" right={<span className="muted small num">{data.maps.length}</span>} />
+          {data.maps.length ? (
+            <div className="profile-maps player-maps">
+              <div className="player-stat-head">
+                <span>Map</span><span>Score</span><span>ACS</span><span>Rating</span><span>K/D/A</span>
+              </div>
+              {data.maps.map(m => (
+                <div className="player-map-row" key={`${m.match_id}:${m.map_number}`}>
+                  <div className="player-map-main">
+                    <div className="profile-map-meta">
+                      <span>{dateOnly(m.completed_at)} · {m.map} · {m.agent || "Unknown agent"}</span>
+                    </div>
+                    <div className="profile-map-teams">
+                      <Link to={`/team/${m.team_id}`}>{m.team}</Link> vs <Link to={`/team/${m.opponent_id}`}>{m.opponent}</Link>
+                    </div>
+                  </div>
+                  <span className={`player-map-num num player-map-result${m.result === "W" ? " player-map-result-w" : ""}`}>
+                    <span className="player-map-num-label">Score</span>{m.result} {m.rounds_for}–{m.rounds_against}
+                  </span>
+                  <div className="player-map-nums">
+                    <span className="player-map-num num"><span className="player-map-num-label">ACS</span>{m.acs?.toFixed(0) ?? "—"}</span>
+                    <span className="player-map-num num"><span className="player-map-num-label">Rating</span>{m.rating?.toFixed(2) ?? "—"}</span>
+                    <span className="player-map-num num"><span className="player-map-num-label">K/D/A</span>{m.kills ?? "—"}/{m.deaths ?? "—"}/{m.assists ?? "—"}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : <EmptyState title="NO MAP STATS" line="No eligible map statistics yet." />}
+        </div>
+
+        <div className="arena-grid-aside">
+          <Panel cut="l" frame="line">
+            <div className="pad">
+              <SectionHead title="Agent history" />
+              {data.agents.length ? (
+                <div className="profile-tags">
+                  {data.agents.map(a => (
+                    <div className="profile-tag-row" key={a.agent}>
+                      <span>{a.agent}</span><span className="num muted small">{a.maps} {a.maps === 1 ? "map" : "maps"}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : <p className="muted small">No scored Tier-1 maps recorded.</p>}
+            </div>
+          </Panel>
+
+          <Panel cut="l" frame="line">
+            <div className="pad">
+              <SectionHead title="Team history" />
+              {data.teams.length ? (
+                <div className="profile-tags">
+                  {data.teams.map(t => (
+                    <div className="profile-tag-row" key={`${t.team_id}:${t.name}`}>
+                      <Link to={`/team/${t.team_id}`}>{t.name}</Link><span className="num muted small">{t.maps} {t.maps === 1 ? "map" : "maps"}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : <p className="muted small">No recorded teams yet.</p>}
+            </div>
+          </Panel>
+        </div>
+      </div>
+    </>
+  );
 }

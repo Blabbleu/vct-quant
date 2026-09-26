@@ -1,9 +1,15 @@
 import { useState } from "react";
 import { useSnapshot } from "../lib/api";
-import { eloWinProbability, pct } from "../lib/format";
-import { Failure, Loading, PageHead, SplitBar } from "../components/ui";
-import TeamLogo from "../components/TeamLogo";
-import TeamName from "../components/TeamName";
+import { eloWinProbability } from "../lib/format";
+import { Failure, Loading } from "../components/ui";
+import LogoSlot from "../components/arena/LogoSlot";
+import TeamLabel from "../components/arena/TeamLabel";
+import PipBar from "../components/arena/PipBar";
+import { Chip } from "../components/arena/Chip";
+import Panel from "../components/arena/Panel";
+import SectionHead from "../components/arena/SectionHead";
+import { LOW_DATA_MATCHES } from "../lib/constants";
+import "./Rankings.css";
 
 export default function Rankings() {
   const { data, error, loading } = useSnapshot();
@@ -12,46 +18,89 @@ export default function Rankings() {
   if (loading) return <Loading what="rankings" />;
   if (error || !data) return <Failure error={error ?? "no data"} />;
   const rows = data.rankings;
-  const lo = Math.min(...rows.map(r => r.elo)) - 40, hi = Math.max(...rows.map(r => r.elo));
   const ta = rows[a], tb = rows[b];
   const p = ta && tb ? eloWinProbability(ta.elo, tb.elo) : 0.5;
+
   return (
     <>
-      <PageHead eyebrow={`${data.season} season`} title="Power rankings">
-        Elo rating of every active Tier-1 team. Higher is stronger; a team with few matches this season has a shakier rating.
-      </PageHead>
+      <header className="rankings-head">
+        <h1 className="rankings-title">Rankings</h1>
+        <p className="rankings-lede">
+          Elo rating of every active Tier-1 team this {data.season} season. Higher is stronger; a team with
+          few rated matches this season has a shakier number.
+        </p>
+      </header>
 
-      <section className="panel pad">
-        <h2>Head to head</h2>
-        <div className="picks">
-          <select value={a} onChange={e => setA(Number(e.target.value))} aria-label="Team A">
-            {rows.map((r, i) => <option key={r.team} value={i}>{r.tag ? `${r.team} (${r.tag})` : r.team}</option>)}
-          </select>
-          <span className="vs">vs</span>
-          <select value={b} onChange={e => setB(Number(e.target.value))} aria-label="Team B">
-            {rows.map((r, i) => <option key={r.team} value={i}>{r.tag ? `${r.team} (${r.tag})` : r.team}</option>)}
-          </select>
+      <div className="arena-grid">
+        <div className="arena-grid-main">
+          <SectionHead title="Elo table" right={<span className="muted small num">{rows.length} teams</span>} />
+          <div className="rankings-table">
+            <div className="rankings-row rankings-row-head">
+              <span>#</span><span>Team</span><span className="right">Rating</span><span className="right">Matches</span>
+            </div>
+            {rows.map(r => {
+              const lowData = r.matches < LOW_DATA_MATCHES;
+              return (
+                <div className="rankings-row" key={r.team}>
+                  <span className="rankings-i num">{r.rank}</span>
+                  <span className="rankings-team">
+                    <LogoSlot src={r.logo} name={r.team} tag={r.tag} size={20} />
+                    <span className="rankings-name">
+                      <span className="rankings-name-tag"><TeamLabel name={r.team} tag={r.tag} mode="tag" /></span>
+                      <span className="rankings-name-full"><TeamLabel name={r.team} tag={r.tag} mode="full" /></span>
+                      {lowData && <Chip variant="ghost">LOW DATA</Chip>}
+                    </span>
+                  </span>
+                  <span className="rankings-rating num">{r.elo.toFixed(0)}</span>
+                  <span className="rankings-matches num">{r.matches}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
-        {a === b ? <p className="muted">Pick two different teams.</p> : (
-          <div className="odds">
-            <div className="side"><TeamLogo src={ta.logo} name={ta.team} size={40} /><div className="big num">{pct(p)}</div><div className="muted small"><TeamName name={ta.team} tag={ta.tag} mode="tag" /></div></div>
-            <div className="odds-mid"><SplitBar p={p} /></div>
-            <div className="side right"><TeamLogo src={tb.logo} name={tb.team} size={40} /><div className="big num dim">{pct(1 - p)}</div><div className="muted small"><TeamName name={tb.team} tag={tb.tag} mode="tag" /></div></div>
-          </div>
-        )}
-        <p className="muted small">Series odds on a neutral stage, from ratings alone: no map veto or roster news.</p>
-      </section>
 
-      <section className="panel">
-        {rows.map(r => (
-          <div className="rank" key={r.team}>
-            <span className="i num">{r.rank}</span>
-            <span className="team ellipsis"><TeamLogo src={r.logo} name={r.team} size={22} /><b className="ellipsis"><TeamName name={r.team} tag={r.tag} /></b></span>
-            <span className="bar-wrap"><i className="bar" style={{ width: `${((r.elo - lo) / (hi - lo)) * 100}%` }} /></span>
-            <span className="val num">{r.elo.toFixed(0)} <em>{r.matches}m</em></span>
-          </div>
-        ))}
-      </section>
+        <div className="arena-grid-aside rankings-h2h-aside">
+          <Panel cut="l" frame="line">
+            <div className="pad">
+              <SectionHead title="Head to head" />
+              <div className="rankings-h2h-picks">
+                <select value={a} onChange={e => setA(Number(e.target.value))} aria-label="Team A">
+                  {rows.map((r, i) => <option key={r.team} value={i}>{r.tag ? `${r.team} (${r.tag})` : r.team}</option>)}
+                </select>
+                <span className="rankings-h2h-vs num">vs</span>
+                <select value={b} onChange={e => setB(Number(e.target.value))} aria-label="Team B">
+                  {rows.map((r, i) => <option key={r.team} value={i}>{r.tag ? `${r.team} (${r.tag})` : r.team}</option>)}
+                </select>
+              </div>
+              {a === b ? (
+                <p className="muted small" style={{ marginTop: 16 }}>Pick two different teams.</p>
+              ) : (
+                <>
+                  <div className="rankings-h2h-odds">
+                    <span className="rankings-h2h-side">
+                      <LogoSlot src={ta.logo} name={ta.team} tag={ta.tag} size={34} />
+                      <span className={`rankings-h2h-pct num${p >= 0.5 ? " favoured" : ""}`}>{(p * 100).toFixed(1)}</span>
+                      <TeamLabel name={ta.team} tag={ta.tag} mode="tag" />
+                    </span>
+                    <div className="rankings-h2h-mid">
+                      <span className="vs num">vs</span>
+                    </div>
+                    <span className="rankings-h2h-side right">
+                      <LogoSlot src={tb.logo} name={tb.team} tag={tb.tag} size={34} />
+                      <span className={`rankings-h2h-pct num${p < 0.5 ? " favoured" : ""}`}>{(100 - p * 100).toFixed(1)}</span>
+                      <TeamLabel name={tb.team} tag={tb.tag} mode="tag" />
+                    </span>
+                  </div>
+                  <div style={{ marginTop: 12 }}>
+                    <PipBar pA={p} />
+                  </div>
+                </>
+              )}
+              <p className="rankings-h2h-note small">Neutral-stage series odds. Model is Elo ratings only: no map veto or roster news.</p>
+            </div>
+          </Panel>
+        </div>
+      </div>
     </>
   );
 }

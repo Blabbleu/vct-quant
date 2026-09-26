@@ -1,0 +1,41 @@
+/* ==========================================================================
+   Player (/player/:id): header + agent/team history + map stats table.
+   Shares the profile-* row/header patterns with Team.css (same author, same
+   page family). Adds a desktop grid variant of the map row so K/D/A, ACS and
+   rating line up in columns once there's room; phone keeps the wrapped
+   flex layout from .profile-map-stats.
+   ========================================================================== */
+@import "./Team.css";
+
+.player-map-row { display: flex; flex-direction: column; gap: 6px; padding: var(--s-2) 0; border-bottom: 1px solid var(--line); min-width: 0; }
+.player-map-row:last-child { border-bottom: 0; }
+.player-map-result { font-family: var(--font-num); font-weight: 700; }
+.player-map-result-w { color: var(--result); }
+
+/* Phone: score + a wrapped row of labelled stat pairs (no bare numbers). */
+.player-map-nums { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-4); }
+.player-map-num {
+  font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: 12px; color: var(--text-2);
+  display: flex; align-items: baseline; gap: 4px;
+}
+.player-map-num-label { color: var(--text-3); text-transform: uppercase; font-size: 10px; letter-spacing: .04em; }
+
+.player-stat-head { display: none; }
+
+@media (min-width: 768px) {
+  .player-maps { border-top: 1px solid var(--line); }
+  .player-stat-head {
+    display: grid; grid-template-columns: minmax(0, 1.6fr) 90px 70px 70px 70px; gap: var(--s-3);
+    font-family: var(--font-num); font-size: 10px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--text-3); padding-bottom: var(--s-2); border-bottom: 1px solid var(--line);
+  }
+  .player-stat-head span:not(:first-child) { text-align: right; }
+  .player-map-row {
+    display: grid; grid-template-columns: minmax(0, 1.6fr) 90px 70px 70px 70px; gap: var(--s-3); align-items: center;
+    min-height: var(--hit); padding: var(--s-2) 0;
+  }
+  .player-map-main { min-width: 0; }
+  .player-map-nums { display: contents; }
+  .player-map-num { justify-content: flex-end; font-size: 13px; }
+  .player-map-num-label { display: none; }
+}

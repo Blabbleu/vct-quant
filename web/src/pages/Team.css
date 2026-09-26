@@ -1,0 +1,61 @@
+/* ==========================================================================
+   Team (/team/:id): header + results/maps/model-calls. Player (/player/:id):
+   header + map stats table. Shared row/list patterns between the two pages.
+   ========================================================================== */
+
+.profile-back { font-size: 14px; font-weight: 700; min-height: var(--hit); display: inline-flex; align-items: center; color: var(--text-2); }
+.profile-back:hover { color: var(--text); }
+
+.profile-head { display: flex; align-items: center; gap: var(--s-4); min-width: 0; }
+.profile-head-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.profile-title {
+  font-family: var(--font-display); font-weight: 700; text-transform: uppercase;
+  font-size: var(--fs-h1); line-height: var(--lh-tight); margin: 0; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.profile-sub { color: var(--text-3); font-size: 13px; }
+
+.profile-stats { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+
+/* --- Results list: W/L chip + score, one row per match --------------------- */
+.profile-list { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.profile-row {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s-3);
+  min-height: var(--hit); padding: var(--s-2) 0; border-bottom: 1px solid var(--line); min-width: 0;
+}
+.profile-row:last-child { border-bottom: 0; }
+.profile-row-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.profile-row-date { font-family: var(--font-num); font-size: 12px; color: var(--text-3); }
+.profile-row-opp { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.profile-row-opp a { color: inherit; }
+.profile-row-opp a:hover { color: var(--model); }
+.profile-row-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex: none; }
+.profile-row-score { font-family: var(--font-num); font-weight: 700; font-variant-numeric: tabular-nums; display: flex; align-items: center; gap: var(--s-2); }
+.profile-row-link { font-size: 12px; color: var(--text-2); }
+.profile-row-link:hover { color: var(--model); }
+.profile-row-model { font-family: var(--font-num); font-size: 12px; color: var(--text-3); }
+
+/* --- Map history table (player) -------------------------------------------- */
+.profile-maps { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.profile-map-row { display: flex; flex-direction: column; gap: 4px; padding: var(--s-2) 0; border-bottom: 1px solid var(--line); min-width: 0; }
+.profile-map-row:last-child { border-bottom: 0; }
+.profile-map-meta { display: flex; justify-content: space-between; gap: var(--s-2); font-size: 12px; color: var(--text-3); }
+.profile-map-teams { color: var(--text-2); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.profile-map-teams a { color: inherit; }
+.profile-map-teams a:hover { color: var(--model); }
+.profile-map-stats { display: flex; flex-wrap: wrap; gap: var(--s-3); font-family: var(--font-num); font-size: 12px; color: var(--text-2); }
+.profile-map-stats b { color: var(--text); }
+
+/* --- Small key-value tag chips (agents/teams) ------------------------------ */
+.profile-tags { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.profile-tag-row {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s-2);
+  min-height: 40px; padding: var(--s-1) 0; border-bottom: 1px solid var(--line);
+}
+.profile-tag-row:last-child { border-bottom: 0; }
+.profile-tag-row a { color: var(--text-2); }
+.profile-tag-row a:hover { color: var(--model); }
+
+@media (min-width: 1200px) {
+  .profile-title { font-size: var(--fs-h1); }
+}

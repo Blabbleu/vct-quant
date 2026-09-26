@@ -1,0 +1,54 @@
+/* ==========================================================================
+   Rankings (/rankings): Elo table + head-to-head picker.
+   Table is div/grid based (arena row pattern), not <table>, so column
+   widths can change cleanly between the phone tag-mode and the desktop
+   full-name layout without colgroup gymnastics.
+   ========================================================================== */
+
+.rankings-head { display: flex; flex-direction: column; gap: var(--s-2); }
+.rankings-title {
+  font-family: var(--font-display); font-weight: 700; text-transform: uppercase;
+  font-size: var(--fs-display); line-height: var(--lh-tight); letter-spacing: .01em; margin: 0;
+}
+.rankings-lede { color: var(--text-2); max-width: 64ch; }
+
+/* --- Table --------------------------------------------------------------- */
+.rankings-table { display: flex; flex-direction: column; }
+.rankings-row {
+  display: grid; grid-template-columns: 26px 1fr auto auto;
+  gap: var(--s-2); align-items: center; min-height: var(--hit);
+  padding: var(--s-2) 0; border-bottom: 1px solid var(--line);
+}
+.rankings-row:last-child { border-bottom: 0; }
+.rankings-row-head {
+  font-family: var(--font-num); font-size: 10px; font-weight: 500; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--text-3); min-height: 0; padding-bottom: var(--s-2);
+  border-bottom: 1px solid var(--line);
+}
+.rankings-i { font-family: var(--font-num); font-variant-numeric: tabular-nums; color: var(--text-3); text-align: right; }
+.rankings-team { display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
+.rankings-name { display: flex; align-items: baseline; gap: var(--s-2); min-width: 0; }
+.rankings-name-full { display: none; }
+.rankings-rating { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-weight: 700; text-align: right; color: var(--text); }
+.rankings-matches { font-family: var(--font-num); font-variant-numeric: tabular-nums; text-align: right; color: var(--text-3); font-size: 13px; }
+
+@media (min-width: 1200px) {
+  .rankings-row { grid-template-columns: 32px 1fr 110px 110px; gap: var(--s-3); }
+  .rankings-name-tag { display: none; }
+  .rankings-name-full { display: inline; }
+  .rankings-rating { font-size: var(--fs-num-m); }
+  .rankings-h2h-aside { position: sticky; top: 88px; }
+}
+
+/* --- Head to head ---------------------------------------------------------- */
+.rankings-h2h-picks { display: grid; grid-template-columns: 1fr auto 1fr; gap: var(--s-2); align-items: center; }
+.rankings-h2h-picks select { width: 100%; }
+.rankings-h2h-vs { font-family: var(--font-num); font-size: 11px; color: var(--text-3); text-transform: uppercase; }
+.rankings-h2h-odds { display: grid; grid-template-columns: auto 1fr auto; gap: var(--s-3); align-items: center; margin-top: var(--s-4); }
+.rankings-h2h-side { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-1); min-width: 0; }
+.rankings-h2h-side.right { align-items: flex-end; text-align: right; }
+.rankings-h2h-pct { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-weight: 800; font-size: var(--fs-num-l); color: var(--text-3); }
+.rankings-h2h-pct.favoured { color: var(--model); }
+.rankings-h2h-mid { display: flex; flex-direction: column; gap: var(--s-2); min-width: 0; }
+.rankings-h2h-mid .vs { text-align: center; }
+.rankings-h2h-note { color: var(--text-2); margin-top: var(--s-3); }
