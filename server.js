@@ -66,6 +66,20 @@ function computeMatch(matchId) {
   });
 }
 
+function computeTeam(teamId) {
+  return new Promise((resolve, reject) => {
+    execFile(PYTHON, ["-m", "vct_quant.team_profile", teamId],
+      { cwd: ROOT, maxBuffer: 8 << 20, timeout: 30000 }, (err, stdout, stderr) => {
+        if (err) return reject(new Error(stderr.trim() || err.message));
+        try {
+          resolve(JSON.parse(stdout));
+        } catch (parseError) {
+          reject(new Error(`bad JSON from team profile: ${parseError.message}`));
+        }
+      });
+  });
+}
+
 const ROUTES = {
   "/api/snapshot": data => data,
   "/api/fixtures": data => data.fixtures,
@@ -150,6 +164,18 @@ const server = http.createServer(async (req, res) => {
     } catch (err) {
       console.error(`[500] ${url.pathname}: ${err.message}`);
       return send(res, 500, JSON.stringify({ error: "the match layer failed" }));
+    }
+  }
+  const team = /^\/api\/team\/([1-9][0-9]*)$/.exec(url.pathname);
+  if (team && Number.isSafeInteger(Number(team[1]))) {
+    try {
+      const result = await computeTeam(team[1]);
+      return result === null
+        ? send(res, 404, JSON.stringify({ error: "team not found in Tier-1 history or cached fixtures" }))
+        : send(res, 200, JSON.stringify(result));
+    } catch (err) {
+      console.error(`[500] ${url.pathname}: ${err.message}`);
+      return send(res, 500, JSON.stringify({ error: "the team layer failed" }));
     }
   }
   if (url.pathname.startsWith("/api/")) {

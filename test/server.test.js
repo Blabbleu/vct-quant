@@ -46,6 +46,16 @@ async function main() {
     assert.equal((await fetch(base + "/api/match/1%2F2")).status, 404);
     console.log("  /api/match/:id movement and unknown IDs ok");
 
+    const team = await fetch(base + "/api/team/4529");
+    assert.equal(team.status, 200);
+    const teamBody = await team.json();
+    assert.equal(teamBody.team_id, 4529);
+    assert.ok(Array.isArray(teamBody.results));
+    assert.equal((await fetch(base + "/api/team/0")).status, 404);
+    assert.equal((await fetch(base + "/api/team/999999999")).status, 404);
+    assert.equal((await fetch(base + "/api/team/1%2F2")).status, 404);
+    console.log("  /api/team/:id identity and unknown IDs ok");
+
     // Every page route returns an HTML shell; the client router renders it.
     // With web/dist built that is the multipage app, otherwise the legacy desk.
     for (const pagePath of ["/", "/matches", `/match/${matchId}`, "/rankings", "/edge", "/track-record", "/about"]) {
