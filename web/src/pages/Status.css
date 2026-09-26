@@ -17,7 +17,9 @@
 .status-dot-mid { background: var(--text-2); }
 .status-dot-bad { background: var(--market); }
 
-.status-cells { display: flex; gap: var(--s-2); flex-wrap: wrap; }
+.status-cells { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-2); }
+.status-cells > * { min-width: 0; }
+@media (min-width: 768px) { .status-cells { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
 .status-sources { display: flex; flex-direction: column; gap: 2px; }
 .status-kv {
