@@ -80,6 +80,14 @@ async function main() {
     assert.equal((await fetch(base + "/api/champions/2767")).status, 404);
     console.log("  /api/champions/2766 source-pinned group status ok");
 
+    const paper = await fetch(base + "/api/paper-ledger");
+    assert.equal(paper.status, 200);
+    const paperBody = await paper.json();
+    assert.ok(Array.isArray(paperBody.rows));
+    assert.equal(paperBody.n, paperBody.rows.length);
+    assert.ok(paperBody.rows.every(r => r.return_per_unit == null || r.status === "settled"));
+    console.log("  /api/paper-ledger frozen entries ok");
+
     // Every page route returns an HTML shell; the client router renders it.
     // With web/dist built that is the multipage app, otherwise the legacy desk.
     for (const pagePath of ["/", "/matches", `/match/${matchId}`, `/team/${teamBody.team_id}`, `/player/${playerBody.player_id}`, "/champions/2766", "/rankings", "/edge", "/track-record", "/about"]) {

@@ -108,6 +108,20 @@ function computeChampions() {
   });
 }
 
+function computePaperLedger() {
+  return new Promise((resolve, reject) => {
+    execFile(PYTHON, ["-m", "vct_quant.paper_ledger"],
+      { cwd: ROOT, maxBuffer: 8 << 20, timeout: 30000 }, (err, stdout, stderr) => {
+        if (err) return reject(new Error(stderr.trim() || err.message));
+        try {
+          resolve(JSON.parse(stdout));
+        } catch (parseError) {
+          reject(new Error(`bad JSON from paper ledger: ${parseError.message}`));
+        }
+      });
+  });
+}
+
 const ROUTES = {
   "/api/snapshot": data => data,
   "/api/fixtures": data => data.fixtures,
@@ -224,6 +238,14 @@ const server = http.createServer(async (req, res) => {
     } catch (err) {
       console.error(`[500] ${url.pathname}: ${err.message}`);
       return send(res, 500, JSON.stringify({ error: "the Champions layer failed" }));
+    }
+  }
+  if (url.pathname === "/api/paper-ledger") {
+    try {
+      return send(res, 200, JSON.stringify(await computePaperLedger()));
+    } catch (err) {
+      console.error(`[500] ${url.pathname}: ${err.message}`);
+      return send(res, 500, JSON.stringify({ error: "the paper ledger failed" }));
     }
   }
   if (url.pathname.startsWith("/api/")) {
