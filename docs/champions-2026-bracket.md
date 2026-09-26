@@ -30,9 +30,16 @@ from this static schedule.
   supplied the other four entrants.[4] No new raw snapshot was written.
   Names alone are **not** proof of identity (JD Gaming and NRG have no exact
   canonical `team.name` in this DB), and the fixture cache's name resolution
-  is corroboration, not the source. Recheck those six ephemeral detail
-  observations against an archived/official source before publishing odds;
-  unknown or contradictory IDs block odds for that entrant.
+  is corroboration, not the source. **Independent direct-page recheck:** on
+  2026-09-26 08:43 UTC, `python scripts/champions_identity_audit.py` fetched
+  all eight `https://www.vlr.gg/<match_id>/` pages (not the local API) and
+  matched all 16 positional team names and `/team/<id>/` links to the pinned
+  schedule, including the six previously ephemeral API observations.[7]
+  It rejects a wrong canonical match ID, event header, redirect, missing or
+  duplicate side, and name/ID/order drift. This closes the identity
+  corroboration gap **as of that read-only observation**, but these pages
+  were not archived and may change after play; rerun before title odds.
+  Unknown or contradictory IDs block odds for that entrant.
 - Verify the **playoff group-winner/runner-up seeding** and every upper/lower
   advancement edge against an official bracket or a scored/drawn fixture
   graph. Riot's format summary confirms double elimination but does **not**
@@ -74,8 +81,8 @@ from this static schedule.
   Corp–NRG (753461), D elimination Xi Lai Gaming–Nongshim RedForce (753462).
   This checks the **group** edges only; none of the deciders has a final result
   and playoff seeding/crossover remains unresolved. Two opener details are in
-  the archived raw files [4]; the other two were read-only observations and
-  must be rechecked at publication.
+  the archived raw files [4]; the other two were read-only observations, with
+  their exact entrant IDs independently corroborated by direct pages [7].
 - Use a frozen **pre-match** Elo replay for every simulation. Completed
   matches are fixed only from point-in-time scored results; future pairings
   use the primary Elo probability without changing `predict_upcoming` or
@@ -108,3 +115,9 @@ Playoff routing and title odds remain gated as above.
     `match_details_753460_20260925T111520Z.json`.
 [5] https://valorantesports.com/en-US/tournament/115576361459045501/overview — Riot official Champions Shanghai overview, "Playoffs" series format.
 [6] https://valorantesports.com/en-US/news/champions-shanghai-pickems-powered-by-aws — Riot's September 11 Pick'Ems article, "Playoffs Pick'Ems" dates: October 4 after Draw Show and matchup confirmation.
+[7] Direct vlr.gg match pages, verified by `scripts/champions_identity_audit.py`:
+    https://www.vlr.gg/753444/ , https://www.vlr.gg/753445/ ,
+    https://www.vlr.gg/753449/ , https://www.vlr.gg/753450/ ,
+    https://www.vlr.gg/753454/ , https://www.vlr.gg/753455/ ,
+    https://www.vlr.gg/753459/ , https://www.vlr.gg/753460/ .
+    These live pages were checked at 2026-09-26 08:43 UTC; no raw HTML archive.
