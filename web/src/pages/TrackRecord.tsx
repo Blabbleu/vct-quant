@@ -3,6 +3,7 @@ import { useSnapshot } from "../lib/api";
 import { int, logLoss, num, pct } from "../lib/format";
 import Calibration from "../components/Calibration";
 import CheckpointPanel, { fmtT, MIN_T_N } from "../components/CheckpointPanel";
+import LiveByPool from "../components/LiveByPool";
 import TeamLogo from "../components/TeamLogo";
 import TeamName, { shortName } from "../components/TeamName";
 import { Failure, Loading, PageHead, Tile } from "../components/ui";
@@ -63,6 +64,8 @@ export default function TrackRecord() {
       </section>
 
       {live.checkpoint && <section className="grid-2"><CheckpointPanel cp={live.checkpoint} /></section>}
+
+      {live.by_tier && <LiveByPool pools={live.by_tier.tiers} />}
 
       <section className="panel">
         <div className="pad"><h2>Experiment ledger</h2>

@@ -26,6 +26,23 @@ async function main() {
     assert.ok(snapshot.backtest.log_loss > 0.3 && snapshot.backtest.log_loss < 0.7,
       `implausible log loss ${snapshot.backtest.log_loss}`);
 
+    // Live breakdown by pool: pools partition the graded log, buckets fold to the favourite.
+    if (snapshot.live.graded > 0) {
+      const pools = snapshot.live.by_tier?.tiers;
+      assert.ok(Array.isArray(pools), "live.by_tier.tiers missing");
+      assert.equal(pools.reduce((s, t) => s + t.n, 0), snapshot.live.graded);
+      for (const t of pools) {
+        const inBuckets = t.buckets.reduce((s, b) => s + b.n, 0);
+        assert.equal(inBuckets, t.favourite.calls);
+        assert.equal(inBuckets + t.coin_flips, t.n);
+        for (const b of t.buckets) {
+          if (b.n === 0) continue;
+          assert.ok(b.predicted >= b.lo && b.predicted <= b.hi, `bucket ${b.lo} mean ${b.predicted}`);
+          assert.ok(b.ci[0] <= b.actual && b.actual <= b.ci[1]);
+        }
+      }
+    }
+
     const matchId = snapshot.fixtures[0]?.match_id;
     assert.ok(matchId, "snapshot needs a fixture for the Match Center check");
     const match = await fetch(base + `/api/match/${matchId}`);

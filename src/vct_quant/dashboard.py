@@ -15,7 +15,7 @@ from functools import lru_cache
 import numpy as np
 import pandas as pd
 
-from . import db, live_checkpoint
+from . import db, live_calibration, live_checkpoint
 from .config import DB_PATH, PROCESSED_DIR
 from .eval import metrics
 from .eval.backtest import walk_forward_splits
@@ -171,6 +171,10 @@ def graded_log() -> dict:
                 "t": live_checkpoint.paired_t(base - shadow),  # positive = shadow better
             }
     out["shadows"] = shadows
+    out["by_tier"] = live_calibration.live_breakdown(pd.DataFrame({
+        "y": y, "p": p, "tier": scored.tier.to_numpy() if "tier" in scored else None,
+        "p_market_a": scored.p_market_a.to_numpy(), "market_spread": scored.market_spread.to_numpy(),
+    }))
     try:
         out["checkpoint"] = live_checkpoint.checkpoint_status(
             scored.assign(y=y), live_checkpoint.grand_final_id())

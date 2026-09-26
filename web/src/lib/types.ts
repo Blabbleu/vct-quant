@@ -50,12 +50,23 @@ export interface Checkpoint {
   };
   checkpoint_2: { n: number; reached: boolean };
 }
+export interface LiveBucket {
+  lo: number; hi: number; n: number; won: number;
+  predicted: number | null; actual: number | null; ci: [number | null, number | null];
+}
+export interface LivePool {
+  tier: number | null; label: string; n: number; log_loss: number; brier: number;
+  favourite: { calls: number; won: number }; coin_flips: number;
+  buckets: LiveBucket[];
+  market: { n: number; elo: number; market: number } | null;
+}
 export interface Live {
   logged: number; graded: number; rows: GradedRow[];
   log_loss: number | null; brier: number | null;
   market: { n: number; elo: number; market: number } | null;
   shadows: Record<string, ShadowScore>;
   checkpoint?: Checkpoint | null;
+  by_tier?: { tiers: LivePool[] };
 }
 export interface Snapshot {
   generated_at: string;

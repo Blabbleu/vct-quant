@@ -149,6 +149,16 @@ section { display: flex; flex-direction: column; gap: 12px; }
 .progress { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; margin: 2px 0 8px; }
 .progress i { display: block; height: 100%; background: var(--elo); }
 
+/* Track record: live calls by pool, reliability with 95% range */
+.pool + .pool { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--hairline); }
+.pool h3 { margin: 0 0 4px; font-size: 14px; }
+.reliability td.ci-cell { width: 40%; min-width: 96px; }
+.ci-track { position: relative; display: block; height: 12px; border-radius: 6px; background: var(--surface-2); }
+.ci-track i { position: absolute; top: 0; height: 100%; }
+.ci-band { background: color-mix(in srgb, var(--elo) 28%, transparent); border-radius: 6px; }
+.ci-pred { width: 2px; margin-left: -1px; background: var(--ink-2); }
+.ci-dot { width: 8px; height: 8px !important; top: 2px !important; margin-left: -4px; border-radius: 50%; background: var(--elo); }
+
 /* Edge + ledger */
 .edge-row { display: grid; grid-template-columns: minmax(0, 1fr) 56px 56px 72px; gap: 10px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--hairline); color: inherit; }
 .edge-row:first-child { border-top: 0; }
