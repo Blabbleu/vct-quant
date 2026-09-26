@@ -43,6 +43,20 @@ async function main() {
     }
     assert.ok("result" in matchBody, "match payload must carry a result field (null until verified-finished)");
     if (matchBody.result) assert.ok(["verified", "unverified"].includes(matchBody.result.status));
+    const h2h = matchBody.head_to_head;
+    assert.ok(h2h && Array.isArray(h2h.series), "match payload must carry head_to_head");
+    assert.equal(h2h.wins_a + h2h.wins_b, h2h.played);
+    assert.ok(h2h.series.length <= Math.min(10, h2h.played));
+    for (const row of h2h.series) {
+      assert.ok(["a", "b"].includes(row.winner));
+      assert.ok(row.match_id < matchId);
+      assert.ok(Date.parse(row.completed_at) < Date.parse(matchBody.points.at(-1).observed_at));
+    }
+    // Every logged fixture's Match Center must answer, not 500 (NA slug regression).
+    for (const fixture of snapshot.fixtures) {
+      const r = await fetch(base + `/api/match/${fixture.match_id}`);
+      assert.ok([200, 404].includes(r.status), `/api/match/${fixture.match_id} returned ${r.status}`);
+    }
     assert.equal((await fetch(base + "/api/match/0")).status, 404);
     assert.equal((await fetch(base + "/api/match/999999999")).status, 404);
     assert.equal((await fetch(base + "/api/match/1%2F2")).status, 404);

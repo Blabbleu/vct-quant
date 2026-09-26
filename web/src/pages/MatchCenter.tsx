@@ -3,6 +3,7 @@ import { useMovement, useSnapshot } from "../lib/api";
 import { liquid, pct, relative, when } from "../lib/format";
 import LineChart from "../components/LineChart";
 import ResultPanel from "../components/ResultPanel";
+import HeadToHeadPanel from "../components/HeadToHead";
 import TeamLogo from "../components/TeamLogo";
 import TeamName from "../components/TeamName";
 import { Failure, Loading, PageHead, SplitBar, Tile } from "../components/ui";
@@ -87,6 +88,8 @@ export default function MatchCenter() {
           ))}
         </section>
       )}
+
+      {m?.head_to_head && <HeadToHeadPanel h={m.head_to_head} teamA={teamA} teamB={teamB} />}
 
       {m?.map_pool && (
         <section className="panel pad">

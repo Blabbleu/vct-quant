@@ -126,11 +126,15 @@ export interface MatchResult {
   pre_start_winner_p: number | null; completed_on: string | null;
   source_url: string | null; as_of: string | null;
 }
+export interface H2HSeries { match_id: number; winner: "a" | "b"; maps_a: number; maps_b: number; completed_at: string }
+export interface HeadToHead { series: H2HSeries[]; wins_a: number; wins_b: number; played: number }
 export interface Movement {
   match_id: number; team_a: string; team_b: string; scheduled_at: string;
   team_a_key: string; team_b_key: string;
+  history_keys?: { a: string; b: string };
   logo_a?: string | null; logo_b?: string | null; tag_a?: string | null; tag_b?: string | null;
   recent_form: { a: FormResult[]; b: FormResult[] };
+  head_to_head?: HeadToHead;
   map_pool: { a: MapRecord[]; b: MapRecord[] };
   result?: MatchResult | null;
   points: MovementPoint[]; note: string;
