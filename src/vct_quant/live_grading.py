@@ -15,6 +15,23 @@ from .match_result import load_result
 Loader = Callable[[int, str, str, float], dict | None]
 
 
+def eligible_pre_start(log: pd.DataFrame) -> pd.DataFrame:
+    """Conservative cutoff: use the earliest logged kickoff for each match.
+
+    A later feed may reschedule a match; without an actual kickoff timestamp we
+    cannot prove that a newly logged prediction after the original kickoff was
+    pre-match. Preserve the earlier eligible call instead of rehabilitating it.
+    """
+    rows = log.copy()
+    rows["predicted_at"] = pd.to_datetime(rows.predicted_at, utc=True, errors="coerce")
+    rows["scheduled_at"] = pd.to_datetime(rows.scheduled_at, utc=True, errors="coerce")
+    first_start = rows.groupby("match_id")["scheduled_at"].transform("min")
+    rows["p_team_a_win"] = pd.to_numeric(rows["p_team_a_win"], errors="coerce")
+    return rows.loc[rows.predicted_at.lt(rows.scheduled_at)
+                    & rows.predicted_at.lt(first_start)
+                    & rows["p_team_a_win"].between(0, 1)].copy()
+
+
 def graded_forecasts(log: pd.DataFrame, load: Loader = load_result) -> pd.DataFrame:
     """Last strictly pre-scheduled-start row per match with a verified winner.
 
@@ -27,11 +44,7 @@ def graded_forecasts(log: pd.DataFrame, load: Loader = load_result) -> pd.DataFr
         out = log.copy()
         out.attrs["logged"] = 0
         return out
-    pre = log.copy()
-    pre["predicted_at"] = pd.to_datetime(pre.predicted_at, utc=True, errors="coerce")
-    pre["scheduled_at"] = pd.to_datetime(pre.scheduled_at, utc=True, errors="coerce")
-    p = pd.to_numeric(pre["p_team_a_win"], errors="coerce")
-    pre = pre.loc[pre.predicted_at.lt(pre.scheduled_at) & p.between(0, 1)].copy()
+    pre = eligible_pre_start(log)
     last = pre.sort_values("predicted_at").groupby("match_id").tail(1)
     latest = pre.merge(last[["match_id", "predicted_at"]], on=["match_id", "predicted_at"])
     conflicting = set(latest.groupby("match_id").filter(

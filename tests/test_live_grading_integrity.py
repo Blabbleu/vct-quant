@@ -68,6 +68,15 @@ def test_logged_schedule_outlives_completed_result_even_if_db_was_rescheduled():
     assert scored.empty
 
 
+def test_post_original_kickoff_is_not_rehabilitated_by_later_schedule():
+    log = _log().iloc[:2].copy()
+    log.loc[0, "scheduled_at"] = pd.Timestamp("2026-09-18T12:00Z")
+    log.loc[1, "predicted_at"] = pd.Timestamp("2026-09-18T13:00Z")
+    # The latest row is before its NEW date, but after the original kickoff.
+    scored = graded_forecasts(log, lambda mid, a, b, p: _result(a, b))
+    assert scored.p_team_a_win.tolist() == [0.4]
+
+
 def test_both_live_reports_withhold_a_one_sided_result(tmp_path, monkeypatch, capsys):
     path = tmp_path / "fixture.duckdb"
     with duckdb.connect(str(path)) as con:

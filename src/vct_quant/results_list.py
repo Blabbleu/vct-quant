@@ -1,7 +1,7 @@
 """Finished logged fixtures: the last pre-start forecast beside a verified result.
 
-Descriptive and read-only. Each row is the forecast the desk actually showed
-before kickoff (the last prediction-log row strictly before ``scheduled_at``),
+Descriptive and read-only. Each row is the last prediction-log forecast
+strictly before the earliest logged scheduled start for that match,
 next to the canonical result as verified by ``match_result.load_result``. A
 result that fails verification is listed as ``unverified`` with its reason and
 carries no score, winner or loss, rather than being guessed. Nothing here feeds
@@ -17,6 +17,7 @@ from typing import Callable
 import pandas as pd
 
 from .config import PROCESSED_DIR
+from .live_grading import eligible_pre_start
 from .paper_ledger import MAX_SPREAD, MIN_VOLUME
 
 Loader = Callable[[int, str, str, float], dict | None]
@@ -44,20 +45,30 @@ def finished_results(log: pd.DataFrame, load: Loader, limit: int | None = None) 
     out = {"rows": [], "verified": 0, "unverified": 0, "by_tier": {}}
     if log.empty:
         return out
-    log = log.copy()
-    log["predicted_at"] = pd.to_datetime(log.predicted_at, utc=True, errors="coerce")
-    log["scheduled_at"] = pd.to_datetime(log.scheduled_at, utc=True, errors="coerce")
-    pre = log.loc[log.predicted_at.lt(log.scheduled_at)
-                  & pd.to_numeric(log.p_team_a_win, errors="coerce").between(0, 1)]
+    pre = eligible_pre_start(log)
     if pre.empty:
         return out
     last = pre.sort_values("predicted_at").groupby("match_id").tail(1)
+    latest = pre.merge(last[["match_id", "predicted_at"]], on=["match_id", "predicted_at"])
+    conflicting = set(latest.groupby("match_id").filter(
+        lambda rows: len(rows[["team_a_key", "team_b_key", "scheduled_at",
+                               "p_team_a_win"]].drop_duplicates()) > 1
+    ).match_id)
     rows = []
     for r in last.itertuples():
+        if r.match_id in conflicting:
+            continue
         p = float(r.p_team_a_win)
         result = load(int(r.match_id), str(r.team_a_key), str(r.team_b_key), p)
         if result is None:
             continue
+        completed = pd.to_datetime(result.get("completed_on"), utc=True, errors="coerce")
+        if (result.get("status") == "verified" and
+                (pd.isna(completed) or completed.normalize() < r.scheduled_at.normalize())):
+            result = {**result, "status": "unverified",
+                      "reason": "completion date missing or before the logged scheduled day",
+                      "winner": None, "maps_a": None, "maps_b": None,
+                      "maps": [], "maps_complete": False, "pre_start_winner_p": None}
         ok = result.get("status") == "verified" and result.get("winner") in ("a", "b")
         a_won = ok and result["winner"] == "a"
         loss = -math.log(max(p if a_won else 1 - p, 1e-12)) if ok else None

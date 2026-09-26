@@ -114,6 +114,33 @@ def test_tier_is_labelled_and_game_changers_kept_separate():
     assert out["by_tier"] == {"3": {"verified": 1, "favourite_won": 1, "log_loss": pytest.approx(-math.log(0.6))}}
 
 
+def test_reschedule_never_selects_a_post_original_kickoff_forecast():
+    log = pd.DataFrame([
+        row(14, "2026-09-24T09:00Z"),
+        row(14, "2026-09-24T13:00Z", scheduled="2026-09-26T12:00Z", p=0.9),
+    ])
+    out = finished_results(log, fake_loader({14: verified(completed="2026-09-26")}))
+    assert out["verified"] == 1
+    assert out["rows"][0]["p_a"] == pytest.approx(0.6)
+
+
+def test_result_before_original_scheduled_day_is_not_scored():
+    log = pd.DataFrame([row(15, "2026-09-24T09:00Z")])
+    out = finished_results(log, fake_loader({15: verified(completed="2026-09-23")}))
+    assert out["verified"] == 0
+    assert out["unverified"] == 1
+    assert out["rows"][0]["log_loss"] is None
+    assert out["rows"][0]["result"]["winner"] is None
+
+
+def test_conflicting_latest_timestamp_is_not_displayed_as_a_scored_call():
+    log = pd.DataFrame([
+        row(16, "2026-09-24T09:00Z", p=0.6),
+        row(16, "2026-09-24T09:00Z", a="20", b="10", p=0.4),
+    ])
+    assert finished_results(log, fake_loader({16: verified()}))["rows"] == []
+
+
 def test_empty_log():
     out = finished_results(pd.DataFrame(), fake_loader({}))
     assert out["rows"] == [] and out["verified"] == 0 and out["by_tier"] == {}
