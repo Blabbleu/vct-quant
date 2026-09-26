@@ -1,0 +1,55 @@
+{
+  "event_id": 2766,
+  "name": "Valorant Champions 2026",
+  "source_url": "https://www.vlr.gg/event/matches/2766/?series_id=all",
+  "source_snapshot": "event_matches_2766_20260926T021503Z.json",
+  "format_url": "https://valorantesports.com/news/champions-shanghai-everything-you-need-to-know",
+  "playoff_seeding": "unresolved",
+  "playoff_advancement": "unresolved",
+  "groups": {
+    "A": {
+      "opening_1": {"match_id": 753444, "stage": "Opening (A)", "teams": ["100 Thieves", "T1"]},
+      "opening_2": {"match_id": 753445, "stage": "Opening (A)", "teams": ["JD Gaming", "FUT Esports"]},
+      "winners": {"match_id": 753446, "stage": "Winner's (A)"},
+      "elimination": {"match_id": 753447, "stage": "Elimination (A)"},
+      "decider": {"match_id": 753448, "stage": "Decider (A)"}
+    },
+    "B": {
+      "opening_1": {"match_id": 753449, "stage": "Opening (B)", "teams": ["Global Esports", "Team Vitality"]},
+      "opening_2": {"match_id": 753450, "stage": "Opening (B)", "teams": ["LOUD", "EDward Gaming"]},
+      "winners": {"match_id": 753451, "stage": "Winner's (B)"},
+      "elimination": {"match_id": 753452, "stage": "Elimination (B)"},
+      "decider": {"match_id": 753453, "stage": "Decider (B)"}
+    },
+    "C": {
+      "opening_1": {"match_id": 753454, "stage": "Opening (C)", "teams": ["TYLOO", "G2 Esports"]},
+      "opening_2": {"match_id": 753455, "stage": "Opening (C)", "teams": ["Team Liquid", "Paper Rex"]},
+      "winners": {"match_id": 753456, "stage": "Winner's (C)"},
+      "elimination": {"match_id": 753457, "stage": "Elimination (C)"},
+      "decider": {"match_id": 753458, "stage": "Decider (C)"}
+    },
+    "D": {
+      "opening_1": {"match_id": 753459, "stage": "Opening (D)", "teams": ["Karmine Corp", "Xi Lai Gaming"]},
+      "opening_2": {"match_id": 753460, "stage": "Opening (D)", "teams": ["Nongshim RedForce", "NRG"]},
+      "winners": {"match_id": 753461, "stage": "Winner's (D)"},
+      "elimination": {"match_id": 753462, "stage": "Elimination (D)"},
+      "decider": {"match_id": 753463, "stage": "Decider (D)"}
+    }
+  },
+  "playoffs": [
+    {"match_id": 754730, "stage": "Upper Quarterfinals"},
+    {"match_id": 754731, "stage": "Upper Quarterfinals"},
+    {"match_id": 754732, "stage": "Upper Quarterfinals"},
+    {"match_id": 754733, "stage": "Upper Quarterfinals"},
+    {"match_id": 754734, "stage": "Upper Semifinals"},
+    {"match_id": 754735, "stage": "Upper Semifinals"},
+    {"match_id": 754736, "stage": "Upper Final"},
+    {"match_id": 754737, "stage": "Grand Final"},
+    {"match_id": 754738, "stage": "Lower Round 1"},
+    {"match_id": 754739, "stage": "Lower Round 1"},
+    {"match_id": 754740, "stage": "Lower Round 2"},
+    {"match_id": 754741, "stage": "Lower Round 2"},
+    {"match_id": 754742, "stage": "Lower Round 3"},
+    {"match_id": 754743, "stage": "Lower Final"}
+  ]
+}
