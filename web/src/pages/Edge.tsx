@@ -4,6 +4,7 @@ import { liquid, pct, when } from "../lib/format";
 import { Failure, Loading, PageHead } from "../components/ui";
 import TeamLogo from "../components/TeamLogo";
 import TeamName, { shortName } from "../components/TeamName";
+import PaperLedgerPanel from "../components/PaperLedger";
 
 /** Paper-only view of model vs market disagreements. Never a bet slip. */
 export default function Edge() {
@@ -42,6 +43,8 @@ export default function Edge() {
         ))}
       </section>
 
+      <PaperLedgerPanel />
+
       <section className="panel pad">
         <h2>How the model did against the market</h2>
         {live.market && live.market.n > 0 ? (
@@ -49,8 +52,7 @@ export default function Edge() {
             the market's <b className="num">{live.market.market.toFixed(3)}</b> (log loss, lower is better). That is far too few
             matches to call either side better yet.</p>
         ) : <p className="muted">No graded matches with a market price yet.</p>}
-        <p className="muted small">Coming next: a paper-trading ledger that "bets" every trusted gap at the logged price and tracks
-          profit and closing-line value over time.</p>
+        <p className="muted small">The log-loss comparison uses a separate graded-forecast sample, not the frozen paper entries above.</p>
       </section>
     </>
   );

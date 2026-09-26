@@ -56,6 +56,15 @@ export interface Snapshot {
   live: Live;
   fixtures: Fixture[];
 }
+export interface PaperEntry {
+  match_id: number; team_a: string; team_b: string; side: "A" | "B";
+  entry_at: string; model: number; market_mid: number; entry_price: number;
+  last_sampled_market: number | null; sampled_clv: number | null;
+  status: "open" | "unverified" | "settled"; return_per_unit: number | null;
+}
+export interface PaperLedger {
+  n: number; settled: number; net_units: number; rows: PaperEntry[]; note: string;
+}
 export interface MovementPoint { observed_at: string; elo: number; market: number | null; spread: number | null }
 export interface FormResult { match_id: number; opponent: string; result: "W" | "L"; completed_at: string }
 export interface MapRecord { map: string; played: number; won: number; round_share: number }

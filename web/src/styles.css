@@ -187,6 +187,17 @@ section { display: flex; flex-direction: column; gap: 12px; }
 .champions-qualified { border-top: 1px solid var(--hairline); padding-top: 8px; overflow-wrap: anywhere; }
 .champions-warning { color: var(--warn); background: color-mix(in srgb, var(--warn) 10%, transparent); border-radius: 6px; padding: 8px; font-size: 13px; }
 
+/* Frozen paper entries: wrapping cards instead of a wide trading table. */
+.paper-summary { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 7px 0; border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline); font-size: 13px; }
+.paper-entries { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 10px; }
+.paper-entry { border: 1px solid var(--hairline); background: var(--surface-2); border-radius: 8px; padding: 12px; min-width: 0; display: flex; flex-direction: column; gap: 8px; overflow-wrap: anywhere; }
+.paper-entry .head { align-items: flex-start; }
+.paper-title { display: flex; flex-direction: column; min-width: 0; }
+.paper-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 12px; }
+.paper-stats span { display: flex; flex-direction: column; min-width: 0; }
+.paper-stats b { color: var(--ink); }
+@media (max-width: 350px) { .paper-stats { grid-template-columns: 1fr; } }
+
 /* Team logos */
 .logo { display: inline-block; flex: none; object-fit: contain; border-radius: 4px; }
 .logo.fallback { display: inline-flex; align-items: center; justify-content: center; background: var(--surface-2); color: var(--ink-2); font-family: var(--display); font-weight: 700; letter-spacing: -.02em; border: 1px solid var(--hairline); }
