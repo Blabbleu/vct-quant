@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useSnapshot } from "../lib/api";
 import { int, logLoss, num, pct } from "../lib/format";
 import Calibration from "../components/Calibration";
+import TeamLogo from "../components/TeamLogo";
 import { Failure, Loading, PageHead, Tile } from "../components/ui";
 
 const SHADOW_NAMES: Record<string, string> = {
@@ -33,7 +34,7 @@ export default function TrackRecord() {
           <thead><tr><th>Match</th><th className="n">Model</th><th className="n">Market</th><th className="n">Score</th><th>Result</th></tr></thead>
           <tbody>{[...live.rows].reverse().map(r => (
             <tr key={r.match_id}>
-              <td><Link to={`/match/${r.match_id}`}>{r.team_a} vs {r.team_b}</Link></td>
+              <td><Link to={`/match/${r.match_id}`} className="team"><TeamLogo src={r.logo_a} name={r.team_a} size={18} />{r.team_a} <span className="muted">vs</span> <TeamLogo src={r.logo_b} name={r.team_b} size={18} />{r.team_b}</Link></td>
               <td className="n">{pct(r.p)}</td><td className="n">{pct(r.market)}</td>
               <td className="n">{logLoss(r.p, r.won).toFixed(3)}</td>
               <td><span className={r.won ? "verdict shipped" : "verdict rejected"}>{r.won ? `${r.team_a} won` : `${r.team_b} won`}</span></td>

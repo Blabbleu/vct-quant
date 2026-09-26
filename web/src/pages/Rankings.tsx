@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useSnapshot } from "../lib/api";
 import { eloWinProbability, pct } from "../lib/format";
 import { Failure, Loading, PageHead, SplitBar } from "../components/ui";
+import TeamLogo from "../components/TeamLogo";
 
 export default function Rankings() {
   const { data, error, loading } = useSnapshot();
@@ -32,9 +33,9 @@ export default function Rankings() {
         </div>
         {a === b ? <p className="muted">Pick two different teams.</p> : (
           <div className="odds">
-            <div className="big num">{pct(p)}</div>
+            <div className="side"><TeamLogo src={ta.logo} name={ta.team} size={40} /><div className="big num">{pct(p)}</div></div>
             <div className="odds-mid"><SplitBar p={p} /></div>
-            <div className="big num dim right">{pct(1 - p)}</div>
+            <div className="side right"><TeamLogo src={tb.logo} name={tb.team} size={40} /><div className="big num dim">{pct(1 - p)}</div></div>
           </div>
         )}
         <p className="muted small">Series odds on a neutral stage, from ratings alone: no map veto or roster news.</p>
@@ -44,7 +45,7 @@ export default function Rankings() {
         {rows.map(r => (
           <div className="rank" key={r.team}>
             <span className="i num">{r.rank}</span>
-            <b className="ellipsis">{r.team}</b>
+            <span className="team ellipsis"><TeamLogo src={r.logo} name={r.team} size={22} /><b className="ellipsis">{r.team}</b></span>
             <span className="bar-wrap"><i className="bar" style={{ width: `${((r.elo - lo) / (hi - lo)) * 100}%` }} /></span>
             <span className="val num">{r.elo.toFixed(0)} <em>{r.matches}m</em></span>
           </div>

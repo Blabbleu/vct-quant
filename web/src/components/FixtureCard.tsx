@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import type { Fixture } from "../lib/types";
+import TeamLogo from "./TeamLogo";
 import { liquid, pct, relative, when } from "../lib/format";
 
 /** One upcoming match: Elo and market on the same 0-100% track for team A. */
@@ -15,7 +16,9 @@ export default function FixtureCard({ f }: { f: Fixture }) {
         <span className="muted">{relative(f.start)}</span>
       </div>
       <div className="fx-teams">
-        <b>{f.team_a}</b><span className="vs">vs</span><b>{f.team_b}</b>
+        <span className="team"><TeamLogo src={f.logo_a} name={f.team_a} size={28} /><b>{f.team_a}</b></span>
+        <span className="vs">vs</span>
+        <span className="team right"><b>{f.team_b}</b><TeamLogo src={f.logo_b} name={f.team_b} size={28} /></span>
       </div>
       <div className="muted small ellipsis">{f.event} · {f.series}{f.best_of ? ` · Bo${f.best_of}` : ""}</div>
       <div className="track" aria-hidden>

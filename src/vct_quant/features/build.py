@@ -440,7 +440,7 @@ def add_map_predictions(
 def current_rankings(history: pd.DataFrame | None = None) -> pd.DataFrame:
     """Rank teams active in the latest Tier-1 season by current Elo."""
     history = match_sequence() if history is None else history
-    columns = ["rank", "season", "team_name", "elo", "season_matches", "last_match_id"]
+    columns = ["rank", "season", "team_name", "elo", "season_matches", "last_match_id", "team_key"]
     official = history.loc[history.tier.eq(1) & history.year.notna()]
     if official.empty:
         return pd.DataFrame(columns=columns)
@@ -470,7 +470,7 @@ def current_rankings(history: pd.DataFrame | None = None) -> pd.DataFrame:
             team["last_match_id"] = max(team["last_match_id"], int(row.match_id))
 
     out = pd.DataFrame([
-        {"season": season, "elo": ratings[key], **team}
+        {"season": season, "elo": ratings[key], "team_key": str(key), **team}
         for key, team in teams.items()
     ]).sort_values(["elo", "team_name"], ascending=[False, True], ignore_index=True)
     out.insert(0, "rank", out.index + 1)

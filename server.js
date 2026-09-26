@@ -91,7 +91,7 @@ function send(res, status, body, type = "application/json; charset=utf-8") {
 const DIST = path.join(ROOT, "web", "dist");
 const TYPES = {
   ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
-  ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon",
+  ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp", ".ico": "image/x-icon",
   ".json": "application/json; charset=utf-8", ".woff2": "font/woff2", ".txt": "text/plain; charset=utf-8",
 };
 
@@ -154,6 +154,22 @@ const server = http.createServer(async (req, res) => {
   }
   if (url.pathname.startsWith("/api/")) {
     return send(res, 404, JSON.stringify({ error: "not found", routes: Object.keys(ROUTES) }));
+  }
+  const logo = /^\/logos\/([1-9][0-9]{0,9})\.(png|jpg|webp|svg)$/.exec(url.pathname);
+  if (logo) {
+    try {
+      const body = await fs.readFile(path.join(ROOT, "data", "processed", "logos", `${logo[1]}.${logo[2]}`));
+      res.writeHead(200, {
+        "content-type": TYPES["." + logo[2]] || "application/octet-stream",
+        "content-length": body.length,
+        "cache-control": "public, max-age=86400",
+        "x-content-type-options": "nosniff",
+        ...(logo[2] === "svg" ? { "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'" } : {}),
+      });
+      return res.end(body);
+    } catch {
+      return send(res, 404, JSON.stringify({ error: "no logo" }));
+    }
   }
   // The legacy single-page desk stays reachable while the web app grows.
   if (url.pathname === "/legacy" || url.pathname.startsWith("/legacy/")) {

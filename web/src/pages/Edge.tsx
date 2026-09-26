@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useSnapshot } from "../lib/api";
 import { liquid, pct, when } from "../lib/format";
 import { Failure, Loading, PageHead } from "../components/ui";
+import TeamLogo from "../components/TeamLogo";
 
 /** Paper-only view of model vs market disagreements. Never a bet slip. */
 export default function Edge() {
@@ -13,9 +14,10 @@ export default function Edge() {
     .map(f => {
       const gap = f.p_a - (f.market as number);
       const side = gap >= 0 ? f.team_a : f.team_b;
+      const logo = gap >= 0 ? f.logo_a : f.logo_b;
       const modelP = gap >= 0 ? f.p_a : 1 - f.p_a;
       const marketP = gap >= 0 ? (f.market as number) : 1 - (f.market as number);
-      return { f, gap: Math.abs(gap), side, modelP, marketP, trusted: liquid(f.spread, f.volume) };
+      return { f, gap: Math.abs(gap), side, logo, modelP, marketP, trusted: liquid(f.spread, f.volume) };
     })
     .sort((x, y) => Number(y.trusted) - Number(x.trusted) || y.gap - x.gap);
   const live = data.live;
@@ -28,9 +30,9 @@ export default function Edge() {
 
       <section className="panel">
         {gaps.length === 0 && <p className="pad muted">No priced upcoming matches.</p>}
-        {gaps.map(({ f, gap, side, modelP, marketP, trusted }) => (
+        {gaps.map(({ f, gap, side, logo, modelP, marketP, trusted }) => (
           <Link to={`/match/${f.match_id}`} className="edge-row" key={f.match_id}>
-            <div className="ellipsis"><b>{side}</b><div className="muted small ellipsis">{f.team_a} vs {f.team_b} · {when(f.start)}</div></div>
+            <div className="team ellipsis"><TeamLogo src={logo} name={side} size={28} /><div className="ellipsis"><b>{side}</b><div className="muted small ellipsis">{f.team_a} vs {f.team_b} · {when(f.start)}</div></div></div>
             <div className="num right">{pct(modelP, 0)}<div className="muted small">model</div></div>
             <div className="num right">{pct(marketP, 0)}<div className="muted small">market</div></div>
             <div className="right"><span className={trusted ? "chip gap" : "chip"}>{trusted ? `+${(gap * 100).toFixed(0)} pts` : "thin"}</span></div>

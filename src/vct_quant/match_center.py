@@ -9,6 +9,7 @@ import pandas as pd
 
 from .config import PROCESSED_DIR
 from .features.build import match_sequence
+from .logos import load_logos
 
 
 def recent_form(matches: pd.DataFrame, team_a_key: str, team_b_key: str,
@@ -101,6 +102,9 @@ def main() -> None:
             match_sequence(tiers=(1,)), result["team_a_key"], result["team_b_key"],
             args.match_id, result["points"][-1]["observed_at"],
         )
+        logos = load_logos()
+        result["logo_a"] = logos.get(result["team_a_key"])
+        result["logo_b"] = logos.get(result["team_b_key"])
     print(json.dumps(result, allow_nan=False))
 
 

@@ -61,6 +61,11 @@ async function main() {
     assert.match(await legacy.text(), /VCT Quant Desk/);
     console.log("  /legacy serves the original single-file desk");
 
+    assert.equal((await fetch(base + "/logos/0.png")).status, 404);
+    assert.equal((await fetch(base + "/logos/..%2Fteam_logos.json")).status, 404);
+    assert.equal((await fetch(base + "/logos/1.exe")).status, 404);
+    console.log("  /logos only serves numeric image files");
+
     assert.equal((await fetch(base + "/api/nope")).status, 404);
     assert.equal((await fetch(base + "/assets/missing.js")).status, 404);
     assert.equal((await fetch(base + "/assets/..%2F..%2Fserver.js")).status, 404);

@@ -160,3 +160,15 @@ section { display: flex; flex-direction: column; gap: 12px; }
   .big { font-size: 24px; }
   td, th { padding: 8px 10px; }
 }
+
+/* Team logos */
+.logo { display: inline-block; flex: none; object-fit: contain; border-radius: 4px; }
+.logo.fallback { display: inline-flex; align-items: center; justify-content: center; background: var(--surface-2); color: var(--ink-2); font-family: var(--display); font-weight: 700; letter-spacing: -.02em; border: 1px solid var(--hairline); }
+.team { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.fx-teams { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px; }
+.fx-teams .team.right { justify-content: flex-end; text-align: right; }
+.fx-teams b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.odds .side { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.odds .side.right { align-items: flex-end; }
+.rank .team b { font-weight: 600; }
+td .team { gap: 5px; flex-wrap: wrap; }
