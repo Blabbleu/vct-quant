@@ -26,6 +26,12 @@
   --slant: -14deg;
   --dur: 120ms; --ease: cubic-bezier(.2, 0, 0, 1);
 
+  /* Responsive container padding: 12px <768, 24px 768-1199, 32px >=1200.
+     Kept separate from --gutter (the spec's fixed 12px phone gutter used for
+     panel gaps) so page/nav edge padding can grow on wider screens without
+     touching that token's meaning. */
+  --container-pad: var(--gutter);
+
   /* colour: dark (default) */
   color-scheme: dark;
   --bg: #07090A;
@@ -52,6 +58,57 @@
 
 @media (prefers-reduced-motion: reduce) {
   :root { --dur: 0ms; }
+}
+
+/* -------------------------------------------------------------------------
+   Responsive layout system. Content stays centred with a max width; the
+   edge gutter and the Display/H1/H2 type scale grow modestly at wider
+   breakpoints so desktop never looks like a stretched phone column, and
+   phone never gets squeezed desktop type. Row heights (--hit) never change.
+   ------------------------------------------------------------------------- */
+:root { --content-max: 1200px; }
+
+@media (min-width: 768px) {
+  :root { --container-pad: 24px; --fs-display: 30px; --fs-h1: 24px; }
+}
+@media (min-width: 1200px) {
+  :root { --container-pad: 32px; --fs-display: 34px; --fs-h1: 28px; }
+}
+
+/* -------------------------------------------------------------------------
+   Layout helpers for page agents: a centred max-width container plus
+   responsive grids. Use .arena-container for any page wrapper that needs
+   the same gutter/centring as the shell (the shell's own .wrap already
+   applies it). Use .arena-grid for a generic responsive layout (1 col below
+   768px, 2 cols 768-1199px, a 12-col track from 1200px) and its
+   .arena-grid-main / .arena-grid-aside children for the classic
+   content+sidebar split (8/4 columns from 1200px). Use .arena-board for a
+   card grid such as Matches (1 / 2 / 3 columns).
+   ------------------------------------------------------------------------- */
+.arena-container {
+  max-width: var(--content-max); margin: 0 auto; padding-left: var(--container-pad); padding-right: var(--container-pad);
+}
+
+.arena-grid { display: grid; grid-template-columns: 1fr; gap: var(--s-4); align-items: start; }
+@media (min-width: 768px) {
+  .arena-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 1200px) {
+  .arena-grid { grid-template-columns: repeat(12, 1fr); gap: var(--s-5); }
+}
+.arena-grid-main { grid-column: 1 / -1; min-width: 0; }
+.arena-grid-aside { grid-column: 1 / -1; min-width: 0; }
+@media (min-width: 1200px) {
+  .arena-grid-main { grid-column: span 8; }
+  .arena-grid-aside { grid-column: span 4; }
+}
+
+.arena-board { display: grid; grid-template-columns: 1fr; gap: var(--s-3); }
+@media (min-width: 768px) {
+  .arena-board { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 1200px) {
+  .arena-board { grid-template-columns: repeat(3, 1fr); }
 }
 
 /* -------------------------------------------------------------------------
@@ -87,7 +144,7 @@ a { color: inherit; text-decoration: none; }
 a:hover { text-decoration: underline; }
 h1 {
   font-family: var(--font-display); font-weight: 700;
-  font-size: clamp(var(--fs-display), 6vw, var(--fs-h1));
+  font-size: var(--fs-h1);
   line-height: var(--lh-tight); letter-spacing: -.01em; margin: 0; text-wrap: balance;
 }
 h2 {
@@ -214,21 +271,58 @@ select:focus-visible { outline: 2px solid var(--model); outline-offset: 1px; }
 
 /* Shell */
 .topbar { position: sticky; top: 0; z-index: 10; background: var(--bg); border-bottom: 1px solid var(--line); }
-.topbar-in { max-width: 1200px; margin: 0 auto; padding: var(--s-2) var(--gutter); display: flex; align-items: center; gap: var(--s-4); min-height: var(--hit); }
-.brand { font-family: var(--font-display); font-weight: 700; font-size: 18px; color: var(--text); letter-spacing: -.01em; white-space: nowrap; }
-.brand span { color: var(--model); margin-left: 2px; }
-.brand:hover { text-decoration: none; }
-.nav { display: flex; gap: var(--s-1); overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
-.nav::-webkit-scrollbar { display: none; }
-.nav a {
-  color: var(--text-2); font-family: var(--font-display); font-size: var(--fs-label); font-weight: 700;
-  text-transform: uppercase; letter-spacing: var(--track-label);
-  padding: 0 var(--s-2); min-height: var(--hit); display: inline-flex; align-items: center; white-space: nowrap;
+.topbar-in { max-width: 1200px; margin: 0 auto; padding: var(--s-2) var(--container-pad); display: flex; align-items: center; gap: var(--s-3); min-height: var(--hit); position: relative; }
+
+/* Wordmark: slanted chartreuse block, counter-skewed text. */
+.wordmark {
+  flex: none; background: var(--model); color: var(--result-ink);
+  padding: 0 var(--s-3); min-height: 32px; display: inline-flex; align-items: center;
+  font-family: var(--font-display); font-weight: 700; font-size: 14px; letter-spacing: .02em; white-space: nowrap;
 }
-.nav a:hover { color: var(--text); text-decoration: none; }
-.nav a.active { color: var(--text); background: var(--surface-2); box-shadow: inset 0 -3px 0 var(--model); }
-.wrap { max-width: 1200px; margin: 0 auto; padding: var(--s-5) var(--gutter) var(--s-6); display: flex; flex-direction: column; gap: var(--s-5); }
-.foot { max-width: 1200px; margin: 0 auto; padding: 0 var(--gutter) var(--s-5); color: var(--text-3); font-family: var(--font-num); font-size: var(--fs-meta); }
+.wordmark:hover { text-decoration: none; }
+@media (min-width: 1024px) {
+  .wordmark { font-size: 16px; padding: 0 var(--s-4); min-height: 36px; }
+}
+
+/* Tabs. Only the active one gets the slant + surface fill + underline. */
+.nav { display: flex; align-items: center; gap: var(--s-1); flex: 1 1 auto; min-width: 0; overflow: hidden; }
+.nav-tab {
+  display: inline-flex; align-items: center; justify-content: center; min-height: var(--hit);
+  padding: 0 var(--s-2); font-family: var(--font-display); font-weight: 700; font-size: var(--fs-label);
+  text-transform: uppercase; letter-spacing: var(--track-label); color: var(--text-2);
+  background: none; border: none; cursor: pointer; white-space: nowrap; flex: none;
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.nav-tab:hover { color: var(--text); text-decoration: none; }
+.nav-tab-active {
+  color: var(--text); background: var(--surface-2);
+  box-shadow: inset 0 -3px 0 var(--model); transform: skewX(var(--slant));
+}
+.nav-tab-active > span { display: inline-block; transform: skewX(calc(var(--slant) * -1)); }
+
+/* Overflow items merge into the same row at >=1200px; hidden below that. */
+.nav-more { display: none; }
+
+/* Mobile/tablet overflow menu. */
+.nav-overflow { position: static; flex: none; }
+.nav-overflow-btn {
+  min-width: var(--hit); min-height: var(--hit); display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: 1px solid var(--line-strong); color: var(--text); font-size: 20px; line-height: 1; cursor: pointer;
+}
+.nav-overflow-panel {
+  position: absolute; right: var(--gutter); top: 100%; margin-top: var(--s-1);
+  background: var(--surface-1); border: 1px solid var(--line); display: flex; flex-direction: column;
+  min-width: 200px; z-index: 20;
+}
+.nav-overflow-panel .nav-tab { justify-content: flex-start; width: 100%; padding: 0 var(--s-3); }
+
+@media (min-width: 1024px) {
+  .nav-more { display: contents; }
+  .nav-overflow { display: none; }
+}
+
+.wrap { max-width: 1200px; margin: 0 auto; padding: var(--s-5) var(--container-pad) var(--s-6); display: flex; flex-direction: column; gap: var(--s-5); }
+.foot { max-width: 1200px; margin: 0 auto; padding: 0 var(--container-pad) var(--s-5); color: var(--text-3); font-family: var(--font-num); font-size: var(--fs-meta); }
 
 /* Primitives */
 .page-head { display: flex; flex-direction: column; gap: var(--s-2); }
@@ -446,3 +540,149 @@ td .team { gap: 5px; flex-wrap: wrap; }
 .ops-dot.stale, .ops-dot.failed { background: var(--market); }
 .ops-run { display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 4px var(--s-3); align-items: baseline; padding: var(--s-2) 0; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
 .ops-run .ops-dot { align-self: center; }
+
+/* ==========================================================================
+   Terminal Arena shared components (web/src/components/arena/*)
+   ========================================================================== */
+
+/* --- LogoSlot ------------------------------------------------------------ */
+.logo-slot {
+  position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--logo-plate); border: 1px solid var(--line-strong);
+  transition: opacity var(--dur) var(--ease);
+}
+.logo-slot-dark { background: var(--logo-plate-dark); }
+.logo-slot-faded { opacity: .7; }
+.logo-slot-img { width: 88%; height: 88%; object-fit: contain; }
+.logo-slot-initials { font-family: var(--font-num); font-weight: 700; color: var(--text-2); letter-spacing: .02em; }
+
+/* --- TeamLabel ------------------------------------------------------------ */
+.team-label { font-family: var(--font-display); font-weight: 700; text-transform: uppercase; letter-spacing: .01em; min-width: 0; }
+
+/* --- PipBar ---------------------------------------------------------------
+   20 slanted blocks, 12px tall, 2px gaps; pink triangle notch floats above at
+   the market's exact %. */
+.pipbar { position: relative; padding-top: 8px; }
+.pipbar-track { display: flex; gap: 2px; height: 12px; }
+.pipbar-block {
+  flex: 1 1 0; height: 100%; background: var(--model-off); transform: skewX(var(--slant));
+  transition: background var(--dur) var(--ease);
+}
+.pipbar-block-filled { background: var(--model); }
+.pipbar-block-outline { background: transparent; box-shadow: inset 0 0 0 1px var(--model-off); }
+.pipbar-notch {
+  position: absolute; top: 0; width: 0; height: 0; margin-left: -5px;
+  border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid var(--market);
+}
+
+/* --- Gap chip --------------------------------------------------------------
+   AGREE (ghost/grey), 1-10pt (surface-3, .default), >=10pt (market fill). */
+.gapchip-wrap { display: inline-flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
+.gapchip-noprice { display: inline-flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
+.gapchip-ph { color: var(--text-ph); font-size: var(--fs-meta); }
+.gapchip-read { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-label); text-transform: uppercase; letter-spacing: var(--track-label); color: var(--text-2); }
+
+/* --- Chip / CountdownChip --------------------------------------------------
+   Slanted pill; text counter-skewed via the shared .slant rule. */
+.chip-arena {
+  display: inline-flex; align-items: center; min-height: 22px; padding: 2px var(--s-2);
+  font-family: var(--font-display); font-weight: 700; font-size: 11px; text-transform: uppercase;
+  letter-spacing: .04em; white-space: nowrap; background: var(--surface-3); color: var(--text-2);
+}
+.chip-arena-model { background: var(--model); color: var(--result-ink); }
+.chip-arena-market { background: var(--market); color: var(--result-ink); }
+.chip-arena-result { background: var(--result); color: var(--result-ink); }
+.chip-arena-ghost { background: var(--surface-2); color: var(--text-3); }
+.live-dot {
+  display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: currentColor;
+  margin-right: 5px; animation: live-pulse 1.2s var(--ease) infinite;
+}
+@media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
+@keyframes live-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+
+/* --- Panel (two-layer cut-corner border + optional corner brackets) ------ */
+.panel-arena-wrap { position: relative; }
+.panel-bracket { position: absolute; width: 12px; height: 12px; pointer-events: none; }
+.panel-bracket-tl { top: -1px; left: -1px; border-top: 2px solid var(--model); border-left: 2px solid var(--model); }
+.panel-bracket-tr { top: -1px; right: -1px; border-top: 2px solid var(--model); border-right: 2px solid var(--model); }
+.panel-bracket-bl { bottom: -1px; left: -1px; border-bottom: 2px solid var(--model); border-left: 2px solid var(--model); }
+.panel-bracket-br { bottom: -1px; right: -1px; border-bottom: 2px solid var(--model); border-right: 2px solid var(--model); }
+
+/* --- SectionHead ----------------------------------------------------------
+   H2 already carries the uppercase + hairline; this just adds the trailing slot. */
+.section-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); }
+.section-head h2 { flex: 1; }
+.section-head-right { padding-bottom: var(--s-2); flex: none; }
+
+/* --- StatCell --------------------------------------------------------------- */
+.statcell { background: var(--surface-2); padding: var(--s-2) var(--s-3); display: flex; flex-direction: column; gap: 2px; }
+.statcell-value { font-size: var(--fs-num-m); font-weight: 800; color: var(--text); }
+.statcell-model .statcell-value { color: var(--model); }
+.statcell-market .statcell-value { color: var(--market); }
+.statcell-result .statcell-value { color: var(--result); }
+.statcell-label { font-family: var(--font-display); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: var(--track-label); color: var(--text-3); }
+
+/* --- Banner ------------------------------------------------------------- */
+.banner-arena {
+  display: inline-flex; align-items: center; padding: var(--s-2) var(--s-3);
+  font-family: var(--font-display); font-weight: 700; font-size: var(--fs-label);
+  text-transform: uppercase; letter-spacing: var(--track-banner); background: var(--surface-2); color: var(--text-2);
+}
+.banner-arena-complete { background: var(--surface-2); color: var(--text); }
+.banner-arena-live { background: var(--market); color: var(--result-ink); }
+.banner-arena-upcoming { background: var(--surface-2); color: var(--text-2); }
+
+/* --- States: loading / error / empty / stale ------------------------------ */
+.loading-blocks { display: flex; flex-direction: column; gap: var(--s-3); }
+.loading-card { background: var(--surface-1); border: 1px solid var(--line); padding: var(--s-3) var(--s-4); display: flex; flex-direction: column; gap: var(--s-2); }
+.loading-line { height: 14px; background: var(--surface-1); box-shadow: inset 0 0 0 1px var(--line); }
+.loading-line-wide { width: 70%; }
+.loading-line-narrow { width: 40%; }
+
+.error-panel { border: 1px solid var(--line-strong); padding: var(--s-4); display: flex; flex-direction: column; gap: var(--s-2); align-items: flex-start; }
+.error-panel-title { font-family: var(--font-display); font-weight: 700; text-transform: uppercase; letter-spacing: var(--track-label); }
+.error-panel-line { color: var(--text-2); }
+.error-panel-detail { color: var(--text-3); font-size: var(--fs-meta); }
+
+.empty-state { border: 1px solid var(--line); padding: var(--s-5) var(--s-4); display: flex; flex-direction: column; gap: var(--s-2); align-items: flex-start; }
+.empty-state-title { font-family: var(--font-display); font-weight: 700; text-transform: uppercase; letter-spacing: var(--track-label); }
+.empty-state-line { color: var(--text-2); }
+
+.stale-note { color: var(--text-3); font-size: var(--fs-meta); }
+
+/* --- RecordBar -------------------------------------------------------------- */
+.record-bar { display: flex; flex-direction: column; gap: var(--s-2); }
+.record-bar-label {
+  display: flex; justify-content: space-between; font-family: var(--font-display); font-weight: 700;
+  font-size: var(--fs-label); text-transform: uppercase; letter-spacing: var(--track-label); color: var(--text-2);
+}
+.record-bar-track { display: flex; gap: 2px; height: 14px; }
+.record-bar-seg { flex: 1 1 0; height: 100%; background: var(--surface-3); }
+.record-bar-seg-filled { background: var(--model); }
+.record-bar-meta { color: var(--text-3); font-size: var(--fs-meta); }
+
+/* --- ArenaKit dev page ------------------------------------------------------ */
+.arena-kit-section { display: flex; flex-direction: column; gap: var(--s-3); padding-bottom: var(--s-5); border-bottom: 1px solid var(--line); }
+.arena-kit-row { display: flex; flex-wrap: wrap; gap: var(--s-4); align-items: center; }
+.arena-kit-sample { display: flex; flex-direction: column; gap: var(--s-2); min-width: 160px; }
+.arena-kit-sample-label { font-family: var(--font-num); font-size: 11px; color: var(--text-3); }
+.arena-kit-viewport { display: flex; flex-direction: column; gap: var(--s-2); }
+.arena-kit-viewport-frame {
+  border: 1px solid var(--line-strong); background: var(--surface-1); overflow: auto; padding: var(--s-3);
+}
+
+/* -------------------------------------------------------------------------
+   Modest desktop scale-up for components (spacing/type only; row heights and
+   hit targets stay fixed at 44px per spec). Applied from the same 768/1200
+   breakpoints as the layout system so components read right at every width
+   instead of just at 390px.
+   ------------------------------------------------------------------------- */
+@media (min-width: 768px) {
+  .chip-arena { font-size: 12px; padding: 3px var(--s-3); }
+  .statcell { padding: var(--s-3) var(--s-4); }
+  .statcell-value { font-size: var(--fs-num-l); }
+  .banner-arena { font-size: var(--fs-label); padding: var(--s-2) var(--s-4); }
+}
+@media (min-width: 1200px) {
+  .pipbar-track { height: 14px; }
+}

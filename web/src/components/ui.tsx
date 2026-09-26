@@ -1,16 +1,12 @@
 import type { ReactNode } from "react";
+import { LoadingBlocks, ErrorPanel } from "./arena/States";
 
 export function Loading({ what = "forecasts" }: { what?: string }) {
-  return <p className="muted pad">Loading {what}…</p>;
+  return <LoadingBlocks label={`Loading ${what}\u2026`} />;
 }
 
 export function Failure({ error }: { error: string }) {
-  return (
-    <div className="panel pad">
-      <b>Could not load data.</b>
-      <p className="muted">{error}</p>
-    </div>
-  );
+  return <ErrorPanel detail={error} />;
 }
 
 export function PageHead({ eyebrow, title, children }: { eyebrow?: string; title: ReactNode; children?: ReactNode }) {
