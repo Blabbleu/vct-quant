@@ -1,0 +1,43 @@
+/* MatchRow: compact odds-board row/card used by Home and Matches.
+   Owned by the Home/Matches page agent (web/src/pages/{Home,Matches}.tsx,
+   web/src/components/FixtureCard.tsx). See docs/design-terminal-arena.pdf
+   "Match card (Matches list)". */
+
+/* min-width: 0 so this grid/flex item can shrink below its content's
+   min-content size (default grid items are minmax(auto, 1fr), i.e. they
+   refuse to shrink past their widest line, which overflowed 2-col boards
+   at 768px before this). */
+.match-row-panel { display: block; height: 100%; min-width: 0; }
+.match-row-panel:hover .arena-frame:not(.frame-result) { background: var(--model); }
+
+.match-row-link {
+  display: flex; flex-direction: column; gap: var(--s-2);
+  padding: var(--s-3) var(--s-4); color: inherit; height: 100%;
+}
+.match-row-link:hover { text-decoration: none; }
+
+.match-row-top { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }
+.match-row-time-wrap { display: flex; align-items: center; gap: var(--s-2); flex: none; }
+.match-row-time { font-size: var(--fs-num-s); font-weight: 700; }
+.match-row-stage { flex: 1 1 auto; min-width: 0; text-align: right; }
+
+.match-row-teams {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto minmax(0, 1fr);
+  gap: var(--s-2); align-items: center;
+}
+.match-row-side { display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
+.match-row-side-right { flex-direction: row-reverse; text-align: right; }
+.match-row-pct { font-size: var(--fs-num-l); font-weight: 800; line-height: 1; }
+.match-row-pct-fav { color: var(--model); }
+.match-row-pct-dim { color: var(--text-3); }
+
+.match-row-bottom { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2) var(--s-3); flex-wrap: wrap; }
+.match-row-market { color: var(--text-2); }
+.match-row-market-value { color: var(--market); }
+
+.match-row-lowdata-note { margin: 0; }
+
+@media (max-width: 420px) {
+  .match-row-pct { font-size: var(--fs-num-m); }
+  .match-row-stage { display: none; }
+}

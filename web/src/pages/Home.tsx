@@ -1,56 +1,88 @@
 import { Link } from "react-router-dom";
-import { useSnapshot } from "../lib/api";
-import { int, num, pct } from "../lib/format";
+import { useSnapshot, useResults } from "../lib/api";
 import FixtureCard from "../components/FixtureCard";
-import { Failure, Loading, PageHead, Tile } from "../components/ui";
+import SectionHead from "../components/arena/SectionHead";
+import Panel from "../components/arena/Panel";
+import RecordBar from "../components/arena/RecordBar";
+import { LoadingBlocks, ErrorPanel, EmptyState } from "../components/arena/States";
+import { COPY } from "../lib/constants";
+import "./Home.css";
+
+const QUICK_LINKS = [
+  { to: "/champions/2766", title: "Champions Shanghai groups", line: "Verified group results and qualifiers from the recorded bracket." },
+  { to: "/rankings", title: "Power rankings", line: "The full Elo table and a head-to-head picker." },
+  { to: "/edge", title: "Edge board", line: "Where the model and the market disagree most, on paper." },
+  { to: "/track-record", title: "Track record", line: "Every forecast logged before the match and graded after." },
+  { to: "/about", title: "How it works", line: "What the numbers mean and how to read them." },
+];
 
 export default function Home() {
   const { data, error, loading } = useSnapshot();
-  if (loading) return <Loading />;
-  if (error || !data) return <Failure error={error ?? "no data"} />;
-  const next = [...data.fixtures].sort((a, b) => a.start.localeCompare(b.start)).slice(0, 3);
-  const live = data.live;
+  const results = useResults();
+
+  if (loading) return <LoadingBlocks label="Loading forecasts\u2026" />;
+  if (error || !data) return <ErrorPanel detail={error ?? "no data"} onRetry={() => location.reload()} />;
+
+  const next = [...data.fixtures].sort((a, b) => a.start.localeCompare(b.start)).slice(0, 5);
+  const nextEvent = next[0]?.event ?? data.fixtures[0]?.event;
+  const nextStage = next[0]?.series ?? data.fixtures[0]?.series;
+
+  const tier1 = results.data?.by_tier?.["1"];
+  const recordLine = tier1
+    ? `Model picked the winner in ${tier1.favourite_won} of ${tier1.verified} graded Tier 1 matches.`
+    : null;
+
   return (
-    <>
-      <PageHead eyebrow={`Valorant Champions Tour · ${data.season}`} title="Who wins the next VCT match?">
-        Win chances for every upcoming Tier-1 match, next to what the betting market thinks, and an honest record
-        of how the model has done.
-      </PageHead>
+    <div className="home-page">
+      <header className="page-head">
+        {nextEvent && <div className="home-event num">{nextEvent}{nextStage ? ` \u00B7 ${nextStage}` : ""}</div>}
+        <h1>Who wins the next VCT match?</h1>
+        <p className="lede">
+          Win chances for every upcoming Tier 1 match, next to what the betting market thinks, and an honest
+          record of how the model has done.
+        </p>
+      </header>
 
-      <div className="tiles">
-        <Tile hero value={live.graded ? num(live.log_loss, 3) : "–"} label={`Live score · ${live.graded} matches graded (lower is better)`} />
-        <Tile value={pct(data.backtest.accuracy)} label={`Picks the winner · ${int(data.backtest.n)} past matches`} />
-        <Tile value={data.fixtures.length} label="Upcoming matches forecast" />
-        <Tile value={int(data.coverage.matches)} label="Matches in the database" />
+      <div className="arena-grid home-grid">
+        <div className="arena-grid-main">
+          <SectionHead title="Next up" right={<Link to="/matches">All matches &rarr;</Link>} />
+          {next.length === 0 ? (
+            <EmptyState
+              title={COPY.noMatchesScheduled}
+              line={data.fixtures[0]?.event ? `Next known event: ${data.fixtures[0].event}.` : "No event is scheduled yet."}
+            />
+          ) : (
+            <div className="home-next-list">
+              {next.map(f => <FixtureCard key={f.match_id} f={f} />)}
+            </div>
+          )}
+        </div>
+
+        <div className="arena-grid-aside home-aside">
+          <Panel cut="m" frame="line">
+            <div className="pad home-record">
+              <SectionHead title="Record" />
+              {recordLine ? (
+                <>
+                  <p className="home-record-line">{recordLine}</p>
+                  <RecordBar calls={tier1!.verified} hits={tier1!.favourite_won} logLoss={tier1!.log_loss} />
+                </>
+              ) : (
+                <p className="muted small">No graded Tier 1 matches yet this season.</p>
+              )}
+            </div>
+          </Panel>
+
+          <div className="home-links">
+            {QUICK_LINKS.map(l => (
+              <Link key={l.to} to={l.to} className="panel home-link cut-m">
+                <span className="home-link-title">{l.title}</span>
+                <span className="muted small">{l.line}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
       </div>
-
-      <section>
-        <div className="head"><h2>Next up</h2><Link to="/matches">All matches →</Link></div>
-        <div className="cards">{next.map(f => <FixtureCard key={f.match_id} f={f} />)}</div>
-      </section>
-
-      <section className="grid-2">
-        <Link to="/champions/2766" className="panel pad link-panel">
-          <h2>Champions Shanghai groups</h2>
-          <p className="muted">Verified group results and qualifiers from the recorded bracket. No playoff odds yet.</p>
-        </Link>
-        <Link to="/rankings" className="panel pad link-panel">
-          <h2>Power rankings</h2>
-          <p className="muted">{data.rankings.slice(0, 3).map(r => r.team).join(", ")} lead the {data.season} Elo table.</p>
-        </Link>
-        <Link to="/edge" className="panel pad link-panel">
-          <h2>Edge board</h2>
-          <p className="muted">Where the model and the market disagree most, and how betting those gaps would have done on paper.</p>
-        </Link>
-        <Link to="/track-record" className="panel pad link-panel">
-          <h2>Track record</h2>
-          <p className="muted">Every forecast logged before the match and graded after. Nothing deleted.</p>
-        </Link>
-        <Link to="/about" className="panel pad link-panel">
-          <h2>How it works</h2>
-          <p className="muted">What the numbers mean and how to read them, in two minutes.</p>
-        </Link>
-      </section>
-    </>
+    </div>
   );
 }

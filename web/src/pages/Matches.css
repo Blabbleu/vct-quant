@@ -1,0 +1,26 @@
+/* Matches page. Owned by the Home/Matches page agent. */
+
+.matches-page { display: flex; flex-direction: column; gap: var(--s-5); }
+
+.matches-filter { display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
+.matches-filter-label {
+  font-family: var(--font-display); font-weight: 700; font-size: var(--fs-label);
+  text-transform: uppercase; letter-spacing: var(--track-label); color: var(--text-3);
+}
+.matches-filter select { min-width: 220px; }
+
+.matches-day { display: flex; flex-direction: column; gap: var(--s-3); }
+.matches-day-head {
+  font-family: var(--font-num); font-size: var(--fs-meta); font-weight: 500;
+  text-transform: uppercase; letter-spacing: .06em; color: var(--text-2);
+  margin: 0; padding: 0 0 var(--s-2); border-bottom: 1px solid var(--line);
+}
+
+/* Phone: single column list (arena-board is already 1-col below 768px).
+   Desktop >=1024px: a wider board with more breathing room per card than
+   the 768px 2-col step, so cards read as a designed grid, not a stretched
+   list. */
+.matches-board { gap: var(--s-3); }
+@media (min-width: 1024px) and (max-width: 1199px) {
+  .matches-board { grid-template-columns: repeat(2, 1fr); }
+}
