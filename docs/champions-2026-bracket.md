@@ -42,6 +42,22 @@ from this static schedule.
   `unresolved` in the JSON. Do not infer them from match IDs or enumerated
   order. A final with bracket-reset semantics is likewise not assumed;
   confirm the final rule before modeling title odds.
+- Group advancement is now implemented **only as a fail-closed routing
+  primitive**, not as odds or an API. Each result must have an ID-checked final
+  match detail, distinct positive team IDs, integer unequal series scores and
+  matching winner flags. Winners/losers of both openers feed the winner's and
+  elimination slots respectively; the winner's loser meets the elimination
+  winner in the decider. The two qualifiers are winner's and decider winners.
+  The primitive refuses a completed downstream slot without its upstream
+  results or with contradictory participants. A read-only 2026-09-26 ~04:07 UTC
+  local vlrggapi probe of [2] and `/v2/match/details?match_id=` for the four C/D
+  openers matched the next listed pairings: C winner's G2 Esports–Paper Rex
+  (753456), C elimination TYLOO–Team Liquid (753457); D winner's Karmine
+  Corp–NRG (753461), D elimination Xi Lai Gaming–Nongshim RedForce (753462).
+  This checks the **group** edges only; none of the deciders has a final result
+  and playoff seeding/crossover remains unresolved. Two opener details are in
+  the archived raw files [4]; the other two were read-only observations and
+  must be rechecked at publication.
 - Use a frozen **pre-match** Elo replay for every simulation. Completed
   matches are fixed only from point-in-time scored results; future pairings
   use the primary Elo probability without changing `predict_upcoming` or
