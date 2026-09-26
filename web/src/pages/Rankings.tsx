@@ -3,6 +3,7 @@ import { useSnapshot } from "../lib/api";
 import { eloWinProbability, pct } from "../lib/format";
 import { Failure, Loading, PageHead, SplitBar } from "../components/ui";
 import TeamLogo from "../components/TeamLogo";
+import TeamName from "../components/TeamName";
 
 export default function Rankings() {
   const { data, error, loading } = useSnapshot();
@@ -24,18 +25,18 @@ export default function Rankings() {
         <h2>Head to head</h2>
         <div className="picks">
           <select value={a} onChange={e => setA(Number(e.target.value))} aria-label="Team A">
-            {rows.map((r, i) => <option key={r.team} value={i}>{r.team}</option>)}
+            {rows.map((r, i) => <option key={r.team} value={i}>{r.tag ? `${r.team} (${r.tag})` : r.team}</option>)}
           </select>
           <span className="vs">vs</span>
           <select value={b} onChange={e => setB(Number(e.target.value))} aria-label="Team B">
-            {rows.map((r, i) => <option key={r.team} value={i}>{r.team}</option>)}
+            {rows.map((r, i) => <option key={r.team} value={i}>{r.tag ? `${r.team} (${r.tag})` : r.team}</option>)}
           </select>
         </div>
         {a === b ? <p className="muted">Pick two different teams.</p> : (
           <div className="odds">
-            <div className="side"><TeamLogo src={ta.logo} name={ta.team} size={40} /><div className="big num">{pct(p)}</div></div>
+            <div className="side"><TeamLogo src={ta.logo} name={ta.team} size={40} /><div className="big num">{pct(p)}</div><div className="muted small"><TeamName name={ta.team} tag={ta.tag} mode="tag" /></div></div>
             <div className="odds-mid"><SplitBar p={p} /></div>
-            <div className="side right"><TeamLogo src={tb.logo} name={tb.team} size={40} /><div className="big num dim">{pct(1 - p)}</div></div>
+            <div className="side right"><TeamLogo src={tb.logo} name={tb.team} size={40} /><div className="big num dim">{pct(1 - p)}</div><div className="muted small"><TeamName name={tb.team} tag={tb.tag} mode="tag" /></div></div>
           </div>
         )}
         <p className="muted small">Series odds on a neutral stage, from ratings alone: no map veto or roster news.</p>
@@ -45,7 +46,7 @@ export default function Rankings() {
         {rows.map(r => (
           <div className="rank" key={r.team}>
             <span className="i num">{r.rank}</span>
-            <span className="team ellipsis"><TeamLogo src={r.logo} name={r.team} size={22} /><b className="ellipsis">{r.team}</b></span>
+            <span className="team ellipsis"><TeamLogo src={r.logo} name={r.team} size={22} /><b className="ellipsis"><TeamName name={r.team} tag={r.tag} /></b></span>
             <span className="bar-wrap"><i className="bar" style={{ width: `${((r.elo - lo) / (hi - lo)) * 100}%` }} /></span>
             <span className="val num">{r.elo.toFixed(0)} <em>{r.matches}m</em></span>
           </div>

@@ -3,6 +3,7 @@ import { useSnapshot } from "../lib/api";
 import { int, logLoss, num, pct } from "../lib/format";
 import Calibration from "../components/Calibration";
 import TeamLogo from "../components/TeamLogo";
+import TeamName, { shortName } from "../components/TeamName";
 import { Failure, Loading, PageHead, Tile } from "../components/ui";
 
 const SHADOW_NAMES: Record<string, string> = {
@@ -34,10 +35,10 @@ export default function TrackRecord() {
           <thead><tr><th>Match</th><th className="n">Model</th><th className="n">Market</th><th className="n">Score</th><th>Result</th></tr></thead>
           <tbody>{[...live.rows].reverse().map(r => (
             <tr key={r.match_id}>
-              <td><Link to={`/match/${r.match_id}`} className="team"><TeamLogo src={r.logo_a} name={r.team_a} size={18} />{r.team_a} <span className="muted">vs</span> <TeamLogo src={r.logo_b} name={r.team_b} size={18} />{r.team_b}</Link></td>
+              <td><Link to={`/match/${r.match_id}`} className="team"><TeamLogo src={r.logo_a} name={r.team_a} size={18} /><TeamName name={r.team_a} tag={r.tag_a} mode="auto" /> <span className="muted">vs</span> <TeamLogo src={r.logo_b} name={r.team_b} size={18} /><TeamName name={r.team_b} tag={r.tag_b} mode="auto" /></Link></td>
               <td className="n">{pct(r.p)}</td><td className="n">{pct(r.market)}</td>
               <td className="n">{logLoss(r.p, r.won).toFixed(3)}</td>
-              <td><span className={r.won ? "verdict shipped" : "verdict rejected"}>{r.won ? `${r.team_a} won` : `${r.team_b} won`}</span></td>
+              <td><span className={r.won ? "verdict shipped" : "verdict rejected"}>{r.won ? `${shortName(r.team_a, r.tag_a) ?? r.team_a} won` : `${shortName(r.team_b, r.tag_b) ?? r.team_b} won`}</span></td>
             </tr>
           ))}</tbody>
         </table></div>

@@ -12,6 +12,8 @@ export interface Fixture {
   team_b: string;
   logo_a: string | null;
   logo_b: string | null;
+  tag_a: string | null;
+  tag_b: string | null;
   elo_a: number;
   elo_b: number;
   p_a: number;
@@ -30,11 +32,11 @@ export interface Backtest {
   folds: { fold: number; n: number; log_loss: number }[];
   calibration: CalibrationBucket[];
 }
-export interface Ranking { rank: number; team: string; elo: number; matches: number; logo: string | null }
+export interface Ranking { rank: number; team: string; elo: number; matches: number; logo: string | null; tag: string | null }
 export interface LedgerRow { name: string; holdout: string; score: string; verdict: string }
 export interface GradedRow {
   match_id: number; team_a: string; team_b: string; p: number; won: boolean; market: number | null;
-  logo_a: string | null; logo_b: string | null;
+  logo_a: string | null; logo_b: string | null; tag_a: string | null; tag_b: string | null;
 }
 export interface ShadowScore { n: number; elo: number; shadow: number }
 export interface Live {
@@ -59,7 +61,7 @@ export interface FormResult { match_id: number; opponent: string; result: "W" | 
 export interface Movement {
   match_id: number; team_a: string; team_b: string; scheduled_at: string;
   team_a_key: string; team_b_key: string;
-  logo_a?: string | null; logo_b?: string | null;
+  logo_a?: string | null; logo_b?: string | null; tag_a?: string | null; tag_b?: string | null;
   recent_form: { a: FormResult[]; b: FormResult[] };
   points: MovementPoint[]; note: string;
 }

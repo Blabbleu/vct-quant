@@ -27,7 +27,7 @@ from .features.build import (
     match_sequence,
 )
 from .features.ratings import compute_elo
-from .logos import load_logos
+from .logos import load_logos, load_tags
 
 MAX_SPREAD = 0.10
 
@@ -168,10 +168,11 @@ def graded_log() -> dict:
                 "shadow": float(metrics.log_loss(y[has], scored[column].to_numpy()[has])),
             }
     out["shadows"] = shadows
-    logos = load_logos()
+    logos, tags = load_logos(), load_tags()
     out["rows"] = [
         {"match_id": int(r.match_id), "team_a": r.team_a_name, "team_b": r.team_b_name,
          "logo_a": _logo(logos, r.team_a_key), "logo_b": _logo(logos, r.team_b_key),
+            "tag_a": _logo(tags, r.team_a_key), "tag_b": _logo(tags, r.team_b_key),
          "p": float(r.p_team_a_win), "won": bool(r.is_winner),
          "market": None if pd.isna(r.p_market_a) else float(r.p_market_a)}
         for r in scored.itertuples()
@@ -180,6 +181,7 @@ def graded_log() -> dict:
 
 
 def _logo(logos: dict[str, str], key) -> str | None:
+    """Lookup by team key in a logo or tag map; None for unknown/missing keys."""
     return None if key is None or pd.isna(key) else logos.get(str(key))
 
 
@@ -187,7 +189,7 @@ def fixtures() -> list[dict]:
     path = PROCESSED_DIR / "upcoming_tier1.parquet"
     if not path.exists():
         return []
-    logos = load_logos()
+    logos, tags = load_logos(), load_tags()
     up = pd.read_parquet(path).sort_values("scheduled_at")
     up = up[up.team_a_name.ne("TBD") & up.team_b_name.ne("TBD")]
     return [
@@ -200,6 +202,7 @@ def fixtures() -> list[dict]:
             "best_of": int(r.best_of),
             "team_a": r.team_a_name, "team_b": r.team_b_name,
             "logo_a": _logo(logos, r.team_a_key), "logo_b": _logo(logos, r.team_b_key),
+            "tag_a": _logo(tags, r.team_a_key), "tag_b": _logo(tags, r.team_b_key),
             "elo_a": float(r.elo_a), "elo_b": float(r.elo_b),
             "p_a": float(r.p_team_a_win),
             "p_sweep": float(r.p_sweep),
@@ -240,14 +243,15 @@ def _db_stamp() -> float:
 @lru_cache(maxsize=4)
 def _cached(stamp: float) -> dict:
     rankings = current_rankings().head(24)  # the leaderboard and the matchup picker
-    logos = load_logos()
+    logos, tags = load_logos(), load_tags()
     return {
         "coverage": coverage(),
         "backtest": official_backtest(),
         "gc": gc_pool(),
         "rankings": [
             {"rank": int(r.rank), "team": r.team_name, "elo": float(r.elo),
-             "matches": int(r.season_matches), "logo": logos.get(str(r.team_key))}
+             "matches": int(r.season_matches), "logo": logos.get(str(r.team_key)),
+             "tag": tags.get(str(r.team_key))}
             for r in rankings.itertuples()
         ],
         "season": int(rankings.season.iloc[0]) if not rankings.empty else None,

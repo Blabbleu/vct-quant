@@ -3,6 +3,7 @@ import { useMovement, useSnapshot } from "../lib/api";
 import { liquid, pct, relative, when } from "../lib/format";
 import LineChart from "../components/LineChart";
 import TeamLogo from "../components/TeamLogo";
+import TeamName from "../components/TeamName";
 import { Failure, Loading, PageHead, SplitBar, Tile } from "../components/ui";
 
 export default function MatchCenter() {
@@ -19,6 +20,7 @@ export default function MatchCenter() {
 
   const teamA = f?.team_a ?? m!.team_a, teamB = f?.team_b ?? m!.team_b;
   const logoA = f?.logo_a ?? m?.logo_a ?? null, logoB = f?.logo_b ?? m?.logo_b ?? null;
+  const tagA = f?.tag_a ?? m?.tag_a ?? null, tagB = f?.tag_b ?? m?.tag_b ?? null;
   const start = f?.start ?? m!.scheduled_at;
   const last = m?.points.at(-1);
   const p = f?.p_a ?? last?.elo ?? 0.5;
@@ -39,9 +41,9 @@ export default function MatchCenter() {
 
       <section className="panel pad">
         <div className="odds">
-          <div className="side"><TeamLogo src={logoA} name={teamA} size={56} /><div className="big num">{pct(p)}</div><div className="muted small">{teamA}</div></div>
+          <div className="side"><TeamLogo src={logoA} name={teamA} size={56} /><div className="big num">{pct(p)}</div><div className="muted small"><TeamName name={teamA} tag={tagA} mode="auto" /></div></div>
           <div className="odds-mid"><SplitBar p={p} /><div className="muted small center">model series odds</div></div>
-          <div className="side right"><TeamLogo src={logoB} name={teamB} size={56} /><div className="big num dim">{pct(1 - p)}</div><div className="muted small">{teamB}</div></div>
+          <div className="side right"><TeamLogo src={logoB} name={teamB} size={56} /><div className="big num dim">{pct(1 - p)}</div><div className="muted small"><TeamName name={teamB} tag={tagB} mode="auto" /></div></div>
         </div>
       </section>
 
@@ -55,8 +57,8 @@ export default function MatchCenter() {
       {f && (
         <section className="panel pad">
           <h2>Ratings</h2>
-          <div className="kv"><span>{teamA}</span><b className="num">{f.elo_a.toFixed(0)}</b><span className="muted small">{f.matches_a} rated matches</span></div>
-          <div className="kv"><span>{teamB}</span><b className="num">{f.elo_b.toFixed(0)}</b><span className="muted small">{f.matches_b} rated matches</span></div>
+          <div className="kv"><span><TeamName name={teamA} tag={tagA} /></span><b className="num">{f.elo_a.toFixed(0)}</b><span className="muted small">{f.matches_a} rated matches</span></div>
+          <div className="kv"><span><TeamName name={teamB} tag={tagB} /></span><b className="num">{f.elo_b.toFixed(0)}</b><span className="muted small">{f.matches_b} rated matches</span></div>
           <p className="muted small">A 100-point Elo edge is roughly 64% to win the series.</p>
         </section>
       )}

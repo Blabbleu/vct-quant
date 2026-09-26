@@ -55,3 +55,29 @@ def test_load_logos_prefers_local_copy(tmp_path):
         "8": "https://owcdn.net/img/b.png",  # file missing on disk: fall back to source
         "9": "https://owcdn.net/img/c.png",  # unsafe name ignored
     }
+
+
+def test_tags_come_from_team_pages_and_are_not_erased_by_empty_tags(tmp_path):
+    _write(tmp_path / "team_624_20260101T000000Z.json",
+           {"data": {"segments": [{"id": "624", "name": "Paper Rex", "tag": "PRX",
+                                   "logo": "https://owcdn.net/img/p.png"}]}})
+    _write(tmp_path / "match_details_20260301T000000Z.json", {"data": {"segments": [{"teams": [
+        {"id": "624", "name": "Paper Rex", "tag": "", "logo": "https://owcdn.net/img/p2.png"},
+        {"id": "9", "name": "Weird", "tag": "<script>", "logo": ""},
+    ]}]}})
+    found = logos.harvest(tmp_path)
+    assert found["624"]["tag"] == "PRX"
+    assert "9" not in found
+
+    cache = tmp_path / "team_logos.json"
+    _write(cache, {"624": {"tag": "PRX"}, "7": {"tag": "toolongtag"}, "8": {"tag": ""}})
+    assert logos.load_tags(cache) == {"624": "PRX"}
+
+
+def test_clean_tag():
+    assert logos.clean_tag(" PRX ") == "PRX"
+    assert logos.clean_tag("T1") == "T1"
+    assert logos.clean_tag("FUT.") == "FUT."
+    assert logos.clean_tag("") is None
+    assert logos.clean_tag("a b") is None
+    assert logos.clean_tag("ABCDEFG") is None

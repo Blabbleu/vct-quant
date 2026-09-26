@@ -9,7 +9,7 @@ import pandas as pd
 
 from .config import PROCESSED_DIR
 from .features.build import match_sequence
-from .logos import load_logos
+from .logos import load_logos, load_tags
 
 
 def recent_form(matches: pd.DataFrame, team_a_key: str, team_b_key: str,
@@ -105,6 +105,9 @@ def main() -> None:
         logos = load_logos()
         result["logo_a"] = logos.get(result["team_a_key"])
         result["logo_b"] = logos.get(result["team_b_key"])
+        tags = load_tags()
+        result["tag_a"] = tags.get(result["team_a_key"])
+        result["tag_b"] = tags.get(result["team_b_key"])
     print(json.dumps(result, allow_nan=False))
 
 

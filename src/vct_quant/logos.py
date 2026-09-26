@@ -1,8 +1,8 @@
-"""Team logos for the web app: a small id -> logo URL cache.
+"""Team logos and short tags (PRX, NRG, ...) for the web app.
 
 Logos come from vlrggapi team payloads (``/v2/team?id=``) and from team blocks
 inside archived match details. The cache lives at
-``data/processed/team_logos.json`` as ``{team_id: {"name": ..., "logo": ...}}``
+``data/processed/team_logos.json`` as ``{team_id: {"name": ..., "logo": ..., "tag": ...}}``
 and is only ever *read* by the dashboard; ``python -m vct_quant.logos`` refreshes
 it (read-only against the DB and data/raw; writes only the JSON cache).
 """
@@ -39,6 +39,12 @@ def clean_url(url: object) -> str | None:
     return url
 
 
+def clean_tag(value: object) -> str | None:
+    """A short team tag like ``PRX``: 1-6 letters/digits (plus . or -), else None."""
+    tag = str(value or "").strip()
+    return tag if re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z.\-]{0,5}", tag) else None
+
+
 def _team_id(value: object) -> str | None:
     text = str(value or "").strip()
     return text if text.isdecimal() and int(text) > 0 else None
@@ -54,9 +60,19 @@ def _extract(payload: object, from_team_page: bool) -> dict[str, dict]:
             continue
         blocks = ([seg] if from_team_page else []) + [t for t in seg.get("teams") or [] if isinstance(t, dict)]
         for block in blocks:
-            key, url = _team_id(block.get("id")), clean_url(block.get("logo"))
-            if key and url:
-                found[key] = {"name": str(block.get("name") or "").strip(), "logo": url}
+            key = _team_id(block.get("id"))
+            if not key:
+                continue
+            entry = {}
+            url = clean_url(block.get("logo"))
+            if url:
+                entry["logo"] = url
+            tag = clean_tag(block.get("tag"))
+            if tag:  # match-detail payloads carry empty tags; never erase a known one
+                entry["tag"] = tag
+            if entry:
+                name = str(block.get("name") or "").strip()
+                found[key] = {**found.get(key, {}), **({"name": name} if name else {}), **entry}
     return found
 
 
@@ -73,7 +89,8 @@ def harvest(raw_dir: Path = RAW_VLRGG_DIR) -> dict[str, dict]:
                 payload = json.loads(path.read_text(encoding="utf-8"))
             except (ValueError, OSError):
                 continue
-            found.update(_extract(payload, team_page))
+            for key, entry in _extract(payload, team_page).items():
+                found[key] = {**found.get(key, {}), **entry}
     return found
 
 
@@ -99,6 +116,16 @@ def load_logos(path: Path = CACHE, logo_dir: Path | None = None) -> dict[str, st
         url = clean_url(entry.get("logo"))
         if url:
             out[key] = url
+    return out
+
+
+def load_tags(path: Path = CACHE) -> dict[str, str]:
+    """``{team_id: tag}``; teams without a known tag are absent."""
+    out = {}
+    for key, entry in _cache_entries(path).items():
+        tag = clean_tag(entry.get("tag"))
+        if tag:
+            out[key] = tag
     return out
 
 
@@ -161,7 +188,10 @@ def refresh(fetch_missing: bool = True, limit: int = 120) -> dict[str, dict]:
     if fetch_missing:
         from .ingest import vlrgg
 
-        missing = sorted(wanted_team_ids() - logos.keys(), key=int)[:limit]
+        # Team pages are the only source of tags, so fetch shown teams missing either.
+        missing = sorted((k for k in wanted_team_ids()
+                          if not logos.get(k, {}).get("logo") or not logos.get(k, {}).get("tag")),
+                         key=int)[:limit]
         for team_id in missing:
             try:
                 for key, entry in _extract(vlrgg.fetch_team(team_id, save=False), True).items():
@@ -185,7 +215,10 @@ def main() -> None:
     args = parser.parse_args()
     logos = refresh(fetch_missing=not args.no_fetch, limit=args.limit)
     wanted = wanted_team_ids()
-    print(f"{len(logos)} team logos cached; {len(wanted & logos.keys())}/{len(wanted)} shown teams covered")
+    with_logo = {k for k, v in logos.items() if v.get("logo")}
+    with_tag = {k for k, v in logos.items() if v.get("tag")}
+    print(f"{len(logos)} teams cached; shown teams with logo {len(wanted & with_logo)}/{len(wanted)}, "
+          f"with tag {len(wanted & with_tag)}/{len(wanted)}")
 
 
 if __name__ == "__main__":
