@@ -129,7 +129,15 @@ export interface ChampionsGroup {
   expected: Record<string, number[]>;
   qualifiers: number[];
   unverified_match_ids: number[];
+  qualification?: ChampionsQualification;
 }
+export interface ChampionsQualificationTeam {
+  team_id: number; elo: number; rated_matches: number;
+  p_qualify: number; p_first: number; qualified: boolean;
+}
+export type ChampionsQualification =
+  | { withheld: string }
+  | { model: string; ratings_through_match_id: number | null; teams: ChampionsQualificationTeam[] };
 export interface ChampionsStatus {
   event_id: number; as_of: string | null; playoff_routing: "unresolved";
   title_odds: null; groups: Record<"A" | "B" | "C" | "D", ChampionsGroup>;

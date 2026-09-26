@@ -195,6 +195,10 @@ section { display: flex; flex-direction: column; gap: 12px; }
 .champions-side { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: baseline; }
 .champions-side a { min-width: 0; overflow-wrap: anywhere; }
 .champions-qualified { border-top: 1px solid var(--hairline); padding-top: 8px; overflow-wrap: anywhere; }
+.champions-odds { border-top: 1px solid var(--hairline); padding-top: 8px; margin-top: 8px; display: grid; gap: 5px; }
+.champions-odds-row { display: grid; grid-template-columns: minmax(0, 7fr) minmax(40px, 5fr) 3.2em 2.8em; gap: 8px; align-items: center; font-size: 14px; }
+.champions-odds-row a { min-width: 0; overflow-wrap: anywhere; }
+.champions-odds-row .num { text-align: right; }
 .champions-warning { color: var(--warn); background: color-mix(in srgb, var(--warn) 10%, transparent); border-radius: 6px; padding: 8px; font-size: 13px; }
 
 /* Frozen paper entries: wrapping cards instead of a wide trading table. */

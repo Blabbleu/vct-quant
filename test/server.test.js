@@ -102,6 +102,15 @@ async function main() {
     assert.equal(championsBody.title_odds, null);
     assert.equal(championsBody.groups.C.entrants[11058], "G2 Esports");
     assert.equal(championsBody.groups.C.slots.decider.match_id, 753458);
+    for (const [letter, group] of Object.entries(championsBody.groups)) {
+      const q = group.qualification;
+      assert.ok(q, `group ${letter} lacks a qualification block`);
+      if (q.withheld) continue;
+      const sum = q.teams.reduce((s, t) => s + t.p_qualify, 0);
+      const first = q.teams.reduce((s, t) => s + t.p_first, 0);
+      assert.ok(Math.abs(sum - 2) < 1e-9 && Math.abs(first - 1) < 1e-9, `group ${letter} odds do not sum to 2/1`);
+      for (const t of q.teams) if (t.qualified) assert.ok(Math.abs(t.p_qualify - 1) < 1e-12);
+    }
     assert.equal((await fetch(base + "/api/champions/0")).status, 404);
     assert.equal((await fetch(base + "/api/champions/2767")).status, 404);
     console.log("  /api/champions/2766 source-pinned group status ok");

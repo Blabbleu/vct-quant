@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Failure, Loading, PageHead } from "../components/ui";
 import { useChampionsStatus } from "../lib/api";
+import { pct } from "../lib/format";
 import type { ChampionsGroup } from "../lib/types";
 
 const ORDER = ["opening_1", "opening_2", "winners", "elimination", "decider"] as const;
@@ -8,6 +9,21 @@ const LABELS = ["Opening 1", "Opening 2", "Winner's", "Elimination", "Decider"];
 
 function Team({ id, group }: { id: number; group: ChampionsGroup }) {
   return <Link to={`/team/${id}`} title={`Exact vlr.gg team ID ${id}`}>{group.entrants[String(id)] ?? `Team ${id}`}</Link>;
+}
+
+function Qualification({ group }: { group: ChampionsGroup }) {
+  const q = group.qualification;
+  if (!q) return null;
+  if ("withheld" in q) return <p className="muted small">Qualification odds withheld: {q.withheld}.</p>;
+  return <div className="champions-odds" aria-label="Model qualification odds">
+    <div className="head"><b className="small">Model: chance to reach playoffs</b><span className="muted small">1st seed</span></div>
+    {q.teams.map(row => <div className="champions-odds-row" key={row.team_id}>
+      <Team id={row.team_id} group={group} />
+      <span className="bar-wrap" aria-hidden="true"><i className="bar" style={{ width: `${(row.p_qualify * 100).toFixed(1)}%` }} /></span>
+      <b className="num">{row.qualified ? "In" : pct(row.p_qualify, 0)}</b>
+      <span className="num muted small">{pct(row.p_first, 0)}</span>
+    </div>)}
+  </div>;
 }
 
 function Group({ letter, group }: { letter: string; group: ChampionsGroup }) {
@@ -35,6 +51,7 @@ function Group({ letter, group }: { letter: string; group: ChampionsGroup }) {
         </div>;
       })}
     </div>
+    <Qualification group={group} />
     <div className="champions-qualified small"><b>Confirmed qualifiers:</b> {group.qualifiers.length ? group.qualifiers.map((id, i) =>
       <span key={id}>{i > 0 && ", "}<Team id={id} group={group} /></span>) : <span className="muted">None yet</span>}</div>
   </section>;
@@ -46,13 +63,14 @@ export default function Champions() {
   if (error || !data) return <Failure error={error ?? "Champions group status unavailable"} />;
   return <>
     <PageHead eyebrow="Champions Shanghai · 2026" title="Group stage">
-      Recorded best-of-three results and confirmed group advancement only. No simulated bracket or title odds.
+      Recorded best-of-three results, confirmed advancement, and each team's chance to leave its group under the primary Elo forecast. No title odds until the playoff draw.
     </PageHead>
     <p className="muted small">Canonical data last observed {data.as_of ? new Date(/[Zz]|[+-]\d\d:\d\d$/.test(data.as_of) ? data.as_of : data.as_of + "Z").toLocaleString(undefined, { timeZone: "UTC", dateStyle: "medium", timeStyle: "short" }) + " UTC" : "at an unknown time"}; this is not a live event feed. <a href="https://www.vlr.gg/event/2766/valorant-champions-2026" target="_blank" rel="noopener noreferrer">Check live schedule ↗</a></p>
     <div className="champions-grid">{(["A", "B", "C", "D"] as const).map(letter => <Group key={letter} letter={letter} group={data.groups[letter]} />)}</div>
     <section className="panel pad prose">
       <h2>Playoffs not drawn yet</h2>
       <p>The playoff draw is expected after October 4. Seeding and lower-bracket paths are not verified; title odds are unavailable. Group match results may lag the source.</p>
+      <p>Group odds replay every remaining group series with the same win probability the fixture board shows for that pairing, holding ratings fixed until the group ends (real ratings move after each result). "1st seed" means winning the winners' match. Descriptive only: not a separate model and not betting advice.</p>
     </section>
   </>;
 }

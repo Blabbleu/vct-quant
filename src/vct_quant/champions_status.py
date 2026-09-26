@@ -73,6 +73,8 @@ if __name__ == "__main__":
     import json
     from .db import connect
     from .event_bracket import load_bracket_spec
+    from .group_odds import attach_group_odds, current_elo
 
     with connect(read_only=True) as connection:
-        print(json.dumps(champions_status(connection, load_bracket_spec(2766))))
+        status = champions_status(connection, load_bracket_spec(2766))
+    print(json.dumps(attach_group_odds(status, *current_elo())))
