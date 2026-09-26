@@ -34,6 +34,12 @@ BEST_K = 48.0
 TIER_2_WEIGHT = 0.0
 # Game Changers pool. Placeholder until scripts/benchmark_gc.py retunes it.
 GC_K = 48.0
+# Forfeits with no scored map (0-0 with no winner, or one side's score missing)
+# carry no performance signal, and the stored labels are wrong: a 0-0 replays
+# as a draw, and a forfeit by a TBD placeholder was stored with the winner
+# flipped. docs/forfeit-labels.md. OFF until the owner approves: turning it on
+# changes emitted probabilities (Tier 1 by <= 0.0003, Game Changers by <= 0.04).
+SKIP_UNSCORED_FORFEITS = False
 
 # The corpus has no date column anywhere, so ascending vlr.gg match_id is the
 # chronological key (verified: per-year ID ranges are strictly increasing with
@@ -89,8 +95,21 @@ ORDER BY m.match_id
 """
 
 
+def unscored_forfeit(df: pd.DataFrame) -> "pd.Series":
+    """Completed rows with no scored map and no usable result label.
+
+    Either side's series score is missing, or the score is 0-0 with no stored
+    winner (label 0.5). Played Bo2 draws (1-1) and any row with a stored
+    winner on a real score are kept.
+    """
+    missing = df.maps_a.isna() | df.maps_b.isna()
+    scoreless = df.maps_a.eq(0) & df.maps_b.eq(0) & df.score_a.eq(0.5)
+    return (missing | scoreless.fillna(False)).astype(bool)
+
+
 def match_sequence(
-    con: duckdb.DuckDBPyConnection | None = None, tiers: tuple[int, ...] = (1, 2)
+    con: duckdb.DuckDBPyConnection | None = None, tiers: tuple[int, ...] = (1, 2),
+    skip_unscored: bool | None = None,
 ) -> pd.DataFrame:
     """Every match in chronological order: match_id, team_a, team_b, score_a.
 
@@ -101,15 +120,22 @@ def match_sequence(
     This is the input contract for `features.ratings.compute_elo`, which
     requires chronological order, and its match_id column is the ordering key
     for `eval.backtest.walk_forward_splits`.
+
+    `skip_unscored` (default: module flag `SKIP_UNSCORED_FORFEITS`, off) drops
+    `unscored_forfeit` rows, so every consumer replays the same sequence.
     """
     owned = con is None
     con = con or db.connect(read_only=True)
     try:
         sql = _MATCH_SEQUENCE_SQL.replace("__TIERS__", ", ".join(str(int(t)) for t in tiers))
-        return con.execute(sql).df()
+        df = con.execute(sql).df()
     finally:
         if owned:
             con.close()
+    skip = SKIP_UNSCORED_FORFEITS if skip_unscored is None else skip_unscored
+    if skip and not df.empty:
+        df = df.loc[~unscored_forfeit(df)].reset_index(drop=True)
+    return df
 
 
 _ROSTERS_SQL = """
