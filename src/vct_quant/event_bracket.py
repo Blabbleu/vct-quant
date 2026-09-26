@@ -23,6 +23,7 @@ def validate_bracket_spec(spec: dict) -> None:
         raise ValueError("playoff routing has not been source verified")
     ids: set[int] = set()
     entrants: list[str] = []
+    entrant_ids: list[int] = []
 
     def check_slot(slot: dict, stage: str) -> None:
         if slot.get("stage") != stage:
@@ -47,16 +48,25 @@ def validate_bracket_spec(spec: dict) -> None:
                 if not isinstance(teams, list) or len(teams) != 2 or any(not isinstance(t, str) or not t.strip() or t == "TBD" for t in teams):
                     raise ValueError("incomplete opening entrants")
                 entrants.extend(teams)
-            elif "teams" in slot:
+                if "team_ids" not in slot:
+                    raise ValueError("missing opening team IDs")
+                team_ids = slot["team_ids"]
+                if (not isinstance(team_ids, list) or len(team_ids) != 2
+                        or any(type(team_id) is not int or team_id <= 0 for team_id in team_ids)):
+                    raise ValueError("invalid opening team IDs")
+                entrant_ids.extend(team_ids)
+            elif "teams" in slot or "team_ids" in slot:
                 raise ValueError("future participants are not fixed")
     if len(set(entrants)) != 16:
         raise ValueError("duplicate opening entrant")
+    if len(set(entrant_ids)) != 16:
+        raise ValueError("duplicate opening team ID")
     if len(spec.get("playoffs", [])) != 14:
         raise ValueError("incomplete playoff slots")
     stages: dict[str, int] = {}
     for slot in spec["playoffs"]:
         stage = slot.get("stage")
-        if stage not in _PLAYOFF_STAGES or "teams" in slot:
+        if stage not in _PLAYOFF_STAGES or "teams" in slot or "team_ids" in slot:
             raise ValueError("unknown playoff stage or premature participant")
         check_slot(slot, stage)
         stages[stage] = stages.get(stage, 0) + 1

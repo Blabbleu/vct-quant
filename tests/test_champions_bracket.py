@@ -38,7 +38,40 @@ def test_champions_bracket_matches_archived_event_stage_and_openers():
 def test_champions_group_openers_have_16_unique_entrants():
     spec = load_bracket_spec(2766)
     names = [team for group in spec["groups"].values() for key in ("opening_1", "opening_2") for team in group[key]["teams"]]
+    ids = [team_id for group in spec["groups"].values() for key in ("opening_1", "opening_2") for team_id in group[key]["team_ids"]]
     assert len(names) == len(set(names)) == 16
+    assert len(ids) == len(set(ids)) == 16
+    assert all(isinstance(team_id, int) and team_id > 0 for team_id in ids)
+
+
+@pytest.mark.parametrize("bad_ids, error", [
+    (None, "missing opening team IDs"),
+    ([120], "invalid opening team IDs"),
+    ([True, 14], "invalid opening team IDs"),
+    ([120, 120], "duplicate opening team ID"),
+])
+def test_champions_rejects_missing_or_ambiguous_team_identity(bad_ids, error):
+    spec = load_bracket_spec(2766)
+    slot = spec["groups"]["A"]["opening_1"]
+    if bad_ids is None:
+        del slot["team_ids"]
+    else:
+        slot["team_ids"] = bad_ids
+    with pytest.raises(ValueError, match=error):
+        validate_bracket_spec(spec)
+
+
+def test_champions_archived_detail_entrants_match_pinned_ids():
+    spec = load_bracket_spec(2766)
+    for match_id in (753454, 753460):
+        files = list(Path("data/raw/vlrgg").glob(f"match_details_{match_id}_*.json"))
+        if not files:
+            pytest.skip("archived match detail not checked into git")
+        detail = json.loads(files[-1].read_text())["data"]["segments"][0]
+        assert int(detail["match_id"]) == match_id
+        slot = next(slot for group in spec["groups"].values() for slot in group.values() if slot["match_id"] == match_id)
+        assert slot["teams"] == [team["name"] for team in detail["teams"]]
+        assert slot["team_ids"] == [int(team["id"]) for team in detail["teams"]]
 
 
 def test_champions_validator_rejects_duplicate_slot_id_and_unsupported_event():

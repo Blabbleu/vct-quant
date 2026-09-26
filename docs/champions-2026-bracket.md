@@ -21,9 +21,18 @@ from this static schedule.
 
 ## Before simulating or publishing probabilities
 
-- Bind the 16 opening entrants to **exact team IDs** from validated detail
-  or canonical records. An event feed name alone must not create a second
-  1500-rated team; unknown ID blocks odds for that entrant.
+- The 16 opening entrants are now bound to **exact vlr.gg team IDs** in
+  `team_ids`, positional to `teams` for each pinned opening match ID. On
+  2026-09-26 03:57–04:00 UTC, read-only `GET /v2/match/details?match_id=<ID>`
+  from the local vlrggapi returned ID-checked details for 753444, 753445,
+  753449, 753450, 753455, and 753459, with both names and numeric IDs matching
+  the schedule. Archived ID-checked detail snapshots for 753454 and 753460
+  supplied the other four entrants.[4] No new raw snapshot was written.
+  Names alone are **not** proof of identity (JD Gaming and NRG have no exact
+  canonical `team.name` in this DB), and the fixture cache's name resolution
+  is corroboration, not the source. Recheck those six ephemeral detail
+  observations against an archived/official source before publishing odds;
+  unknown or contradictory IDs block odds for that entrant.
 - Verify the **playoff group-winner/runner-up seeding** and every upper/lower
   advancement edge against an official bracket or a scored/drawn fixture
   graph. Riot's format summary confirms double elimination but does **not**
@@ -45,7 +54,9 @@ from this static schedule.
   champion, and the group-qualified probabilities sum to eight. No outright
   market comparison until a timestamped comparable market is available.
 
-The shipped loader validates 16 unique named entrants and 34 distinct positive
+The shipped loader validates 16 unique named entrants and 16 distinct positive
+team IDs, positional to the eight opening match IDs; it rejects missing or
+premature future-participant IDs. It also validates 34 distinct positive
 match IDs/stages, including four copies of every group slot type and exact
 playoff-stage counts. It refuses unsupported event IDs. This work makes no
 API/UI change and no production forecast change.
@@ -55,3 +66,8 @@ API/UI change and no production forecast change.
 [1] https://valorantesports.com/news/champions-shanghai-everything-you-need-to-know — Champions Shanghai: Everything You Need To Know
 [2] https://www.vlr.gg/event/matches/2766/?series_id=all — Valorant Champions 2026 matches
 [3] https://www.vlr.gg/event/2766/valorant-champions-2026/playoffs — Valorant Champions 2026 playoff bracket
+[4] https://www.vlr.gg/753444/ — representative opening match detail; the same
+    `/v2/match/details?match_id=` read-only source was checked for IDs 753445,
+    753449, 753450, 753455 and 753459. Archived raw detail filenames are
+    `match_details_753454_20260924T171005Z.json` and
+    `match_details_753460_20260925T111520Z.json`.

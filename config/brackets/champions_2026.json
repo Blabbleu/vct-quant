@@ -8,29 +8,29 @@
   "playoff_advancement": "unresolved",
   "groups": {
     "A": {
-      "opening_1": {"match_id": 753444, "stage": "Opening (A)", "teams": ["100 Thieves", "T1"]},
-      "opening_2": {"match_id": 753445, "stage": "Opening (A)", "teams": ["JD Gaming", "FUT Esports"]},
+      "opening_1": {"match_id": 753444, "stage": "Opening (A)", "teams": ["100 Thieves", "T1"], "team_ids": [120, 14]},
+      "opening_2": {"match_id": 753445, "stage": "Opening (A)", "teams": ["JD Gaming", "FUT Esports"], "team_ids": [13576, 1184]},
       "winners": {"match_id": 753446, "stage": "Winner's (A)"},
       "elimination": {"match_id": 753447, "stage": "Elimination (A)"},
       "decider": {"match_id": 753448, "stage": "Decider (A)"}
     },
     "B": {
-      "opening_1": {"match_id": 753449, "stage": "Opening (B)", "teams": ["Global Esports", "Team Vitality"]},
-      "opening_2": {"match_id": 753450, "stage": "Opening (B)", "teams": ["LOUD", "EDward Gaming"]},
+      "opening_1": {"match_id": 753449, "stage": "Opening (B)", "teams": ["Global Esports", "Team Vitality"], "team_ids": [918, 2059]},
+      "opening_2": {"match_id": 753450, "stage": "Opening (B)", "teams": ["LOUD", "EDward Gaming"], "team_ids": [6961, 1120]},
       "winners": {"match_id": 753451, "stage": "Winner's (B)"},
       "elimination": {"match_id": 753452, "stage": "Elimination (B)"},
       "decider": {"match_id": 753453, "stage": "Decider (B)"}
     },
     "C": {
-      "opening_1": {"match_id": 753454, "stage": "Opening (C)", "teams": ["TYLOO", "G2 Esports"]},
-      "opening_2": {"match_id": 753455, "stage": "Opening (C)", "teams": ["Team Liquid", "Paper Rex"]},
+      "opening_1": {"match_id": 753454, "stage": "Opening (C)", "teams": ["TYLOO", "G2 Esports"], "team_ids": [731, 11058]},
+      "opening_2": {"match_id": 753455, "stage": "Opening (C)", "teams": ["Team Liquid", "Paper Rex"], "team_ids": [474, 624]},
       "winners": {"match_id": 753456, "stage": "Winner's (C)"},
       "elimination": {"match_id": 753457, "stage": "Elimination (C)"},
       "decider": {"match_id": 753458, "stage": "Decider (C)"}
     },
     "D": {
-      "opening_1": {"match_id": 753459, "stage": "Opening (D)", "teams": ["Karmine Corp", "Xi Lai Gaming"]},
-      "opening_2": {"match_id": 753460, "stage": "Opening (D)", "teams": ["Nongshim RedForce", "NRG"]},
+      "opening_1": {"match_id": 753459, "stage": "Opening (D)", "teams": ["Karmine Corp", "Xi Lai Gaming"], "team_ids": [8877, 13581]},
+      "opening_2": {"match_id": 753460, "stage": "Opening (D)", "teams": ["Nongshim RedForce", "NRG"], "team_ids": [11060, 1034]},
       "winners": {"match_id": 753461, "stage": "Winner's (D)"},
       "elimination": {"match_id": 753462, "stage": "Elimination (D)"},
       "decider": {"match_id": 753463, "stage": "Decider (D)"}
