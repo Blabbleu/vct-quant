@@ -56,6 +56,16 @@ async function main() {
     for (const fixture of snapshot.fixtures) {
       const r = await fetch(base + `/api/match/${fixture.match_id}`);
       assert.ok([200, 404].includes(r.status), `/api/match/${fixture.match_id} returned ${r.status}`);
+      // Exact-score forecast: consistent with the series odds and the format, or withheld.
+      if (fixture.scores !== null) {
+        assert.equal(fixture.scores.length, fixture.best_of === 5 ? 6 : 4);
+        const total = fixture.scores.reduce((s, row) => s + row.p, 0);
+        assert.ok(Math.abs(total - 1) < 1e-6, `scores for ${fixture.match_id} sum to ${total}`);
+        const wins = (fixture.best_of + 1) / 2;
+        const aWins = fixture.scores.filter(row => row.score.startsWith(`${wins}-`))
+          .reduce((s, row) => s + row.p, 0);
+        assert.ok(Math.abs(aWins - fixture.p_a) < 1e-6, `score odds disagree with p_a for ${fixture.match_id}`);
+      }
     }
     assert.equal((await fetch(base + "/api/match/0")).status, 404);
     assert.equal((await fetch(base + "/api/match/999999999")).status, 404);

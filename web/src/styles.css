@@ -139,6 +139,12 @@ section { display: flex; flex-direction: column; gap: 12px; }
 .rank .val { font-size: 12px; text-align: right; color: var(--ink-2); }
 .rank .val em { font-style: normal; color: var(--ink-3); }
 
+/* Match Center: exact series-score forecast */
+.score-row { display: grid; grid-template-columns: minmax(0, 1fr) 36px minmax(60px, 1.2fr) 40px; gap: 8px; align-items: center; padding: 3px 0; }
+.score-row .who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
+.score-row .bar.b { background: var(--ink-3); }
+.score-row > .num.small { text-align: right; }
+
 /* Track record: promotion checkpoint progress */
 .progress { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; margin: 2px 0 8px; }
 .progress i { display: block; height: 100%; background: var(--elo); }

@@ -193,6 +193,37 @@ def _logo(logos: dict[str, str], key) -> str | None:
     return None if key is None or pd.isna(key) else logos.get(str(key))
 
 
+def score_distribution(scores, best_of) -> list[dict] | None:
+    """Exact-score forecast as ordered rows, or None if it is not a clean one.
+
+    Parquet stores the dict column as a struct, so a Bo3 row read back beside
+    a Bo5 row carries the other format's keys as None: those are dropped.
+    Anything incomplete, non-finite or not summing to one is withheld rather
+    than shown as a misleading partial distribution.
+    """
+    try:
+        best_of = int(best_of)
+        items = dict(scores).items()
+    except (TypeError, ValueError):
+        return None
+    if best_of not in (3, 5):
+        return None
+    wins = best_of // 2 + 1
+    order = [f"{wins}-{lost}" for lost in range(wins)] + [
+        f"{lost}-{wins}" for lost in reversed(range(wins))
+    ]
+    kept = {k: v for k, v in items if v is not None}
+    if set(kept) != set(order):
+        return None
+    try:
+        values = [float(kept[k]) for k in order]
+    except (TypeError, ValueError):
+        return None
+    if not all(np.isfinite(values)) or min(values) < 0 or abs(sum(values) - 1) > 1e-6:
+        return None
+    return [{"score": k, "p": v} for k, v in zip(order, values)]
+
+
 def fixtures() -> list[dict]:
     path = PROCESSED_DIR / "upcoming_tier1.parquet"
     if not path.exists():
@@ -214,6 +245,7 @@ def fixtures() -> list[dict]:
             "elo_a": float(r.elo_a), "elo_b": float(r.elo_b),
             "p_a": float(r.p_team_a_win),
             "p_sweep": float(r.p_sweep),
+            "scores": score_distribution(getattr(r, "score_probabilities", None), r.best_of),
             "matches_a": int(r.rating_matches_a), "matches_b": int(r.rating_matches_b),
             "market": None if pd.isna(r.p_market_a) else float(r.p_market_a),
             "spread": None if pd.isna(r.market_spread) else float(r.market_spread),

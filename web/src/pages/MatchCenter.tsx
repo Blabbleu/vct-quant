@@ -3,6 +3,7 @@ import { useMovement, useSnapshot } from "../lib/api";
 import { liquid, pct, relative, when } from "../lib/format";
 import LineChart from "../components/LineChart";
 import ResultPanel from "../components/ResultPanel";
+import ScoreForecast from "../components/ScoreForecast";
 import HeadToHeadPanel from "../components/HeadToHead";
 import TeamLogo from "../components/TeamLogo";
 import TeamName from "../components/TeamName";
@@ -53,6 +54,8 @@ export default function MatchCenter() {
       </section>
 
       {m?.result && <ResultPanel r={m.result} teamA={teamA} teamB={teamB} />}
+
+      {!m?.result && f?.scores && f.best_of && <ScoreForecast scores={f.scores} bestOf={f.best_of} teamA={teamA} teamB={teamB} />}
 
       <div className="tiles">
         <Tile value={market == null ? "–" : pct(market)} label={<>Market for {teamA}{market != null && !trusted ? " · thin, low trust" : ""}</>} />

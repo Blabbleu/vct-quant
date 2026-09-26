@@ -18,6 +18,8 @@ export interface Fixture {
   elo_b: number;
   p_a: number;
   p_sweep: number | null;
+  /** Exact-score forecast in display order (a's wins first); null when withheld. */
+  scores: { score: string; p: number }[] | null;
   matches_a: number;
   matches_b: number;
   market: number | null;
