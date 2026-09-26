@@ -136,6 +136,20 @@ function computePaperLedger() {
   });
 }
 
+function computeOps() {
+  return new Promise((resolve, reject) => {
+    execFile(PYTHON, ["-m", "vct_quant.ops_status"],
+      { cwd: ROOT, maxBuffer: 8 << 20, timeout: 30000 }, (err, stdout, stderr) => {
+        if (err) return reject(new Error(stderr.trim() || err.message));
+        try {
+          resolve(JSON.parse(stdout));
+        } catch (parseError) {
+          reject(new Error(`bad JSON from ops status: ${parseError.message}`));
+        }
+      });
+  });
+}
+
 const ROUTES = {
   "/api/snapshot": data => data,
   "/api/fixtures": data => data.fixtures,
@@ -268,6 +282,15 @@ const server = http.createServer(async (req, res) => {
     } catch (err) {
       console.error(`[500] ${url.pathname}: ${err.message}`);
       return send(res, 500, JSON.stringify({ error: "the results list failed" }));
+    }
+  }
+  if (url.pathname === "/api/ops") {
+    // Uncached on purpose: freshness is the point, and it reads only local files.
+    try {
+      return send(res, 200, JSON.stringify(await computeOps()));
+    } catch (err) {
+      console.error(`[500] ${url.pathname}: ${err.message}`);
+      return send(res, 500, JSON.stringify({ error: "the ops status failed" }));
     }
   }
   if (url.pathname.startsWith("/api/")) {

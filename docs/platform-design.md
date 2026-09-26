@@ -123,6 +123,20 @@ them or list the ingest they would need.
 ### 8. Ops panel
 - Data freshness per source, last refresh, API health, autodev activity
   (latest journal entries, pending approvals).
+- **Built 2026-09-26 on auto/dev** (`src/vct_quant/ops_status.py`, GET
+  `/api/ops`, page `/status`). Reads only local files: the matchday log
+  (`data/interim/matchday.log`, override `VCT_MATCHDAY_LOG`; last 512 KB),
+  raw snapshot filenames under `data/raw/vlrgg` and `data/raw/polymarket`
+  (their UTC fetch stamps), the prediction log and `max(completed_at)` /
+  `max(last_seen_at)` from the canonical `match` table. It never calls
+  vlrggapi or Polymarket. Each `===` run block is classified `ok` (upcoming
+  fixtures fetched, even after a failed first attempt), `skipped`, `failed`
+  (both attempts failed), `stopped` or `incomplete`. Status: `ok` if the last
+  finished run succeeded; `degraded` if it did not but a success is within 6h;
+  `stale` past 6h (three missed two-hourly refreshes); `unknown` with no log.
+  An incomplete block under 30 minutes old counts as in progress. Uncached so
+  a recheck is always current. Autodev journal/pending are deliberately not
+  exposed: `.auto/` is agent state outside the served checkout.
 
 ## Architecture changes
 

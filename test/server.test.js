@@ -117,9 +117,20 @@ async function main() {
     }
     console.log(`  /api/results ${resultsBody.rows.length} finished logged fixtures ok`);
 
+    const ops = await fetch(base + "/api/ops");
+    assert.equal(ops.status, 200);
+    const opsBody = await ops.json();
+    assert.ok(["ok", "degraded", "stale", "unknown"].includes(opsBody.matchday.status));
+    assert.ok(Array.isArray(opsBody.matchday.recent_runs));
+    for (const key of ["events", "event_matches", "upcoming", "match_details", "polymarket"]) {
+      assert.ok(key in opsBody.sources, `ops sources missing ${key}`);
+    }
+    assert.ok(opsBody.prediction_log.rows >= 0 && "database" in opsBody);
+    console.log(`  /api/ops matchday ${opsBody.matchday.status} ok`);
+
     // Every page route returns an HTML shell; the client router renders it.
     // With web/dist built that is the multipage app, otherwise the legacy desk.
-    for (const pagePath of ["/", "/matches", "/results", `/match/${matchId}`, `/team/${teamBody.team_id}`, `/player/${playerBody.player_id}`, "/champions/2766", "/rankings", "/edge", "/track-record", "/about"]) {
+    for (const pagePath of ["/", "/matches", "/results", `/match/${matchId}`, `/team/${teamBody.team_id}`, `/player/${playerBody.player_id}`, "/champions/2766", "/rankings", "/edge", "/track-record", "/about", "/status"]) {
       const page = await fetch(base + pagePath);
       assert.equal(page.status, 200, `${pagePath} answered ${page.status}`);
       assert.match(page.headers.get("content-type"), /text\/html/);
