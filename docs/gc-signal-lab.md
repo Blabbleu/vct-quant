@@ -67,4 +67,34 @@ delta = 0; P's per-side K makes updates non-zero-sum, so its mean drifts from
 
 ## Result
 
-(Filled in after the run.)
+Run 2026-09-26 on the dev DB snapshot (11,688 GC matches).
+
+Tune (years <= 2024, n = 5,779), best configuration per family:
+
+* M margin: K = 192, 0.592724 (the A73 reference)
+* B binary: K = 128, 0.610010 (binary loses to margin at every K >= 48, as in Tier 1)
+* N' newcomer seed at pool mean + delta: K = 192, delta = -100, **0.587593**
+  (interior in both K and delta; -50 0.588363, -150 0.590391)
+* P provisional K: K = 128, m = 1.5, 0.592819 (ties M; m >= 2 worse)
+
+Selected N' K=192 delta=-100 and scored it once on 2025-26 (n = 5,664):
+
+* vs A73 reference (M, K=192): 0.603787 -> 0.603224, **paired t = +0.72**.
+  Brier 0.20988 -> 0.20941.
+* By year: 2025 (n = 3,298) t = +2.78; **2026 (n = 2,366) t = -2.49**
+  (0.60627 -> 0.60907).
+* vs production K=48: t = +4.99 (the K change carries the gain).
+
+**Decision under the frozen rule: negative. A73 (margin, K=192, newcomers at
+1500) stands.** The newcomer-seed gain on the tune years did not transfer, and
+it reverses in 2026.
+
+Finding for follow-up (descriptive, not selected on): in every GC year the
+stored side 1 wins about 5 points more often than Elo predicts (2022-26:
+0.599/0.587/0.612/0.597/0.613 vs mean p 0.536-0.557; the calibration table
+above is hot for side 1 in every bucket below 70%). The stored order matches
+the vlr.gg URL slug for all 10,009 slug-matchable GC rows, and all 6 logged
+pre-match orientations match canonical, so side order looks like pre-match
+information (bracket seeding). Tier 1 shows no such gap after 2022. Because
+2025-26 side-1 rates were looked at here, a side-advantage test on 2025-26
+is not clean; see docs/gc-side-advantage.md.
