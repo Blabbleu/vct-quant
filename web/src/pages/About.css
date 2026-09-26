@@ -1,0 +1,42 @@
+/* About (/about): plain-language "how it works" guide plus a board key.
+   See design-terminal-arena.pdf typography table (Body 15/1.45, H2 section). */
+
+.about-page { display: flex; flex-direction: column; gap: var(--s-5); }
+
+.about-head { display: flex; flex-direction: column; gap: var(--s-2); }
+.about-title {
+  font-family: var(--font-display); font-weight: 700; text-transform: uppercase;
+  font-size: var(--fs-display); line-height: var(--lh-tight); margin: 0;
+}
+
+/* Phone: prose then key. Desktop: prose + sticky key aside. */
+.about-layout { display: grid; grid-template-columns: 1fr; gap: var(--s-5); align-items: start; }
+@media (min-width: 1024px) {
+  .about-layout { grid-template-columns: minmax(0, 68ch) minmax(300px, 380px); justify-content: space-between; gap: var(--s-6); }
+  .about-aside { position: sticky; top: 84px; }
+}
+
+/* Long-form measure capped at 68ch; H2 carries the uppercase + hairline rule. */
+.about-prose { display: flex; flex-direction: column; gap: var(--s-3); max-width: 68ch; min-width: 0; }
+.about-prose h2:not(:first-child) { margin-top: var(--s-4); }
+.about-prose p { color: var(--text-2); margin: 0; }
+.about-prose p.about-fixed { color: var(--text-3); font-family: var(--font-num); font-size: var(--fs-meta); }
+
+.about-key { padding: var(--s-4); display: flex; flex-direction: column; gap: var(--s-3); }
+.about-key-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.about-key-list + .about-key-list { border-top: 1px solid var(--line); padding-top: var(--s-2); }
+.about-key-list li {
+  display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: var(--s-3); align-items: center;
+  min-height: 36px; color: var(--text-2); font-size: 14px;
+}
+.about-key-list li > .chip-arena { justify-self: start; }
+.about-key-list b { color: var(--text); font-weight: 700; }
+
+.about-sw { display: inline-block; justify-self: start; margin-left: 6px; }
+.about-sw-model { width: 14px; height: 14px; background: var(--model); }
+.about-sw-market {
+  width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent;
+  border-top: 9px solid var(--market);
+}
+.about-sw-result { width: 16px; height: 16px; border: 2px solid var(--result); }
+.about-key-note { color: var(--text-3); font-size: var(--fs-meta); font-family: var(--font-num); margin: 0; }
