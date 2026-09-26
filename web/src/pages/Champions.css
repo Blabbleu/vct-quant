@@ -1,0 +1,87 @@
+/* Champions (/champions/2766): GSL group panels. See design-terminal-arena.pdf
+   "Champions" and "Components" (group table, pip bar per team). */
+
+.champions-page { display: flex; flex-direction: column; gap: var(--s-5); }
+
+.champ-head { display: flex; flex-direction: column; gap: var(--s-2); }
+.champ-title {
+  font-family: var(--font-display); font-weight: 700; text-transform: uppercase;
+  font-size: var(--fs-display); line-height: var(--lh-tight); margin: 0;
+}
+.champ-lede { color: var(--text-2); max-width: 68ch; margin: 0; }
+.champ-meta { color: var(--text-3); font-size: var(--fs-meta); max-width: 72ch; }
+.champ-meta a { color: var(--text-2); }
+.champ-meta a:hover { color: var(--model); }
+
+/* Desktop: 2x2 group grid (spec allows 2x2 or 4-across); phone stacks. */
+.champ-grid { display: grid; grid-template-columns: 1fr; gap: var(--s-4); align-items: start; }
+@media (min-width: 768px) {
+  .champ-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.champ-group { min-width: 0; }
+.champ-group-in { display: flex; flex-direction: column; gap: var(--s-3); padding: var(--s-4); min-width: 0; }
+.champ-group-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-2); }
+.champ-group-head h2 { flex: 1; }
+.champ-group-count { font-size: var(--fs-meta); color: var(--text-3); white-space: nowrap; padding-bottom: var(--s-2); }
+
+.champ-warning { color: var(--text); background: var(--surface-2); border: 1px solid var(--line-strong); padding: var(--s-2); font-size: var(--fs-meta); margin: 0; }
+
+/* Team rows: logo, name/tag + chips, playoff %, then a full-width pip bar. */
+.champ-teams { display: flex; flex-direction: column; gap: var(--s-2); }
+.champ-team-row {
+  display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; column-gap: var(--s-2); row-gap: 4px;
+  align-items: center; min-height: var(--hit); padding: var(--s-1) 0; border-bottom: 1px solid var(--line);
+}
+.champ-team-row:last-child { border-bottom: 0; }
+.champ-team-id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.champ-team-link { color: inherit; }
+.champ-team-link:hover .team-label { color: var(--model); }
+.champ-team-chips { display: flex; gap: var(--s-1); flex-wrap: wrap; }
+.champ-team-pct { font-size: var(--fs-num-m); font-weight: 800; color: var(--model); text-align: right; }
+.champ-ph { color: var(--text-ph); }
+.champ-team-bar { grid-column: 1 / -1; }
+
+.champ-ph-line { color: var(--text-ph); font-size: var(--fs-body); margin: 0; }
+
+.champ-results-head {
+  font-family: var(--font-display); font-weight: 700; font-size: var(--fs-label); text-transform: uppercase;
+  letter-spacing: var(--track-label); color: var(--text-3); border-top: 1px solid var(--line); padding-top: var(--s-3);
+}
+
+/* Score bugs: one compact row per group slot. */
+.champ-bugs { display: flex; flex-direction: column; gap: var(--s-2); }
+.champ-bug {
+  background: var(--surface-2); padding: var(--s-2) var(--s-3); display: flex; flex-direction: column; gap: 4px; min-width: 0;
+}
+.champ-bug-label {
+  font-family: var(--font-display); font-weight: 700; font-size: 11px; text-transform: uppercase;
+  letter-spacing: var(--track-label); color: var(--text-3);
+}
+.champ-bug-ph-text { color: var(--text-ph); font-size: var(--fs-meta); font-family: var(--font-num); }
+.champ-bug-score { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: var(--s-2); }
+.champ-bug-side { display: flex; align-items: center; gap: var(--s-2); min-width: 0; color: var(--text-3); }
+.champ-bug-side .team-label { color: var(--text-3); }
+.champ-bug-side-right { flex-direction: row-reverse; text-align: right; }
+.champ-bug-win { color: var(--text); }
+.champ-bug-win .team-label { color: var(--text); }
+.champ-bug-num { font-weight: 800; font-size: var(--fs-num-s); color: var(--text); white-space: nowrap; }
+
+.champ-qualified {
+  border-top: 1px solid var(--line); padding-top: var(--s-2); display: flex; flex-direction: column; gap: 4px;
+  font-size: var(--fs-body); overflow-wrap: anywhere;
+}
+.champ-qualified-label {
+  font-family: var(--font-display); font-weight: 700; font-size: var(--fs-label); text-transform: uppercase;
+  letter-spacing: var(--track-label); color: var(--text-3);
+}
+.champ-qualified a { color: var(--text-2); }
+.champ-qualified a:hover { color: var(--model); }
+
+.champ-note { display: flex; flex-direction: column; gap: var(--s-2); max-width: 68ch; }
+.champ-note p { color: var(--text-2); margin: 0; }
+
+@media (min-width: 768px) {
+  .champ-team-row { grid-template-columns: 34px minmax(0, 1fr) auto; }
+  .champ-team-pct { font-size: var(--fs-num-l); }
+}
