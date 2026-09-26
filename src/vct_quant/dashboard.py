@@ -15,7 +15,7 @@ from functools import lru_cache
 import numpy as np
 import pandas as pd
 
-from . import db
+from . import db, live_checkpoint
 from .config import DB_PATH, PROCESSED_DIR
 from .eval import metrics
 from .eval.backtest import walk_forward_splits
@@ -162,12 +162,20 @@ def graded_log() -> dict:
             continue
         has = scored[column].notna().to_numpy()
         if has.sum():
+            base = live_checkpoint.per_match_loss(y[has], p[has])
+            shadow = live_checkpoint.per_match_loss(y[has], scored[column].to_numpy()[has])
             shadows[name] = {
                 "n": int(has.sum()),
                 "elo": float(metrics.log_loss(y[has], p[has])),
                 "shadow": float(metrics.log_loss(y[has], scored[column].to_numpy()[has])),
+                "t": live_checkpoint.paired_t(base - shadow),  # positive = shadow better
             }
     out["shadows"] = shadows
+    try:
+        out["checkpoint"] = live_checkpoint.checkpoint_status(
+            scored.assign(y=y), live_checkpoint.grand_final_id())
+    except (OSError, ValueError, KeyError):
+        out["checkpoint"] = None
     logos, tags = load_logos(), load_tags()
     out["rows"] = [
         {"match_id": int(r.match_id), "team_a": r.team_a_name, "team_b": r.team_b_name,

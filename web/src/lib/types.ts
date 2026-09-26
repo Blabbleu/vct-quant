@@ -38,12 +38,22 @@ export interface GradedRow {
   match_id: number; team_a: string; team_b: string; p: number; won: boolean; market: number | null;
   logo_a: string | null; logo_b: string | null; tag_a: string | null; tag_b: string | null;
 }
-export interface ShadowScore { n: number; elo: number; shadow: number }
+export interface ShadowScore { n: number; elo: number; shadow: number; t?: number | null }
+export interface Checkpoint {
+  min_n: number; checkpoint_2_n: number; final_match_id: number; n: number; final_graded: boolean;
+  checkpoint_1: {
+    n: number; diff: number | null; t: number | null;
+    state: "awaiting_final" | "final_graded";
+    verdict: "too_few" | "no_worse" | "boundary" | "worse";
+  };
+  checkpoint_2: { n: number; reached: boolean };
+}
 export interface Live {
   logged: number; graded: number; rows: GradedRow[];
   log_loss: number | null; brier: number | null;
   market: { n: number; elo: number; market: number } | null;
   shadows: Record<string, ShadowScore>;
+  checkpoint?: Checkpoint | null;
 }
 export interface Snapshot {
   generated_at: string;

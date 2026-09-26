@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useSnapshot } from "../lib/api";
 import { int, logLoss, num, pct } from "../lib/format";
 import Calibration from "../components/Calibration";
+import CheckpointPanel, { fmtT, MIN_T_N } from "../components/CheckpointPanel";
 import TeamLogo from "../components/TeamLogo";
 import TeamName, { shortName } from "../components/TeamName";
 import { Failure, Loading, PageHead, Tile } from "../components/ui";
@@ -52,13 +53,16 @@ export default function TrackRecord() {
         </div>
         <div className="panel pad">
           <h2>Models in testing</h2>
-          <p className="muted small">Shadow models run alongside but never decide the forecast until they beat it on enough matches.</p>
+          <p className="muted small">Shadow models run alongside but never decide the forecast until they beat it on enough matches.
+            Paired t is shown from n ≥ {MIN_T_N}; positive means the shadow is ahead.</p>
           {Object.entries(live.shadows).map(([k, s]) => (
             <div className="kv" key={k}><span>{SHADOW_NAMES[k] ?? k}</span>
-              <b className="num">{s.shadow.toFixed(3)}</b><span className="muted small">vs {s.elo.toFixed(3)} · n={s.n}</span></div>
+              <b className="num">{s.shadow.toFixed(3)}</b><span className="muted small">vs Elo {s.elo.toFixed(3)} · n={s.n} · t {fmtT(s.t, s.n)}</span></div>
           ))}
         </div>
       </section>
+
+      {live.checkpoint && <section className="grid-2"><CheckpointPanel cp={live.checkpoint} /></section>}
 
       <section className="panel">
         <div className="pad"><h2>Experiment ledger</h2>

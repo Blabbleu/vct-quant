@@ -139,6 +139,10 @@ section { display: flex; flex-direction: column; gap: 12px; }
 .rank .val { font-size: 12px; text-align: right; color: var(--ink-2); }
 .rank .val em { font-style: normal; color: var(--ink-3); }
 
+/* Track record: promotion checkpoint progress */
+.progress { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; margin: 2px 0 8px; }
+.progress i { display: block; height: 100%; background: var(--elo); }
+
 /* Edge + ledger */
 .edge-row { display: grid; grid-template-columns: minmax(0, 1fr) 56px 56px 72px; gap: 10px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--hairline); color: inherit; }
 .edge-row:first-child { border-top: 0; }
