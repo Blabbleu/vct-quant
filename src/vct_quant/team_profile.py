@@ -14,6 +14,7 @@ import pandas as pd
 from .config import PROCESSED_DIR
 from .features.build import match_sequence
 from .logos import load_logos, load_tags
+from .recent_lineup import recent_lineup
 
 
 def profile_from_rows(history: pd.DataFrame, fixtures: pd.DataFrame,
@@ -88,11 +89,13 @@ def profile_from_rows(history: pd.DataFrame, fixtures: pd.DataFrame,
 def team_profile(team_id: int) -> dict | None:
     path = PROCESSED_DIR / "upcoming_tier1.parquet"
     fixtures = pd.read_parquet(path) if path.exists() else pd.DataFrame()
+    now = datetime.now(timezone.utc)
     result = profile_from_rows(match_sequence(tiers=(1,)), fixtures, team_id,
-                               datetime.now(timezone.utc).isoformat())
+                               now.isoformat())
     if result is not None:
         result["logo"] = load_logos().get(str(team_id))
         result["tag"] = load_tags().get(str(team_id))
+        result["recent_lineup"] = recent_lineup(team_id, as_of=now)
     return result
 
 

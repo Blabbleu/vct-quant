@@ -62,6 +62,8 @@ export interface MapRecord { map: string; played: number; won: number; round_sha
 export interface TeamProfile {
   team_id: number; name: string; logo: string | null; tag: string | null;
   record: { wins: number; losses: number };
+  recent_lineup: { maps_sampled: number; latest_map_date: string | null; latest_match_id: number | null;
+    players: { player_id: number; handle: string; maps: number }[] };
   results: {
     match_id: number; completed_at: string; opponent: string; opponent_id: number | null;
     result: "W" | "L"; maps_for: number; maps_against: number;

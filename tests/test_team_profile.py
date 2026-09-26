@@ -2,6 +2,7 @@
 import pandas as pd
 
 from vct_quant.team_profile import profile_from_rows
+from vct_quant import team_profile as team_module
 
 
 def test_team_profile_filters_to_exact_identity_and_played_tier1():
@@ -36,3 +37,23 @@ def test_team_profile_unknown_or_fixture_only():
     out = profile_from_rows(empty, fixtures, 42, "2026-09-26T03:00Z")
     assert out["results"] == [] and out["record"] == {"wins": 0, "losses": 0}
     assert out["fixtures"][0]["match_id"] == 10
+
+
+def test_team_api_profile_includes_bounded_historical_player_links(monkeypatch, tmp_path):
+    monkeypatch.setattr(team_module, "PROCESSED_DIR", tmp_path)
+    history = pd.DataFrame([{
+        "match_id": 1, "tier": 1, "completed_at": "2026-09-20", "team_a": "42", "team_b": "9",
+        "team_a_name": "Falcons", "team_b_name": "Nine", "score_a": 1., "maps_a": 2, "maps_b": 0,
+    }])
+    monkeypatch.setattr(team_module, "match_sequence", lambda tiers: history)
+    monkeypatch.setattr(team_module, "load_logos", lambda: {})
+    monkeypatch.setattr(team_module, "load_tags", lambda: {})
+    calls = []
+    def lineup(team_id, *, as_of):
+        calls.append((team_id, as_of))
+        return {"maps_sampled": 1, "latest_map_date": "2026-09-20",
+                "players": [{"player_id": 7, "handle": "Renamed", "maps": 1}]}
+    monkeypatch.setattr(team_module, "recent_lineup", lineup, raising=False)
+    result = team_module.team_profile(42)
+    assert result["recent_lineup"]["players"][0]["player_id"] == 7
+    assert calls[0][0] == 42 and calls[0][1].tzinfo is not None

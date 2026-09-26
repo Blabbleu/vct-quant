@@ -32,6 +32,16 @@ export default function Team() {
     </div>
     <p className="muted small">{data.note} These results are descriptive, not an adjustment to the forecast.</p>
     <section className="panel pad">
+      <h2>Recent recorded players</h2>
+      <p className="muted small">Exact-ID player appearances in up to {data.recent_lineup.maps_sampled} scored Tier-1 maps{data.recent_lineup.latest_map_date ? `, latest ${data.recent_lineup.latest_map_date}` : ""}. Historical coverage only — not a current roster, confirmed lineup or forecast input. {data.recent_lineup.latest_match_id && <a href={`https://www.vlr.gg/${data.recent_lineup.latest_match_id}`} target="_blank" rel="noopener noreferrer">Latest source match ↗</a>}</p>
+      {data.recent_lineup.players.length ? data.recent_lineup.players.map(player =>
+        <div className="team-row" key={player.player_id}>
+          <Link to={`/player/${player.player_id}`}>{player.handle}</Link>
+          <span className="num muted small">{player.maps} / {data.recent_lineup.maps_sampled} maps</span>
+        </div>,
+      ) : <p className="muted small">No exact-ID player stats in eligible scored maps.</p>}
+    </section>
+    <section className="panel pad">
       <h2>Upcoming fixtures</h2>
       {data.fixtures.length ? data.fixtures.map(f =>
         <div className="team-row" key={f.match_id}>
