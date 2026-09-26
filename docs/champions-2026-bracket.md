@@ -50,17 +50,24 @@ from this static schedule.
   not state that a grand-final bracket reset is played. The vlr.gg graph has
   one grand-final slot, but slot count alone is not proof of reset semantics;
   confirm the rule before modeling title odds.
-- Group advancement is now implemented **only as a fail-closed routing
-  primitive**, not as odds or an API. Each result must have an ID-checked final
-  match detail, distinct positive team IDs, integer unequal series scores and
-  matching winner flags. Winners/losers of both openers feed the winner's and
-  elimination slots respectively; the winner's loser meets the elimination
-  winner in the decider. The two qualifiers are winner's and decider winners.
-  The primitive refuses a completed downstream slot without its upstream
-  results or with contradictory participants. It also requires a played Bo3
-  final score of 2–0 or 2–1: a final-flagged 1–0 forfeit, tie, or impossible
-  3-map win does not establish an ordinary series result and cannot silently
-  advance a team. A read-only 2026-09-26 ~04:07 UTC
+- Group advancement is implemented as a **fail-closed routing primitive**,
+  exposed descriptively at read-only `GET /api/champions/2766` using the
+  canonical DB snapshot. No odds or inferred playoff pairings are emitted.
+  Each completed DB result must match its pinned match ID, event, stage,
+  distinct positive team IDs, integer series scores and winner flags; opener
+  participants must match the pinned exact IDs. The earlier detail adapter
+  independently requires an ID-checked final detail with the same safeguards.
+  Winners/losers of both openers feed the winner's and elimination slots;
+  the winner's loser meets the elimination winner in the decider. The winner's
+  winner qualifies immediately; the second qualifier awaits the decider.
+  An unverified completed row is listed by match ID and cannot route its team.
+  The router also refuses a completed downstream slot without its upstream
+  results or with contradictory participants. A played Bo3 final must be 2–0
+  or 2–1: a final-flagged 1–0 forfeit, tie, or impossible 3-map win cannot
+  silently advance a team. `as_of` identifies the newest canonical row's
+  source observation; it does not promise a fresh event-page fetch. The dev DB
+  snapshot currently contains four completed C/D openers and no completed
+  A/B matches. A read-only 2026-09-26 ~04:07 UTC
   local vlrggapi probe of [2] and `/v2/match/details?match_id=` for the four C/D
   openers matched the next listed pairings: C winner's G2 Esports–Paper Rex
   (753456), C elimination TYLOO–Team Liquid (753457); D winner's Karmine
@@ -85,8 +92,9 @@ The shipped loader validates 16 unique named entrants and 16 distinct positive
 team IDs, positional to the eight opening match IDs; it rejects missing or
 premature future-participant IDs. It also validates 34 distinct positive
 match IDs/stages, including four copies of every group slot type and exact
-playoff-stage counts. It refuses unsupported event IDs. This work makes no
-API/UI change and no production forecast change.
+playoff-stage counts. It refuses unsupported event IDs. The API endpoint is
+read-only and descriptive; no UI or production forecast change is included.
+Playoff routing and title odds remain gated as above.
 
 ## Sources
 

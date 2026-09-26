@@ -149,7 +149,8 @@ def group_progress(spec: dict, letter: str, results: dict[int, dict]) -> dict:
     if winners and elimination:
         expected["decider"] = [winners[1], elimination[0]]
     decider = outcome("decider", expected.get("decider"))
-    return {"expected": expected, "qualifiers": [winners[0], decider[0]] if winners and decider else []}
+    qualifiers = ([winners[0]] if winners else []) + ([decider[0]] if decider else [])
+    return {"expected": expected, "qualifiers": qualifiers}
 
 
 def load_bracket_spec(event_id: int) -> dict:

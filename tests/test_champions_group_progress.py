@@ -76,6 +76,19 @@ def test_champions_group_routes_played_openers_to_next_two_slots():
     assert progress["qualifiers"] == []
 
 
+def test_champions_winners_final_confirms_first_qualifier_before_decider():
+    observed = {
+        753454: result([731, 11058], [0, 2]),
+        753455: result([474, 624], [1, 2]),
+        753456: result([11058, 624], [2, 1]),
+    }
+    progress = group_progress(SPEC, "C", observed)
+    assert progress["qualifiers"] == [11058]
+    assert progress["expected"]["winners"] == [11058, 624]
+    assert progress["expected"]["elimination"] == [731, 474]
+    assert "decider" not in progress["expected"]
+
+
 def test_champions_group_completed_graph_has_two_distinct_qualifiers():
     group = SPEC["groups"]["C"]
     observed = {
