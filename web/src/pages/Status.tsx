@@ -1,10 +1,14 @@
 import { useState } from "react";
 import { useOps } from "../lib/api";
 import type { OpsRun, OpsSource } from "../lib/types";
-import { int } from "../lib/format";
-import { Failure, Loading, PageHead, Tile } from "../components/ui";
+import SectionHead from "../components/arena/SectionHead";
+import StatCell from "../components/arena/StatCell";
+import Panel from "../components/arena/Panel";
+import { Chip } from "../components/arena/Chip";
+import { LoadingBlocks, ErrorPanel } from "../components/arena/States";
+import "./Status.css";
 
-const utc = (iso: string | null) => iso == null ? "–" : new Date(iso).toLocaleString(undefined, {
+const utc = (iso: string | null) => iso == null ? "\u2013" : new Date(iso).toLocaleString(undefined, {
   timeZone: "UTC", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false,
 }) + " UTC";
 
@@ -27,18 +31,29 @@ const SOURCE_LABEL: Record<string, string> = {
   polymarket: "Polymarket prices",
 };
 
+/** Status-board dot: OK is model-coloured, degraded states neutral, stale/failed reads as market-pink. */
+function Dot({ outcome }: { outcome: string }) {
+  const cls = outcome === "ok" ? "status-dot-ok"
+    : outcome === "stale" || outcome === "failed" ? "status-dot-bad"
+    : "status-dot-mid";
+  return <span className={`status-dot ${cls}`} aria-hidden="true" />;
+}
+
 function Run({ r }: { r: OpsRun }) {
   return (
-    <div className="ops-run">
-      <span className={`ops-dot ${r.outcome}`} aria-hidden="true" />
-      <div>
-        <div className="head"><b className="num small">{utc(r.started_at)}</b><span className="chip">{r.outcome}</span></div>
+    <div className="status-run">
+      <Dot outcome={r.outcome} />
+      <div className="status-run-body">
+        <div className="status-run-head">
+          <span className="num status-run-time">{utc(r.started_at)}</span>
+          <Chip variant={r.outcome === "ok" ? "default" : "ghost"}>{r.outcome.toUpperCase()}</Chip>
+        </div>
         {r.outcome === "ok" && (
           <div className="muted small">{r.upcoming_retained} official fixtures from {r.upcoming_fetched} upcoming
-            {r.graded_n != null ? ` · ${r.graded_n} forecasts graded` : ""}</div>
+            {r.graded_n != null ? ` \u00b7 ${r.graded_n} forecasts graded` : ""}</div>
         )}
         {r.reason && <div className="muted small">{r.reason}</div>}
-        {r.warnings.map(w => <div key={w} className="champions-warning">{w}</div>)}
+        {r.warnings.map(w => <div key={w} className="status-warning">{w}</div>)}
       </div>
     </div>
   );
@@ -46,62 +61,76 @@ function Run({ r }: { r: OpsRun }) {
 
 function Source({ name, s }: { name: string; s: OpsSource }) {
   return (
-    <div className="kv">
+    <div className="status-kv">
       <span>{SOURCE_LABEL[name] ?? name}</span>
-      <b className="num small">{age(s.age_hours)}</b>
-      <span className="muted small">{s.fetched_at ? `${utc(s.fetched_at)} · ${int(s.files)} snapshots kept` : "no snapshot"}</span>
+      <span className="num status-kv-age">{age(s.age_hours)}</span>
+      <span className="muted small">{s.fetched_at ? `${utc(s.fetched_at)} \u00b7 ${s.files.toLocaleString()} snapshots kept` : "no snapshot"}</span>
     </div>
   );
 }
 
+/** Owner-only ops panel restyled as a terminal status board: dots, mono timestamps, dense rows. */
 export default function Status() {
   const [nonce, setNonce] = useState(0);
   const { data, error, loading } = useOps(nonce);
-  if (loading && !data) return <Loading what="status" />;
-  if (error || !data) return <Failure error={error ?? "no data"} />;
+  if (loading && !data) return <div className="status-page"><LoadingBlocks label="Loading status\u2026" /></div>;
+  if (error || !data) return <div className="status-page"><ErrorPanel detail={error ?? "no data"} onRetry={() => location.reload()} /></div>;
   const md = data.matchday;
-  const counts = Object.entries(md.last_24h).map(([k, v]) => `${v} ${k}`).join(" · ") || "none";
+  const counts = Object.entries(md.last_24h).map(([k, v]) => `${v} ${k}`).join(" \u00b7 ") || "none";
+
   return (
-    <>
-      <PageHead eyebrow="Ops" title="Data status">
-        How fresh the data behind the forecasts is. Fixtures and results refresh from vlr.gg every two hours; market prices
-        are fetched in the same run. Read from local files only: opening this page never calls vlr.gg or Polymarket.
-      </PageHead>
-      <section className="panel pad">
-        <div className="ops-status">
-          <span className={`ops-dot ${md.status}`} aria-hidden="true" />
-          <b>{STATUS_TEXT[md.status] ?? md.status}</b>
-          <button className="chip" onClick={() => setNonce(n => n + 1)}>Recheck</button>
+    <div className="status-page">
+      <header className="status-head">
+        <h1 className="status-title">Data status</h1>
+        <p className="status-lede">How fresh the data behind the forecasts is. Fixtures and results refresh from vlr.gg every two hours; market prices are fetched in the same run. Read from local files only: opening this page never calls vlr.gg or Polymarket.</p>
+      </header>
+
+      <Panel cut="l" frame="line">
+        <div className="pad status-banner">
+          <Dot outcome={md.status} />
+          <b className="status-banner-text">{STATUS_TEXT[md.status] ?? md.status}</b>
+          <button type="button" className="btn btn-secondary" onClick={() => setNonce(n => n + 1)}>Recheck</button>
         </div>
-        <div className="muted small">
-          Last successful refresh {md.last_success ? `${utc(md.last_success.started_at)} (${age(md.last_success_age_hours)})` : "none on record"}.
-          Stale after {md.stale_hours}h without one. Last 24h: {counts}.
-        </div>
-      </section>
-      <div className="tiles">
-        <Tile value={data.prediction_log.upcoming_matches} label="upcoming fixtures with a forecast" />
-        <Tile value={age(data.prediction_log.age_hours)} label="last forecast logged" />
-        <Tile value={data.prediction_log.next_scheduled_at ? utc(data.prediction_log.next_scheduled_at) : "–"} label="next scheduled match" />
-        <Tile value={data.database.latest_completed_on ?? "–"} label="newest completed match in the database" />
+      </Panel>
+      <p className="muted small">
+        Last successful refresh {md.last_success ? `${utc(md.last_success.started_at)} (${age(md.last_success_age_hours)})` : "none on record"}.
+        Stale after {md.stale_hours}h without one. Last 24h: {counts}.
+      </p>
+
+      <div className="status-cells">
+        <StatCell label="Upcoming fixtures with a forecast" value={data.prediction_log.upcoming_matches} />
+        <StatCell label="Last forecast logged" value={age(data.prediction_log.age_hours)} />
+        <StatCell label="Next scheduled match" value={data.prediction_log.next_scheduled_at ? utc(data.prediction_log.next_scheduled_at) : "\u2013"} />
+        <StatCell label="Newest completed match" value={data.database.latest_completed_on ?? "\u2013"} />
       </div>
-      <section className="panel pad">
-        <h2>Sources</h2>
-        {Object.entries(data.sources).map(([name, s]) => <Source key={name} name={name} s={s} />)}
-        <div className="kv">
-          <span>Database file</span>
-          <b className="num small">{age(data.database.age_hours)}</b>
-          <span className="muted small">{data.database.matches != null ? `${int(data.database.matches)} matches · ` : ""}
-            newest source observation {utc(data.database.latest_seen_at)}</span>
+
+      <Panel cut="l" frame="line">
+        <div className="pad">
+          <SectionHead title="Sources" />
+          <div className="status-sources">
+            {Object.entries(data.sources).map(([name, s]) => <Source key={name} name={name} s={s} />)}
+            <div className="status-kv">
+              <span>Database file</span>
+              <span className="num status-kv-age">{age(data.database.age_hours)}</span>
+              <span className="muted small">{data.database.matches != null ? `${data.database.matches.toLocaleString()} matches \u00b7 ` : ""}
+                newest source observation {utc(data.database.latest_seen_at)}</span>
+            </div>
+          </div>
+          <p className="muted small">Fetch times come from the raw snapshot filenames. A source only refetches when the refresh reaches it, so match details age until a new team needs resolving.</p>
         </div>
-        <p className="muted small">Fetch times come from the raw snapshot filenames. A source only refetches when the
-          refresh reaches it, so match details age until a new team needs resolving.</p>
-      </section>
-      <section className="panel pad">
-        <h2>Recent refreshes</h2>
-        {md.recent_runs.length === 0 && <p className="muted">No runs logged.</p>}
-        {md.recent_runs.map(r => <Run key={r.started_at} r={r} />)}
-      </section>
+      </Panel>
+
+      <Panel cut="l" frame="line">
+        <div className="pad">
+          <SectionHead title="Recent refreshes" />
+          {md.recent_runs.length === 0 && <p className="muted">No runs logged.</p>}
+          <div className="status-runs">
+            {md.recent_runs.map(r => <Run key={r.started_at} r={r} />)}
+          </div>
+        </div>
+      </Panel>
+
       <p className="muted small">Page generated {utc(data.generated_at)}.</p>
-    </>
+    </div>
   );
 }
