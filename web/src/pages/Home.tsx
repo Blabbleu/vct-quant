@@ -30,6 +30,10 @@ export default function Home() {
       </section>
 
       <section className="grid-2">
+        <Link to="/champions/2766" className="panel pad link-panel">
+          <h2>Champions Shanghai groups</h2>
+          <p className="muted">Verified group results and qualifiers from the recorded bracket. No playoff odds yet.</p>
+        </Link>
         <Link to="/rankings" className="panel pad link-panel">
           <h2>Power rankings</h2>
           <p className="muted">{data.rankings.slice(0, 3).map(r => r.team).join(", ")} lead the {data.season} Elo table.</p>

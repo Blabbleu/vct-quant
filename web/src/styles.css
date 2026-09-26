@@ -175,6 +175,18 @@ section { display: flex; flex-direction: column; gap: 12px; }
 .player-map .team-row { border-top: 0; padding: 2px 0 4px; }
 .player-map a, .player-map span { overflow-wrap: anywhere; }
 
+/* Champions group status: compact cards with no implied playoff routing. */
+.champions-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 14px; align-items: start; }
+.champions-group { min-width: 0; }
+.champions-slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 8px; }
+.champions-slot { border: 1px solid var(--hairline); background: var(--surface-2); border-radius: 8px; padding: 9px; min-width: 0; }
+.champions-slot .head { gap: 4px; }
+.champions-sides { min-height: 54px; margin: 7px 0 3px; }
+.champions-side { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: baseline; }
+.champions-side a { min-width: 0; overflow-wrap: anywhere; }
+.champions-qualified { border-top: 1px solid var(--hairline); padding-top: 8px; overflow-wrap: anywhere; }
+.champions-warning { color: var(--warn); background: color-mix(in srgb, var(--warn) 10%, transparent); border-radius: 6px; padding: 8px; font-size: 13px; }
+
 /* Team logos */
 .logo { display: inline-block; flex: none; object-fit: contain; border-radius: 4px; }
 .logo.fallback { display: inline-flex; align-items: center; justify-content: center; background: var(--surface-2); color: var(--ink-2); font-family: var(--display); font-weight: 700; letter-spacing: -.02em; border: 1px solid var(--hairline); }

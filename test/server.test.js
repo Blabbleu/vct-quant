@@ -74,13 +74,15 @@ async function main() {
     assert.deepEqual(championsBody.groups.C.expected.winners, [11058, 624]);
     assert.deepEqual(championsBody.groups.D.expected.winners, [8877, 1034]);
     assert.equal(championsBody.title_odds, null);
+    assert.equal(championsBody.groups.C.entrants[11058], "G2 Esports");
+    assert.equal(championsBody.groups.C.slots.decider.match_id, 753458);
     assert.equal((await fetch(base + "/api/champions/0")).status, 404);
     assert.equal((await fetch(base + "/api/champions/2767")).status, 404);
     console.log("  /api/champions/2766 source-pinned group status ok");
 
     // Every page route returns an HTML shell; the client router renders it.
     // With web/dist built that is the multipage app, otherwise the legacy desk.
-    for (const pagePath of ["/", "/matches", `/match/${matchId}`, `/team/${teamBody.team_id}`, `/player/${playerBody.player_id}`, "/rankings", "/edge", "/track-record", "/about"]) {
+    for (const pagePath of ["/", "/matches", `/match/${matchId}`, `/team/${teamBody.team_id}`, `/player/${playerBody.player_id}`, "/champions/2766", "/rankings", "/edge", "/track-record", "/about"]) {
       const page = await fetch(base + pagePath);
       assert.equal(page.status, 200, `${pagePath} answered ${page.status}`);
       assert.match(page.headers.get("content-type"), /text\/html/);

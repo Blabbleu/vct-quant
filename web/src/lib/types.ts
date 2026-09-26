@@ -87,6 +87,19 @@ export interface PlayerProfile {
   teams: { team_id: number; name: string; maps: number }[];
   note: string;
 }
+export interface ChampionsSlot { match_id: number; stage: string; team_ids?: number[] }
+export interface ChampionsGroup {
+  entrants: Record<string, string>;
+  slots: Record<"opening_1" | "opening_2" | "winners" | "elimination" | "decider", ChampionsSlot>;
+  results: Record<string, { team_ids: number[]; scores: number[] }>;
+  expected: Record<string, number[]>;
+  qualifiers: number[];
+  unverified_match_ids: number[];
+}
+export interface ChampionsStatus {
+  event_id: number; as_of: string | null; playoff_routing: "unresolved";
+  title_odds: null; groups: Record<"A" | "B" | "C" | "D", ChampionsGroup>;
+}
 export interface Movement {
   match_id: number; team_a: string; team_b: string; scheduled_at: string;
   team_a_key: string; team_b_key: string;

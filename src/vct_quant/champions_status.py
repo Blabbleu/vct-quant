@@ -58,6 +58,11 @@ def champions_status(db, spec: dict) -> dict:
             results = {}
         output["groups"][letter] = {
             **progress,
+            "entrants": {str(team_id): name for slot in group.values() if "teams" in slot
+                         for team_id, name in zip(slot["team_ids"], slot["teams"])},
+            "slots": {key: {"match_id": slot["match_id"], "stage": slot["stage"],
+                            **({"team_ids": slot["team_ids"]} if "team_ids" in slot else {})}
+                      for key, slot in group.items()},
             "results": {key: results[slot["match_id"]] for key, slot in group.items() if slot["match_id"] in results},
             "unverified_match_ids": sorted(set(issues)),
         }

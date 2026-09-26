@@ -33,6 +33,9 @@ def test_champions_status_routes_only_db_verified_results():
     assert output["groups"]["C"]["results"]["opening_1"]["scores"] == [0, 2]
     assert output["groups"]["A"]["expected"] == {}
     assert output["groups"]["C"]["qualifiers"] == []
+    assert output["groups"]["C"]["entrants"]["11058"] == "G2 Esports"
+    assert output["groups"]["C"]["slots"]["opening_1"] == {"match_id": 753454, "stage": "Opening (C)", "team_ids": [731, 11058]}
+    assert output["groups"]["C"]["slots"]["decider"] == {"match_id": 753458, "stage": "Decider (C)"}
     assert output["playoff_routing"] == "unresolved"
     assert output["title_odds"] is None
     db.close()
