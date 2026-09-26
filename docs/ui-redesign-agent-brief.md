@@ -14,20 +14,25 @@ match forecasts). Read this whole file first.
 - Run EVERY project command through the wrapper `vctui <cmd>` (runs as user
   blabbleu inside the worktree with node v24 + the Python venv on PATH), e.g.
   `vctui sh -c 'cd web && npm run build'`, `vctui npm run check`,
-  `vctui git add -A web && vctui git commit -m "..."`, `vctui pytest -q`.
+  `vctui git add web/src/pages/Foo.tsx && vctui git commit -m "..."`, `vctui pytest -q`.
 - Commit on `ui/terminal-arena` in small logical commits. Never push, never
   merge, never rebase, never force, never `git reset --hard`.
 - `npm install` only inside `web/` (commit package.json + lockfile). Keep
   `server.js` dependency-free and do not change its API unless your task says so.
-- Dev server for visual checks: start it with the terminal tool
-  `background=true`:
-  `vctui env PORT=<your port> HOST=127.0.0.1 timeout 1500 node server.js`
-  (use the port given in your task). Stop it by killing THAT process session
-  only. NEVER run `pkill -f "node server.js"` or anything matching broadly: it
-  kills the live site. After stopping, confirm
-  `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/health`
-  is still 200.
-- Rebuild (`npm run build`) before viewing: server.js serves `web/dist`.
+- **Parallel page agents: never run `npm run build` while others work** (it
+  wipes the shared `web/dist`). For visual checks use YOUR OWN Vite dev server
+  on the port in your task, started with the terminal tool `background=true`:
+  `vctui sh -c 'cd web && API_ORIGIN=http://127.0.0.1:8202 timeout 2400 npx vite --port <PORT> --strictPort --host 127.0.0.1'`
+  (the API + logos come from the shared UI backend on :8202, already running;
+  if `curl http://127.0.0.1:8202/api/health` isn't 200, start it with
+  `vctui env PORT=8202 HOST=127.0.0.1 timeout 3600 node server.js` in the
+  background). Type-check with `vctui sh -c 'cd web && npx tsc -b --noEmit'`.
+  Stop only YOUR process session. NEVER `pkill -f node`/`vite` or anything
+  broad: it kills the live site and the other agents' servers. Live must stay
+  200 at `http://127.0.0.1:8000/api/health`.
+- Commit only files you own (see your task); `git add <paths>`, never `git add -A`.
+  If a commit fails due to a concurrent commit/index lock, wait a few seconds
+  and retry.
 
 ## The design
 
@@ -101,9 +106,9 @@ type, shapes, components, states, copy and do-nots. Summary of the key points:
 
 ## Definition of done for any task
 
-1. `vctui sh -c 'cd web && npm run build'` passes (strict tsc).
-2. `vctui npm run check` passes (server route check), and `vctui pytest -q`
-   still passes.
+1. `vctui sh -c 'cd web && npx tsc -b --noEmit'` passes (strict tsc). The
+   orchestrator runs the full build.
+2. If you touched server.js or Python: `vctui npm run check` and `vctui pytest -q` pass.
 3. You opened every page you touched in the browser at 390x844 (mobile
    emulation) AND 1200x800, in dark AND light theme, took screenshots and
    looked at them: no horizontal overflow
