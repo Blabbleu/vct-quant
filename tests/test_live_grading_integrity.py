@@ -55,6 +55,34 @@ def test_conflicting_latest_timestamp_is_not_scored():
     assert scored.empty
 
 
+def test_same_timestamp_different_shadow_is_not_an_arbitrary_live_score():
+    log = _log().iloc[:2].copy()
+    log.loc[0, "predicted_at"] = log.loc[1, "predicted_at"]
+    log.loc[0, "p_team_a_win"] = log.loc[1, "p_team_a_win"]
+    log.loc[0, "p_team_a_win_ensemble"] = 0.1
+    scored = graded_forecasts(log, lambda mid, a, b, p: _result(a, b))
+    assert scored.attrs["logged"] == 1
+    assert scored.empty
+
+
+def test_same_timestamp_different_market_is_not_arbitrarily_scored():
+    log = _log().iloc[:2].copy()
+    log.loc[0, "predicted_at"] = log.loc[1, "predicted_at"]
+    log.loc[0, "p_team_a_win"] = log.loc[1, "p_team_a_win"]
+    log.loc[0, "p_team_a_win_ensemble"] = log.loc[1, "p_team_a_win_ensemble"]
+    log.loc[0, "p_market_a"] = 0.9
+    scored = graded_forecasts(log, lambda mid, a, b, p: _result(a, b))
+    assert scored.empty
+
+
+def test_duplicate_identical_scoring_payload_keeps_one_result():
+    log = _log().iloc[:2].copy()
+    log.loc[0] = log.loc[1]
+    scored = graded_forecasts(log, lambda mid, a, b, p: _result(a, b))
+    assert scored.match_id.tolist() == [11]
+    assert scored.p_team_a_win_ensemble.tolist() == [0.65]
+
+
 def test_logged_schedule_outlives_completed_result_even_if_db_was_rescheduled():
     log = _log().iloc[:2].copy()
     logged = log.scheduled_at.iloc[0]

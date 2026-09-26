@@ -8,8 +8,11 @@ decisive series score and winner flags, and completion date. A later feed
 reschedule cannot rehabilitate a forecast made after the original announced
 kickoff; an earlier eligible call is kept instead. A canonical reschedule
 cannot make a result eligible when it completed before the *selected forecast's*
-logged scheduled day. Conflicting rows at the same latest timestamp are withheld
-instead of picking an arbitrary pairing. Invalid probabilities and post-cutoff
+logged scheduled day. Conflicting rows at the same latest timestamp—including
+primary/shadow probabilities, market quote/spread/volume, rating columns,
+team keys, tier, format or scheduled time—are withheld instead of picking an
+arbitrary scoring payload from parquet order. Identical scoring payloads are
+safe duplicates. Invalid probabilities and post-cutoff
 samples are excluded. `/results` and team-page logged calls use the same
 conservative cutoff and completion-day check, and withhold conflicting ties.
 No prediction-log, DB, primary forecast or shadow parameter is changed.

@@ -17,7 +17,7 @@ from typing import Callable
 import pandas as pd
 
 from .config import PROCESSED_DIR
-from .live_grading import eligible_pre_start
+from .live_grading import eligible_pre_start, latest_unambiguous
 from .paper_ledger import MAX_SPREAD, MIN_VOLUME
 
 Loader = Callable[[int, str, str, float], dict | None]
@@ -48,12 +48,7 @@ def finished_results(log: pd.DataFrame, load: Loader, limit: int | None = None) 
     pre = eligible_pre_start(log)
     if pre.empty:
         return out
-    last = pre.sort_values("predicted_at").groupby("match_id").tail(1)
-    latest = pre.merge(last[["match_id", "predicted_at"]], on=["match_id", "predicted_at"])
-    conflicting = set(latest.groupby("match_id").filter(
-        lambda rows: len(rows[["team_a_key", "team_b_key", "scheduled_at",
-                               "p_team_a_win"]].drop_duplicates()) > 1
-    ).match_id)
+    last, conflicting = latest_unambiguous(pre)
     rows = []
     for r in last.itertuples():
         if r.match_id in conflicting:

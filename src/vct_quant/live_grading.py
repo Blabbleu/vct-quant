@@ -32,6 +32,25 @@ def eligible_pre_start(log: pd.DataFrame) -> pd.DataFrame:
                     & rows["p_team_a_win"].between(0, 1)].copy()
 
 
+def latest_unambiguous(pre: pd.DataFrame) -> tuple[pd.DataFrame, set]:
+    """Select last eligible calls; flag tied, contradictory scoring payloads.
+
+    A duplicate timestamp with a different shadow or market quote must not
+    score an arbitrary row depending on parquet order. Compare only inputs to
+    grading/display, rather than irrelevant raw metadata or fetch provenance.
+    """
+    last = pre.sort_values("predicted_at").groupby("match_id").tail(1)
+    latest = pre.merge(last[["match_id", "predicted_at"]], on=["match_id", "predicted_at"])
+    fields = ["team_a_key", "team_b_key", "scheduled_at", "tier", "best_of",
+              "p_market_a", "market_spread", "market_volume"]
+    fields += [c for c in pre if c.startswith(("p_", "elo"))]
+    fields = [c for c in dict.fromkeys(fields) if c in latest]
+    conflicting = set(latest.groupby("match_id").filter(
+        lambda rows: len(rows[fields].drop_duplicates()) > 1
+    ).match_id)
+    return last, conflicting
+
+
 def graded_forecasts(log: pd.DataFrame, load: Loader = load_result) -> pd.DataFrame:
     """Last strictly pre-scheduled-start row per match with a verified winner.
 
@@ -45,12 +64,7 @@ def graded_forecasts(log: pd.DataFrame, load: Loader = load_result) -> pd.DataFr
         out.attrs["logged"] = 0
         return out
     pre = eligible_pre_start(log)
-    last = pre.sort_values("predicted_at").groupby("match_id").tail(1)
-    latest = pre.merge(last[["match_id", "predicted_at"]], on=["match_id", "predicted_at"])
-    conflicting = set(latest.groupby("match_id").filter(
-        lambda rows: len(rows[["team_a_key", "team_b_key", "scheduled_at",
-                               "p_team_a_win"]].drop_duplicates()) > 1
-    ).match_id)
+    last, conflicting = latest_unambiguous(pre)
     winners: dict[int, int] = {}
     for row in last.itertuples():
         if row.match_id in conflicting:

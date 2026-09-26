@@ -141,6 +141,14 @@ def test_conflicting_latest_timestamp_is_not_displayed_as_a_scored_call():
     assert finished_results(log, fake_loader({16: verified()}))["rows"] == []
 
 
+def test_conflicting_latest_market_timestamp_is_withheld_from_results():
+    log = pd.DataFrame([
+        row(17, "2026-09-24T09:00Z", market=0.4, spread=0.02, volume=5000),
+        row(17, "2026-09-24T09:00Z", market=0.7, spread=0.02, volume=5000),
+    ])
+    assert finished_results(log, fake_loader({17: verified()}))["rows"] == []
+
+
 def test_empty_log():
     out = finished_results(pd.DataFrame(), fake_loader({}))
     assert out["rows"] == [] and out["verified"] == 0 and out["by_tier"] == {}
