@@ -127,6 +127,21 @@ async function main() {
     }
     console.log(`  /api/results ${resultsBody.rows.length} finished logged fixtures ok`);
 
+    // A team in a finished Tier-1 logged fixture sees the same call from its side.
+    const tier1 = resultsBody.rows.find(r => r.tier === 1 && r.result.status === "verified" && r.team_a_id);
+    const quiet = await (await fetch(base + "/api/team/4529")).json();
+    assert.ok(Array.isArray(quiet.logged_results.rows));
+    if (tier1) {
+      const own = await (await fetch(base + `/api/team/${tier1.team_a_id}`)).json();
+      const mine = own.logged_results.rows.find(r => r.match_id === tier1.match_id);
+      assert.ok(mine, `team ${tier1.team_a_id} lacks logged match ${tier1.match_id}`);
+      assert.ok(Math.abs(mine.p_win - tier1.p_a) < 1e-12);
+      assert.equal(mine.won, tier1.result.winner === "a");
+      assert.equal(mine.maps_for, tier1.result.maps_a);
+      assert.ok(own.logged_results.rows.every(r => r.status === "verified" || r.log_loss === null));
+      console.log(`  /api/team/${tier1.team_a_id} logged results agree with /api/results ok`);
+    }
+
     const ops = await fetch(base + "/api/ops");
     assert.equal(ops.status, 200);
     const opsBody = await ops.json();

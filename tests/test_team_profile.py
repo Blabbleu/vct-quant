@@ -54,6 +54,9 @@ def test_team_api_profile_includes_bounded_historical_player_links(monkeypatch, 
         return {"maps_sampled": 1, "latest_map_date": "2026-09-20",
                 "players": [{"player_id": 7, "handle": "Renamed", "maps": 1}]}
     monkeypatch.setattr(team_module, "recent_lineup", lineup, raising=False)
+    monkeypatch.setattr(team_module, "logged_results_for",
+                        lambda team_id: {"rows": [], "summary": {"verified": 0, "team": team_id}})
     result = team_module.team_profile(42)
+    assert result["logged_results"]["summary"]["team"] == 42
     assert result["recent_lineup"]["players"][0]["player_id"] == 7
     assert calls[0][0] == 42 and calls[0][1].tzinfo is not None

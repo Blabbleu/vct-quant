@@ -92,6 +92,19 @@ export interface TeamProfile {
   fixtures: {
     match_id: number; scheduled_at: string; opponent: string; opponent_id: number | null; p_win: number;
   }[];
+  logged_results: {
+    rows: {
+      match_id: number; scheduled_at: string; forecast_at: string; event: string | null; series: string | null;
+      best_of: number | null; opponent: string; opponent_id: number | null; p_win: number;
+      market_win: number | null; status: "verified" | "unverified"; reason: string | null;
+      won: boolean | null; maps_for: number | null; maps_against: number | null;
+      log_loss: number | null; url: string | null;
+    }[];
+    summary: {
+      verified: number; unverified: number; wins: number; model_calls: number; model_had_team_favoured: number;
+      model_right: number; log_loss: number | null;
+    };
+  };
   note: string;
 }
 export interface PlayerProfile {

@@ -89,7 +89,64 @@ def finished_results(log: pd.DataFrame, load: Loader, limit: int | None = None) 
     return out
 
 
-def main() -> None:
+def team_logged_results(rows: list[dict], team_id: int, limit: int | None = 20) -> dict:
+    """Finished logged Tier-1 fixtures of one exact numeric team, from its side.
+
+    ``rows`` are ``build_results()`` rows (newest first, IDs already upgraded
+    from name keys only via the same canonical side). Game Changers and rows
+    whose side has no numeric ID are left out, matching the team profile's
+    exact-identity rule. Unverified results are listed without score or loss.
+    """
+    mine = []
+    summary = {"verified": 0, "unverified": 0, "wins": 0, "model_calls": 0,
+               "model_had_team_favoured": 0, "model_right": 0, "log_loss": None}
+    total_loss = 0.0
+    for r in rows:
+        if r.get("tier") != 1:
+            continue
+        if r.get("team_a_id") == team_id:
+            side, other = "a", "b"
+        elif r.get("team_b_id") == team_id:
+            side, other = "b", "a"
+        else:
+            continue
+        result = r.get("result") or {}
+        ok = result.get("status") == "verified" and result.get("winner") in ("a", "b")
+        p_win = r["p_a"] if side == "a" else 1 - r["p_a"]
+        market = r.get("market_a")
+        won = (result["winner"] == side) if ok else None
+        mine.append({
+            "match_id": r["match_id"], "scheduled_at": r["scheduled_at"],
+            "forecast_at": r["forecast_at"], "event": r.get("event"), "series": r.get("series"),
+            "best_of": r.get("best_of"), "opponent": r[f"team_{other}"],
+            "opponent_id": r.get(f"team_{other}_id"), "p_win": p_win,
+            "market_win": None if market is None else (market if side == "a" else 1 - market),
+            "status": "verified" if ok else "unverified",
+            "reason": None if ok else result.get("reason"),
+            "won": won,
+            "maps_for": result.get(f"maps_{side}") if ok else None,
+            "maps_against": result.get(f"maps_{other}") if ok else None,
+            "log_loss": r.get("log_loss") if ok else None,
+            "url": r.get("url"),
+        })
+        if not ok:
+            summary["unverified"] += 1
+            continue
+        summary["verified"] += 1
+        summary["wins"] += bool(won)
+        total_loss += r["log_loss"]
+        if p_win != 0.5:
+            favoured = p_win > 0.5
+            summary["model_calls"] += 1
+            summary["model_had_team_favoured"] += favoured
+            summary["model_right"] += favoured == won
+    if summary["verified"]:
+        summary["log_loss"] = total_loss / summary["verified"]
+    return {"rows": mine[:limit] if limit else mine, "summary": summary}
+
+
+def build_results() -> dict:
+    """Every finished logged fixture with logos, tags and upgraded team IDs."""
     from .logos import load_logos, load_tags
     from .match_result import load_history_keys, load_result
 
@@ -108,7 +165,11 @@ def main() -> None:
             row[f"team_{side}_id"] = int(resolved) if resolved.isdigit() else None
     out["note"] = ("Last forecast logged before kickoff next to the verified canonical result. "
                    "Descriptive tally, not a significance test; unverified results are not scored.")
-    print(json.dumps(out, allow_nan=False))
+    return out
+
+
+def main() -> None:
+    print(json.dumps(build_results(), allow_nan=False))
 
 
 if __name__ == "__main__":

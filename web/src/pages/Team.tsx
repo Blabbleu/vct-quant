@@ -3,7 +3,7 @@ import TeamLogo from "../components/TeamLogo";
 import TeamName from "../components/TeamName";
 import { Failure, Loading, PageHead, Tile } from "../components/ui";
 import { useTeamProfile } from "../lib/api";
-import { pct, when } from "../lib/format";
+import { num, pct, when } from "../lib/format";
 
 function Opponent({ id, name }: { id: number | null; name: string }) {
   return id ? <Link to={`/team/${id}`}>{name}</Link> : <span>{name}</span>;
@@ -49,6 +49,22 @@ export default function Team() {
           <span className="right"><b className="num">{pct(f.p_win)}</b><br /><Link to={`/match/${f.match_id}`} className="small">Match center →</Link></span>
         </div>,
       ) : <p className="muted small">No future Tier-1 fixtures in the current cache.</p>}
+    </section>
+    <section className="panel pad">
+      <h2>Model calls on this team</h2>
+      <p className="muted small">Finished Tier-1 matches the desk forecast before kickoff: the last pre-start win chance it gave this team, next to the verified result. {data.logged_results.summary.verified > 0 && <>Model favourite won {data.logged_results.summary.model_right}/{data.logged_results.summary.model_calls} · mean log loss {num(data.logged_results.summary.log_loss, 3)} over {data.logged_results.summary.verified}. </>}Too few matches to judge the model on one team; see <Link to="/track-record">Track record</Link>.</p>
+      {data.logged_results.rows.length ? data.logged_results.rows.map(r =>
+        <div className="team-row" key={r.match_id}>
+          <span><span className="muted small">{new Date(r.scheduled_at).toLocaleDateString(undefined, { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" })}{r.series ? ` · ${r.series}` : ""}</span><br /><Opponent id={r.opponent_id} name={r.opponent} /></span>
+          <span className="right">
+            {r.status === "verified"
+              ? <><b className={r.won ? "team-win num" : "num"}>{r.won ? "W" : "L"} {r.maps_for}–{r.maps_against}</b><br /></>
+              : <><span className="muted small">unverified, not scored</span><br /></>}
+            <span className="small num">model {pct(r.p_win)}{r.market_win != null ? ` · mkt ${pct(r.market_win)}` : ""}</span><br />
+            <Link to={`/match/${r.match_id}`} className="small">Match center →</Link>
+          </span>
+        </div>,
+      ) : <p className="muted small">No finished Tier-1 matches of this team in the prediction log yet.</p>}
     </section>
     <section className="panel pad">
       <h2>Recent results</h2>

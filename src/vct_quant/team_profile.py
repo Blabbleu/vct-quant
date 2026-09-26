@@ -96,7 +96,15 @@ def team_profile(team_id: int) -> dict | None:
         result["logo"] = load_logos().get(str(team_id))
         result["tag"] = load_tags().get(str(team_id))
         result["recent_lineup"] = recent_lineup(team_id, as_of=now)
+        result["logged_results"] = logged_results_for(team_id)
     return result
+
+
+def logged_results_for(team_id: int) -> dict:
+    """This team's finished logged fixtures: the desk's pre-start call vs the result."""
+    from .results_list import build_results, team_logged_results
+
+    return team_logged_results(build_results()["rows"], team_id)
 
 
 def main() -> None:
