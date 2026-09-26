@@ -50,6 +50,21 @@ gc-k-retune.md and at K = 48 by forfeit-labels.md. Neither selected anything
 in this lab's families, but the test years are no longer pristine for GC;
 treat a borderline result accordingly.
 
+### Amendment 1 (after the first tune run, before any test-year scoring)
+
+Family N as written is degenerate: when *every* team's first rating is r0,
+the whole pool is translated by r0 - 1500 and Elo is translation-invariant.
+The first tune run confirmed it (N losses identical to M at every K, to 6
+decimals). Replaced by **N'**: a team entering the pool is seeded at the
+**current mean rating of already-rated teams + delta**, delta in
+{-50, -100, -150, -200, -250, -300}, K in {64, 96, 128, 192, 256}. With
+delta = 0 this is exactly production (zero-sum updates keep the mean at 1500).
+Selection is re-run over all families on the tune years; nothing else changes.
+The test years remain unscored for every variant in this lab. (Side effect,
+noted: family P now also seeds newcomers at the current pool mean with
+delta = 0; P's per-side K makes updates non-zero-sum, so its mean drifts from
+1500. P tune losses moved in the 4th decimal; its best stays K=128, m=1.5.)
+
 ## Result
 
 (Filled in after the run.)
