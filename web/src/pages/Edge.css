@@ -1,0 +1,63 @@
+/* Edge (/edge): paper-only model-vs-market disagreement board + ledger aside.
+   See design-terminal-arena.pdf "Edge" and "Components" (gap chip, ledger). */
+
+.edge-page { display: flex; flex-direction: column; gap: var(--s-5); }
+
+.edge-head { display: flex; flex-direction: column; gap: var(--s-2); }
+.edge-title {
+  font-family: var(--font-display); font-weight: 700; text-transform: uppercase;
+  font-size: var(--fs-display); line-height: var(--lh-tight); margin: 0;
+}
+.edge-lede { color: var(--text-2); max-width: 68ch; margin: 0; }
+.edge-disclaimer {
+  display: inline-flex; align-self: flex-start; background: var(--market); color: var(--result-ink);
+  font-family: var(--font-display); font-weight: 700; font-size: var(--fs-label); text-transform: uppercase;
+  letter-spacing: var(--track-label); padding: var(--s-2) var(--s-3); margin: 0;
+}
+
+/* Desktop: main + aside ledger summary; phone stacks. */
+.edge-grid { display: grid; grid-template-columns: 1fr; gap: var(--s-5); align-items: start; }
+@media (min-width: 1200px) {
+  .edge-grid { grid-template-columns: minmax(0, 1fr) 360px; }
+}
+
+.edge-main, .edge-aside { display: flex; flex-direction: column; gap: var(--s-3); min-width: 0; }
+
+.edge-list { display: flex; flex-direction: column; gap: var(--s-2); }
+.edge-item {
+  display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: var(--s-3); align-items: center;
+  background: var(--surface-1); border: 1px solid var(--line); padding: var(--s-2) var(--s-3);
+  min-height: var(--hit); color: inherit; transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.edge-item:hover { border-color: var(--model); text-decoration: none; background: var(--surface-2); }
+.edge-item-mid { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.edge-item-nums { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; justify-content: flex-end; }
+.edge-item-num { display: flex; flex-direction: column; align-items: flex-end; }
+.edge-item-model { font-size: var(--fs-num-m); font-weight: 800; color: var(--model); }
+.edge-item-k { font-size: 10px; color: var(--text-3); text-transform: uppercase; letter-spacing: .04em; }
+
+.edge-scorecard { display: flex; gap: var(--s-2); flex-wrap: wrap; }
+
+/* Aside: paper ledger, dense table. */
+.edge-ledger-note { color: var(--text-3); font-size: var(--fs-meta); margin: 0; }
+.edge-ledger-summary { display: flex; gap: var(--s-2); flex-wrap: wrap; }
+.edge-ledger-scroll { overflow-x: auto; }
+.edge-ledger-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.edge-ledger-table th {
+  text-align: left; font-family: var(--font-num); font-size: 10px; font-weight: 500; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-3); padding: var(--s-2) var(--s-1); border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.edge-ledger-table td { padding: var(--s-2) var(--s-1); border-bottom: 1px solid var(--line); vertical-align: top; }
+.edge-ledger-table tr:last-child td { border-bottom: 0; }
+.edge-ledger-table th.n, .edge-ledger-table td.n { text-align: right; }
+.edge-ledger-match { display: flex; flex-direction: column; gap: 1px; min-width: 0; color: inherit; }
+.edge-ledger-match:hover { color: var(--model); text-decoration: none; }
+.edge-ledger-units { font-weight: 700; }
+.edge-ledger-pos { color: var(--model); }
+.edge-ledger-neg { color: var(--market); }
+
+/* Desktop: two-across list items get more breathing room. */
+@media (min-width: 1200px) {
+  .edge-item { padding: var(--s-3) var(--s-4); }
+}
