@@ -58,10 +58,12 @@ export interface Snapshot {
 }
 export interface MovementPoint { observed_at: string; elo: number; market: number | null; spread: number | null }
 export interface FormResult { match_id: number; opponent: string; result: "W" | "L"; completed_at: string }
+export interface MapRecord { map: string; played: number; won: number; round_share: number }
 export interface Movement {
   match_id: number; team_a: string; team_b: string; scheduled_at: string;
   team_a_key: string; team_b_key: string;
   logo_a?: string | null; logo_b?: string | null; tag_a?: string | null; tag_b?: string | null;
   recent_form: { a: FormResult[]; b: FormResult[] };
+  map_pool: { a: MapRecord[]; b: MapRecord[] };
   points: MovementPoint[]; note: string;
 }

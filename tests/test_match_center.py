@@ -1,7 +1,37 @@
 """The Match Center movement series uses only comparable pre-start observations."""
 import pandas as pd
 
-from vct_quant.match_center import movement, recent_form
+from vct_quant.match_center import movement, recent_form, map_pool_from_rows
+
+
+def test_map_pool_point_in_time_and_identity():
+    rows = pd.DataFrame([
+        (1, 1, "2026-09-20", "1", "2", "A", "B", "Ascent", 13, 8),
+        (2, 1, "2026-09-21", "3", "1", "C", "A", "ascent", 7, 13),
+        (3, 1, "2026-09-22", "1", "4", "A", "D", "Bind", 8, 13),
+        (4, 3, "2026-09-22", "1", "5", "A", "E", "Bind", 13, 0),
+        (5, 1, "2026-09-25", "1", "6", "A", "F", "Ascent", 13, 0),
+        (6, 1, "2026-09-23", "1", "7", "A", "G", "Ascent", 13, 0),
+        (7, 1, "2026-09-23", "1", "8", "A", "TBD", "Ascent", 13, 0),
+        (8, 1, None, "1", "9", "A", "H", "Ascent", 13, 0),
+        (9, 1, "2026-09-23", "1", "10", "A", "I", "Ascent", None, 0),
+        (10, 1, "2026-09-23", "1", "11", "A", "J", "Ascent", 13, 13),
+    ], columns=["match_id", "tier", "completed_at", "team_a", "team_b", "team_a_name", "team_b_name", "map_name", "rounds_a", "rounds_b"])
+    pool = map_pool_from_rows(rows, "1", "2", 5, "2026-09-25T20:00Z", limit=3)
+    assert pool == {"a": [{"map": "Ascent", "played": 2, "won": 2, "round_share": 26 / 41},
+                          {"map": "Bind", "played": 1, "won": 0, "round_share": 8 / 21}],
+                    "b": [{"map": "Ascent", "played": 1, "won": 0, "round_share": 8 / 21}]}
+
+
+def test_map_pool_window_is_last_maps_not_last_series():
+    rows = pd.DataFrame([
+        (1, 1, "2026-09-20", "1", "2", "A", "B", "Bind", 13, 1),
+        (2, 1, "2026-09-21", "1", "3", "A", "C", "Ascent", 0, 13),
+        (3, 1, "2026-09-22", "1", "4", "A", "D", "Ascent", 13, 1),
+    ], columns=["match_id", "tier", "completed_at", "team_a", "team_b", "team_a_name", "team_b_name", "map_name", "rounds_a", "rounds_b"])
+    assert map_pool_from_rows(rows, "1", "5", 4, "2026-09-25T00:00Z", limit=2)["a"] == [
+        {"map": "Ascent", "played": 2, "won": 1, "round_share": 13 / 27}]
+
 
 
 def test_recent_form_is_point_in_time_and_separates_rating_pools():

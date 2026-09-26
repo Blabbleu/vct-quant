@@ -82,6 +82,25 @@ export default function MatchCenter() {
         </section>
       )}
 
+      {m?.map_pool && (
+        <section className="panel pad">
+          <h2>Map history</h2>
+          <p className="muted small">Each side’s last 20 played Tier-1 maps with recorded scores before the latest forecast day. Historical results, not map-specific odds or likely veto picks; small samples can mislead.</p>
+          {([['a', teamA], ['b', teamB]] as const).map(([side, name]) => (
+            <div key={side}>
+              <h3>{name}</h3>
+              {m.map_pool[side].length ? <div className="scroll"><table>
+                <thead><tr><th>Map</th><th className="n">W / played</th><th className="n">Win %</th><th className="n">Round share</th></tr></thead>
+                <tbody>{m.map_pool[side].map(row => (
+                  <tr key={row.map}><td>{row.map}</td><td className="n">{row.won} / {row.played}</td>
+                    <td className="n">{pct(row.won / row.played, 0)}</td><td className="n">{pct(row.round_share, 0)}</td></tr>
+                ))}</tbody>
+              </table></div> : <p className="muted small">No scored Tier-1 maps in the recorded history.</p>}
+            </div>
+          ))}
+        </section>
+      )}
+
       {m && m.points.length > 0 && (
         <section className="panel pad">
           <div className="head"><h2>How the odds moved</h2>
