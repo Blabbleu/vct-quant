@@ -28,6 +28,7 @@ from .features.build import (
 )
 from .features.ratings import compute_elo
 from .logos import load_logos, load_tags
+from .live_grading import graded_forecasts
 
 MAX_SPREAD = 0.10
 
@@ -118,32 +119,13 @@ def graded_log() -> dict:
     if not path.exists():
         return out
     log = pd.read_parquet(path)
-    forecasts = (
-        log[log.predicted_at < log.scheduled_at]
-        .sort_values("predicted_at")
-        .groupby("match_id")
-        .tail(1)
-    )
-    out["logged"] = int(len(forecasts))
-    con = db.connect(read_only=True)
-    try:
-        results = con.execute(
-            "SELECT match_id, team_id, team_name, is_winner FROM match_team"
-        ).df()
-    finally:
-        con.close()
-    played = results[results.is_winner.notna()]
-    scored = forecasts.merge(played, on="match_id")
-    is_a = (
-        scored.team_id.eq(scored.team_a_id).fillna(False)
-        | scored.team_name.eq(scored.team_a_name)
-    )
-    scored = scored[is_a]
+    scored = graded_forecasts(log)
+    out["logged"] = scored.attrs["logged"]
+    out["graded"] = int(len(scored))
     if scored.empty:
         return out
-    y = scored.is_winner.astype(float).to_numpy()
+    y = scored.y.to_numpy()
     p = scored.p_team_a_win.to_numpy()
-    out["graded"] = int(len(scored))
     out["log_loss"] = float(metrics.log_loss(y, p))
     out["brier"] = float(metrics.brier_score(y, p))
     liquid = scored.p_market_a.notna() & (scored.market_spread.fillna(1) <= MAX_SPREAD)
@@ -186,7 +168,7 @@ def graded_log() -> dict:
         {"match_id": int(r.match_id), "team_a": r.team_a_name, "team_b": r.team_b_name,
          "logo_a": _logo(logos, r.team_a_key), "logo_b": _logo(logos, r.team_b_key),
             "tag_a": _logo(tags, r.team_a_key), "tag_b": _logo(tags, r.team_b_key),
-         "p": float(r.p_team_a_win), "won": bool(r.is_winner),
+         "p": float(r.p_team_a_win), "won": bool(r.y),
          "market": None if pd.isna(r.p_market_a) else float(r.p_market_a)}
         for r in scored.itertuples()
     ]

@@ -9,9 +9,9 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from vct_quant import db
 from vct_quant.config import PROCESSED_DIR
 from vct_quant.eval.metrics import brier_score, calibration_table, log_loss
+from vct_quant.live_grading import graded_forecasts
 
 MAX_SPREAD = 0.10
 # Walk-forward production Elo (scripts/benchmark_elo.py) after the 2026-09-24 team-ID fix.
@@ -69,27 +69,9 @@ def _print_shadow_scores(scored: pd.DataFrame, column: str, label: str) -> None:
 def main() -> int:
     log = pd.read_parquet(PROCESSED_DIR / "prediction_log.parquet")
 
-    forecasts = log[log.predicted_at < log.scheduled_at].sort_values("predicted_at").groupby("match_id").tail(1)
-
-    con = db.connect(read_only=True)
-    try:
-        results = con.execute(
-            "SELECT match_id, team_id, team_name, is_winner FROM match_team"
-        ).df()
-    finally:
-        con.close()
-
-    played = results[results.is_winner.notna()]
-    scored = forecasts.merge(played, on="match_id")
-    is_team_a = (
-        scored.team_id.eq(scored.team_a_id).fillna(False)  # match by ID when there is one
-        | scored.team_name.eq(scored.team_a_name)          # else by name
-    )
-    scored = scored[is_team_a]
-    scored["y"] = scored.is_winner.astype(int)
-
+    scored = graded_forecasts(log)
     if scored.empty:
-        print(f"{len(forecasts)} forecasts logged, none played yet")
+        print(f"{scored.attrs['logged']} forecasts logged, none played yet")
         return 0
 
     y, p = scored.y, scored.p_team_a_win
