@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { Movement, Snapshot, TeamProfile, PlayerProfile, ChampionsStatus, PaperLedger } from "./types";
+import type { Movement, Snapshot, TeamProfile, PlayerProfile, ChampionsStatus, PaperLedger, ResultsList } from "./types";
 
 type State<T> = { data: T | null; error: string | null; loading: boolean };
 
@@ -47,6 +47,10 @@ export function usePlayerProfile(id: number): State<PlayerProfile> {
 
 export function usePaperLedger(): State<PaperLedger> {
   return useFetch("paper-ledger", () => getJson<PaperLedger>("/api/paper-ledger"));
+}
+
+export function useResults(): State<ResultsList> {
+  return useFetch("results", () => getJson<ResultsList>("/api/results"));
 }
 
 export function useChampionsStatus(): State<ChampionsStatus> {

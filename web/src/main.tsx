@@ -5,6 +5,7 @@ import "./styles.css";
 import Layout from "./components/Layout";
 import Home from "./pages/Home";
 import Matches from "./pages/Matches";
+import Results from "./pages/Results";
 import MatchCenter from "./pages/MatchCenter";
 import Team from "./pages/Team";
 import Player from "./pages/Player";
@@ -22,6 +23,7 @@ createRoot(document.getElementById("root")!).render(
         <Route element={<Layout />}>
           <Route index element={<Home />} />
           <Route path="matches" element={<Matches />} />
+          <Route path="results" element={<Results />} />
           <Route path="match/:id" element={<MatchCenter />} />
           <Route path="team/:id" element={<Team />} />
           <Route path="player/:id" element={<Player />} />

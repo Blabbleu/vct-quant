@@ -126,6 +126,19 @@ export interface MatchResult {
   pre_start_winner_p: number | null; completed_on: string | null;
   source_url: string | null; as_of: string | null;
 }
+export interface ResultRow {
+  match_id: number; tier: number | null; event: string; series: string | null; best_of: number | null;
+  scheduled_at: string; forecast_at: string; team_a: string; team_b: string;
+  team_a_key: string; team_b_key: string; team_a_id: number | null; team_b_id: number | null;
+  logo_a: string | null; logo_b: string | null; tag_a: string | null; tag_b: string | null;
+  p_a: number; market_a: number | null; url: string | null;
+  result: MatchResult; log_loss: number | null; favourite_won: boolean | null;
+}
+export interface ResultsList {
+  rows: ResultRow[]; verified: number; unverified: number;
+  by_tier: Record<string, { verified: number; favourite_won: number; log_loss: number }>;
+  note: string;
+}
 export interface H2HSeries { match_id: number; winner: "a" | "b"; maps_a: number; maps_b: number; completed_at: string }
 export interface HeadToHead { series: H2HSeries[]; wins_a: number; wins_b: number; played: number }
 export interface Movement {

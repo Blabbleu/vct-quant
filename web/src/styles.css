@@ -230,3 +230,4 @@ td .team { gap: 5px; flex-wrap: wrap; }
   .fx-teams .tn.auto .tn-full { display: none; }
   .fx-teams .tn.auto .tn-short { display: inline; }
 }
+.fx-teams .vs.score { font-size: 16px; font-weight: 700; color: var(--ink); }
