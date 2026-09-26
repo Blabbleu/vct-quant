@@ -84,3 +84,39 @@ is leakage; the slug and the 6 logged fixtures say it is not, and the shadow
 would expose it (live fixtures are oriented before kickoff by construction).
 (3) h depends on K: combined with A73 only. On production K = 48 it was not
 tested.
+
+## Cross-pool order diagnostic (descriptive follow-up, 2026-09-26)
+
+`vctdev python -m scripts.side_order_audit` replays the exact Tier-1 primary
+margin Elo (K=48, Tier-2 update weight zero) and the already-frozen GC K=192
+h=0/h=30 variants. On decisive, dated matches, side-1 actual minus pre-match
+expected win rate in percentage points:
+
+| Year | Tier 1 n | Tier 1 residual | GC n | GC h=0 residual | GC h=30 residual |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 2021 | 6,638 | +7.60 | — | — | — |
+| 2022 | 3,519 | +8.18 | 1,273 | +6.32 | +2.43 |
+| 2023 | 333 | -0.09 | 2,075 | +4.11 | +0.95 |
+| 2024 | 436 | -0.62 | 2,431 | +5.49 | +2.28 |
+| 2025 | 504 | +0.48 | 3,298 | +5.26 | +2.14 |
+| 2026 | 592 | -4.60 | 2,366 | +5.76 | +2.74 |
+
+The archived completed-event feed agrees with canonical order in **all
+11,669 GC rows** (19 rows have no usable archived counterpart) by exact
+case-insensitive team names; no flipped rows. Tier-1 exact-name overlap:
+2022 819 same, 0 flipped, 61 unmatched aliases, 2,647 absent; 2023-26
+1,626 same, 0 flipped, 239 unmatched. There is **no 2021 archived
+counterpart** for any of its 6,709 canonical Tier-1 rows. In 2022 the
+feed-covered decisive subset has side-1 win rate 61.0% versus 53.5% Elo;
+feed-absent rows 61.5% versus 53.1%. The historical anomaly is not restricted
+to Kaggle-only rows, but post-match feed agreement does not establish that
+order was fixed before kickoff.
+
+This corroborates the GC side signal's persistence, **not** its mechanism or
+prospective validity. Tier 1's order bias disappears after the league
+restructure and reverses in 2026, so do not transfer h=30 to Tier 1 or select
+on these already-consulted years. The audit's z value is only a standardized
+descriptive residual (independent fixed-Bernoulli approximation), not an
+inferential test across dependent matches. Require pre-kickoff side snapshots
+in the live log to check the GC shadow, as stated above. No model or rule
+changed in this follow-up.
