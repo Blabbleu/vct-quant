@@ -30,7 +30,7 @@ from ..db import connect
 from ..ingest.kaggle import list_csvs
 from ..ingest.vlrgg import valid_feed_rows
 from .entity_resolution import normalize_name, vlr_id_from_url
-from .events import competition_tier
+from .events import competition_tier, series_best_of
 
 MATCH_KEY = ["Tournament", "Stage", "Match Type", "Match Name"]
 
@@ -606,10 +606,11 @@ def official_upcoming(
         )),
         "event_name": d["match_event"].astype(str),
         "event_series": d["match_series"].astype(str),
-        # ponytail: the feed omits format; VCT is Bo3 except grand finals.
-        "best_of": d["match_series"].str.contains(
-            "grand final", case=False, na=False
-        ).map({True: 5, False: 3}),
+        # The feed omits format; inferred from the stage label (series_best_of).
+        "best_of": [
+            series_best_of(event, series)
+            for event, series in zip(d["match_event"], d["match_series"])
+        ],
         "team_a_id": team_a_id,
         "team_a_key": [
             str(int(team_id)) if pd.notna(team_id) else f"name:{normalize_name(name)}"
@@ -657,9 +658,7 @@ def official_match_details(payload: dict) -> pd.DataFrame:
         for game_map in maps
         if str(game_map.get("map_name", "")).strip().lower() not in ("", "tbd")
     ]
-    best_of = len(maps) if len(maps) in (1, 3, 5) else (
-        5 if "grand final" in series.lower() else 3
-    )
+    best_of = len(maps) if len(maps) in (1, 3, 5) else series_best_of(event_name, series)
     keys = [
         str(team["id"]) if str(team.get("id", "")).isdigit()
         else f"name:{normalize_name(team.get('name', ''))}"

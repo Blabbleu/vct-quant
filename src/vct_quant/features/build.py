@@ -15,6 +15,7 @@ import pandas as pd
 
 from .. import db
 from ..config import PROCESSED_DIR
+from ..etl.events import series_best_of
 from .ratings import (
     DEFAULT_BASE,
     compute_elo,
@@ -361,9 +362,14 @@ def add_score_predictions(
             if "event_series" in out
             else pd.Series("", index=out.index)
         )
-        out["best_of"] = series.str.contains(
-            "grand final", case=False, na=False
-        ).map({True: 5, False: 3})
+        event = (
+            out["event_name"]
+            if "event_name" in out
+            else pd.Series("", index=out.index)
+        )
+        out["best_of"] = [
+            series_best_of(name, stage) for name, stage in zip(event, series)
+        ]
     distributions = distributions or [
         series_score_probabilities(float(probability), int(best_of))
         for probability, best_of in zip(out.p_team_a_win, out.best_of)

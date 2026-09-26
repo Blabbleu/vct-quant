@@ -92,6 +92,30 @@ def competition_tier(name: str, year: int | None = None, *,
     return None
 
 
+# The upcoming feed carries no series format, so it is inferred from the
+# stage label. Measured on played 2023-26 results (docs/series-format.md):
+# Tier-1 lower/middle/grand finals went the Bo5 distance 103 of 104 times,
+# every other Tier-1 stage label 1,741 of 1,751 times ended at two maps.
+# Game Changers main events play Bo5 lower and grand finals (20/20); its
+# small cups and splits do not, so only a grand final keeps the legacy Bo5.
+_BO5_STAGE = re.compile(r"\b(?:lower|middle|grand) final\b(?!\s*quals?\b)")
+_GRAND_FINAL = re.compile(r"\bgrand final\b(?!\s*quals?\b)")
+_GC_MAIN_EVENT = re.compile(
+    r"^game changers 20\d\d: (?:(?:china|pacific|brazil finals|latam main event)$|championship\b)"
+)
+
+
+def series_best_of(event: str | None, series: str | None) -> int:
+    """Best-of for a fixture from its event title and stage label (3 or 5)."""
+    stage = str(series or "").strip().lower()
+    title = str(event or "").strip().lower()
+    if not _BO5_STAGE.search(stage):
+        return 3
+    if "game changers" in title and not _GC_MAIN_EVENT.match(title):
+        return 5 if _GRAND_FINAL.search(stage) else 3
+    return 5
+
+
 def untiered_vct_titles(titles) -> list[str]:
     """VCT-branded event titles that `competition_tier` drops.
 
