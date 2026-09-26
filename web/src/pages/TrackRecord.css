@@ -1,0 +1,72 @@
+/* Track record (/track-record): calibration chart, checkpoint panel, live
+   pools, graded-call table. See design-terminal-arena.pdf "Track record" and
+   "Components" (chart, table rows). Also styles CheckpointPanel.tsx and
+   LiveByPool.tsx (components/*), which only this page uses. */
+
+.record-page { display: flex; flex-direction: column; gap: var(--s-5); }
+
+.record-head { display: flex; flex-direction: column; gap: var(--s-2); }
+.record-title {
+  font-family: var(--font-display); font-weight: 700; text-transform: uppercase;
+  font-size: var(--fs-display); line-height: var(--lh-tight); margin: 0;
+}
+.record-lede { color: var(--text-2); max-width: 68ch; margin: 0; }
+
+.record-scorecard { display: flex; gap: var(--s-2); flex-wrap: wrap; }
+.record-scorecard-note { color: var(--text-3); font-size: var(--fs-meta); margin: 0; }
+
+.record-grid { display: grid; grid-template-columns: 1fr; gap: var(--s-4); align-items: start; }
+@media (min-width: 900px) {
+  .record-grid { grid-template-columns: 1fr 1fr; }
+}
+.record-panel { min-width: 0; }
+.record-panel-in { display: flex; flex-direction: column; gap: var(--s-2); }
+
+.record-shadows { display: flex; flex-direction: column; gap: 2px; }
+.record-shadow-row {
+  display: flex; align-items: baseline; gap: var(--s-2); flex-wrap: wrap;
+  min-height: var(--hit); border-top: 1px solid var(--line); padding: var(--s-1) 0;
+}
+.record-shadow-row:first-child { border-top: 0; }
+.record-shadow-name { flex: 1 1 auto; min-width: 120px; }
+.record-shadow-score { font-weight: 800; }
+
+/* Dense graded-call / experiment-ledger tables. */
+.record-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.record-table th {
+  text-align: left; font-family: var(--font-num); font-size: 10px; font-weight: 500; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--text-3); padding: var(--s-2) var(--s-2); border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.record-table td { padding: var(--s-2); border-bottom: 1px solid var(--line); }
+.record-table tr:last-child td { border-bottom: 0; }
+.record-table th.n, .record-table td.n { text-align: right; }
+.record-table-match { display: flex; align-items: center; gap: 6px; color: inherit; min-width: 0; flex-wrap: nowrap; }
+.record-table-match:hover { color: var(--model); text-decoration: none; }
+.record-table-match .team-label { max-width: 120px; }
+
+/* --- CheckpointPanel --------------------------------------------------- */
+.checkpoint-panel { display: flex; flex-direction: column; gap: var(--s-3); }
+.checkpoint-note { color: var(--text-2); font-size: var(--fs-body); max-width: 68ch; margin: 0; }
+.checkpoint-cells { display: flex; gap: var(--s-2); flex-wrap: wrap; }
+.checkpoint-progress { height: 6px; background: var(--surface-2); overflow: hidden; }
+.checkpoint-progress i { display: block; height: 100%; background: var(--model); transition: width var(--dur) var(--ease); }
+.checkpoint-row {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s-3);
+  min-height: 36px; border-top: 1px solid var(--line); padding: var(--s-1) 0;
+}
+.checkpoint-row-k { color: var(--text-2); }
+.checkpoint-row-v { font-weight: 700; }
+
+/* --- LiveByPool ---------------------------------------------------------- */
+.pool-block { display: flex; flex-direction: column; gap: var(--s-3); }
+.pool-note { color: var(--text-2); max-width: 72ch; margin: 0; }
+.pool { display: flex; flex-direction: column; gap: var(--s-2); }
+.pool + .pool { margin-top: var(--s-3); padding-top: var(--s-4); border-top: 1px solid var(--line); }
+.pool h3 { margin: 0; font-size: 15px; font-family: var(--font-display); font-weight: 700; }
+.pool-cells { display: flex; gap: var(--s-2); flex-wrap: wrap; }
+.reliability td.ci-cell { width: 40%; min-width: 96px; }
+
+@media (min-width: 768px) {
+  .record-table-match .team-label { max-width: 180px; }
+}
