@@ -113,3 +113,63 @@ def test_movement_does_not_join_different_market_contracts():
     assert [p["elo"] for p in movement(log, 8)["points"]] == [.55, .58]
     assert [p["market"] for p in movement(log, 8)["points"]] == [None, .54]
     assert [p["spread"] for p in movement(log, 8)["points"]] == [None, .02]
+
+
+H2H_COLUMNS = ["match_id", "tier", "team_a", "team_b", "team_a_name", "team_b_name",
+               "score_a", "maps_a", "maps_b", "completed_at"]
+
+
+def test_head_to_head_is_point_in_time_exact_identity_and_oriented():
+    from vct_quant.match_center import head_to_head
+    rows = pd.DataFrame([
+        (1, 1, "1", "2", "A", "B", 1., 2, 1, "2026-01-10T00:00Z"),   # A beats B
+        (2, 1, "2", "1", "B", "A", 1., 2, 0, "2026-02-10T00:00Z"),   # B beats A, reversed sides
+        (3, 3, "1", "2", "A", "B", 1., 2, 0, "2026-03-10T00:00Z"),   # Game Changers pool
+        (4, 1, "1", "9", "A", "C", 1., 2, 0, "2026-03-11T00:00Z"),   # other opponent
+        (5, 1, "1", "2", "A", "B", .5, 1, 1, "2026-03-12T00:00Z"),   # Bo2 draw
+        (6, 1, "1", "2", "A", "B", 1., None, None, "2026-03-13T00:00Z"),  # forfeit / no maps
+        (7, 1, "1", "2", "A", "B", 1., 2, 0, None),                  # undated
+        (8, 1, "1", "2", "A", "B", 0., 0, 2, "2026-09-25T00:00Z"),   # same UTC day as refresh
+        (30, 1, "1", "2", "A", "B", 1., 2, 0, "2026-03-14T00:00Z"),  # later match ID
+        (9, 1, "name:a", "2", "A", "B", 1., 2, 0, "2026-03-15T00:00Z"),  # name alias, not ID 1
+        (10, 1, "1", "1", "A", "A", 1., 2, 0, "2026-03-16T00:00Z"),  # malformed self-match
+    ], columns=H2H_COLUMNS)
+    h2h = head_to_head(rows, "1", "2", 20, "2026-09-25T20:00Z")
+    assert [(r["match_id"], r["winner"], r["maps_a"], r["maps_b"]) for r in h2h["series"]] == [
+        (2, "b", 0, 2), (1, "a", 2, 1)]
+    assert (h2h["wins_a"], h2h["wins_b"], h2h["played"]) == (1, 1, 2)
+    assert h2h["series"][0]["completed_at"].startswith("2026-02-10")
+
+
+def test_head_to_head_limit_keeps_newest_but_counts_all():
+    from vct_quant.match_center import head_to_head
+    rows = pd.DataFrame([
+        (i, 1, "1", "2", "A", "B", 1., 2, 0, f"2026-0{i}-01T00:00Z") for i in range(1, 5)
+    ], columns=H2H_COLUMNS)
+    h2h = head_to_head(rows, "1", "2", 10, "2026-09-01T00:00Z", limit=2)
+    assert [r["match_id"] for r in h2h["series"]] == [4, 3]
+    assert (h2h["wins_a"], h2h["wins_b"], h2h["played"]) == (4, 0, 4)
+
+
+def test_head_to_head_empty_and_identical_keys():
+    from vct_quant.match_center import head_to_head
+    empty = {"series": [], "wins_a": 0, "wins_b": 0, "played": 0}
+    assert head_to_head(pd.DataFrame(), "1", "2", 5, "2026-09-01T00:00Z") == empty
+    rows = pd.DataFrame([(1, 1, "1", "1", "A", "A", 1., 2, 0, "2026-01-01T00:00Z")], columns=H2H_COLUMNS)
+    assert head_to_head(rows, "1", "1", 5, "2026-09-01T00:00Z") == empty
+
+
+def test_movement_tolerates_missing_slug_in_nullable_string_column():
+    # The live log stores market_slug as pandas "string": an unmatched early
+    # refresh is <NA>, and `<NA> == "slug"` is NA, whose truth value raises.
+    log = pd.DataFrame([
+        {"match_id": 9, "predicted_at": "2026-09-25T08:00Z", "scheduled_at": "2026-09-29T12:00Z",
+         "team_a_name": "A", "team_b_name": "B", "team_a_key": "1", "team_b_key": "2",
+         "p_team_a_win": .55, "p_market_a": None, "market_spread": None, "market_slug": None},
+        {"match_id": 9, "predicted_at": "2026-09-25T09:00Z", "scheduled_at": "2026-09-29T12:00Z",
+         "team_a_name": "A", "team_b_name": "B", "team_a_key": "1", "team_b_key": "2",
+         "p_team_a_win": .56, "p_market_a": .47, "market_spread": .02, "market_slug": "s"},
+    ])
+    log["market_slug"] = log.market_slug.astype("string")
+    points = movement(log, 9)["points"]
+    assert [p["market"] for p in points] == [None, .47]

@@ -106,3 +106,28 @@ def test_unknown_best_of_accepts_only_decisive_series_scores():
     bo1 = result_detail(meta(best_of=1), teams(a=(10, "Alpha", 1, True), b=(20, "Bravo", 0, False)),
                         maps([(1, "Ascent", 13, 3)]), "10", "20")
     assert bo1["status"] == "verified" and bo1["maps_complete"] is True
+
+
+def _history_teams(rows):
+    import pandas as pd
+    return pd.DataFrame(rows, columns=["team_number", "team_id", "team_name"])
+
+
+def test_history_keys_upgrade_name_key_to_same_side_id():
+    from vct_quant.match_result import history_keys
+    teams = _history_teams([(1, 731, "TYLOO"), (2, 11058, "G2 Esports")])
+    assert history_keys(teams, "731", "name:g2 esports") == ("731", "11058")
+    # forecast oriented the other way round
+    assert history_keys(teams, "name:g2 esports", "731") == ("11058", "731")
+
+
+def test_history_keys_keep_logged_keys_when_ambiguous_or_mismatched():
+    from vct_quant.match_result import history_keys
+    teams = _history_teams([(1, 731, "TYLOO"), (2, 11058, "G2 Esports")])
+    assert history_keys(teams, "731", "name:nrg") == ("731", "name:nrg")
+    assert history_keys(teams, "name:tyloo", "name:tyloo") == ("name:tyloo", "name:tyloo")
+    assert history_keys(_history_teams([(1, 731, "TYLOO")]), "731", "name:g2 esports") == (
+        "731", "name:g2 esports")
+    assert history_keys(None, "1", "2") == ("1", "2")
+    same = _history_teams([(1, 5, "X"), (2, 5, "X")])
+    assert history_keys(same, "5", "name:x") == ("5", "name:x")

@@ -11,7 +11,7 @@ from . import db
 from .config import PROCESSED_DIR
 from .features.build import match_sequence
 from .logos import load_logos, load_tags
-from .match_result import load_result
+from .match_result import load_history_keys, load_result
 
 
 def recent_form(matches: pd.DataFrame, team_a_key: str, team_b_key: str,
@@ -54,6 +54,46 @@ def recent_form(matches: pd.DataFrame, team_a_key: str, team_b_key: str,
                                  "completed_at": row.completed_at.isoformat()})
     return result
 
+
+def head_to_head(matches: pd.DataFrame, team_a_key: str, team_b_key: str,
+                 match_id: int, as_of: str, limit: int = 10) -> dict:
+    """Prior played Tier-1 series between exactly these two identities.
+
+    Same cutoffs as `recent_form` (earlier match ID and earlier UTC day than the
+    forecast refresh; dated, decisive, map-scored, no placeholders). Rows are
+    oriented to this fixture's side a. Counts cover every eligible meeting;
+    `series` lists the newest `limit`. Descriptive only, never a model input.
+    """
+    empty = {"series": [], "wins_a": 0, "wins_b": 0, "played": 0}
+    if matches.empty or team_a_key == team_b_key:
+        return empty
+    cutoff = pd.to_datetime(as_of, utc=True)
+    dates = pd.to_datetime(matches.completed_at, utc=True, errors="coerce")
+    pair = ((matches.team_a.eq(team_a_key) & matches.team_b.eq(team_b_key))
+            | (matches.team_a.eq(team_b_key) & matches.team_b.eq(team_a_key)))
+    played = matches.loc[
+        pair & matches.tier.eq(1) & matches.match_id.lt(match_id)
+        & dates.dt.normalize().lt(cutoff.normalize())
+        & matches.score_a.isin((0., 1.))
+        & matches.maps_a.notna() & matches.maps_b.notna()
+        & (matches.maps_a + matches.maps_b).gt(0)
+        & matches.team_a_name.ne("TBD") & matches.team_b_name.ne("TBD")
+    ].copy()
+    if played.empty:
+        return empty
+    played["completed_at"] = dates.loc[played.index]
+    played = played.sort_values(["completed_at", "match_id"], ascending=False)
+    series = []
+    for row in played.itertuples():
+        same = row.team_a == team_a_key
+        maps_a, maps_b = (row.maps_a, row.maps_b) if same else (row.maps_b, row.maps_a)
+        a_won = (row.score_a == 1.) == same
+        series.append({"match_id": int(row.match_id), "winner": "a" if a_won else "b",
+                       "maps_a": int(maps_a), "maps_b": int(maps_b),
+                       "completed_at": row.completed_at.isoformat()})
+    wins_a = sum(r["winner"] == "a" for r in series)
+    return {"series": series[:limit], "wins_a": wins_a,
+            "wins_b": len(series) - wins_a, "played": len(series)}
 
 
 def map_pool_from_rows(rows: pd.DataFrame, team_a_key: str, team_b_key: str,
@@ -145,7 +185,8 @@ def movement(log: pd.DataFrame, match_id: int) -> dict | None:
     points = []
     for r in rows.itertuples():
         market = r.p_market_a
-        same_contract = pd.notna(latest.market_slug) and r.market_slug == latest.market_slug
+        same_contract = (pd.notna(latest.market_slug) and pd.notna(r.market_slug)
+                         and str(r.market_slug) == str(latest.market_slug))
         has_market = same_contract and pd.notna(market) and math.isfinite(float(market))
         points.append({
             "observed_at": r.predicted_at.isoformat(),
@@ -171,13 +212,14 @@ def main() -> None:
     result = movement(data, args.match_id)
     if result is not None:
         as_of = result["points"][-1]["observed_at"]
-        result["recent_form"] = recent_form(
-            match_sequence(tiers=(1,)), result["team_a_key"], result["team_b_key"],
-            args.match_id, as_of,
-        )
-        result["map_pool"] = map_pool(
-            result["team_a_key"], result["team_b_key"], args.match_id, as_of,
-        )
+        tier1 = match_sequence(tiers=(1,))
+        # History is keyed on resolved IDs; a forecast logged under a name key
+        # is upgraded only to the numeric ID of the same canonical side.
+        key_a, key_b = load_history_keys(args.match_id, result["team_a_key"], result["team_b_key"])
+        result["history_keys"] = {"a": key_a, "b": key_b}
+        result["recent_form"] = recent_form(tier1, key_a, key_b, args.match_id, as_of)
+        result["head_to_head"] = head_to_head(tier1, key_a, key_b, args.match_id, as_of)
+        result["map_pool"] = map_pool(key_a, key_b, args.match_id, as_of)
         # Verified finished result (None while not completed); the last
         # pre-start logged probability is echoed for the winner, never refit.
         result["result"] = load_result(
@@ -185,11 +227,11 @@ def main() -> None:
             result["points"][-1]["elo"],
         )
         logos = load_logos()
-        result["logo_a"] = logos.get(result["team_a_key"])
-        result["logo_b"] = logos.get(result["team_b_key"])
+        result["logo_a"] = logos.get(result["team_a_key"]) or logos.get(key_a)
+        result["logo_b"] = logos.get(result["team_b_key"]) or logos.get(key_b)
         tags = load_tags()
-        result["tag_a"] = tags.get(result["team_a_key"])
-        result["tag_b"] = tags.get(result["team_b_key"])
+        result["tag_a"] = tags.get(result["team_a_key"]) or tags.get(key_a)
+        result["tag_b"] = tags.get(result["team_b_key"]) or tags.get(key_b)
     print(json.dumps(result, allow_nan=False))
 
 

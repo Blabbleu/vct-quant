@@ -127,6 +127,39 @@ def result_detail(meta: dict | None, teams: pd.DataFrame, maps: pd.DataFrame,
             "pre_start_winner_p": p_winner}
 
 
+def history_keys(teams: pd.DataFrame | None, team_a_key: str, team_b_key: str) -> tuple[str, str]:
+    """Upgrade a logged ``name:`` key to the numeric ID of the *same* canonical side.
+
+    Forecasts logged before team-ID resolution carry name keys, while history
+    (form, maps, head-to-head) is keyed on the resolved numeric ID. Upgrade only
+    when this match's two canonical rows map one-to-one onto the forecast sides
+    (same rule as ``result_detail``); otherwise keep the logged keys unchanged.
+    """
+    a, b = str(team_a_key), str(team_b_key)
+    if teams is None or teams.empty or a == b:
+        return a, b
+    sides = {_int(row.team_number): row for row in teams.itertuples()}
+    if set(sides) != {1, 2}:
+        return a, b
+    keys = {n: identity_key(sides[n].team_id, sides[n].team_name) for n in (1, 2)}
+    names = {n: {keys[n], identity_key(None, sides[n].team_name)} for n in (1, 2)}
+    straight = a in names[1] and b in names[2]
+    swapped = a in names[2] and b in names[1]
+    if keys[1] is None or keys[2] is None or keys[1] == keys[2] or straight == swapped:
+        return a, b
+    return (keys[1], keys[2]) if straight else (keys[2], keys[1])
+
+
+def load_history_keys(match_id: int, team_a_key: str, team_b_key: str) -> tuple[str, str]:
+    """Read this match's canonical team rows and apply ``history_keys``."""
+    with db.connect(read_only=True) as con:
+        teams = con.execute("""
+            SELECT team_number, team_id, team_name FROM match_team
+            WHERE match_id = ? ORDER BY team_number
+        """, [match_id]).df()
+    return history_keys(teams, team_a_key, team_b_key)
+
+
 def load_result(match_id: int, team_a_key: str, team_b_key: str,
                 p_team_a: float | None = None) -> dict | None:
     """Read canonical rows for one match from the (read-only) DB."""
