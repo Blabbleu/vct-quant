@@ -59,6 +59,18 @@ export interface Snapshot {
 export interface MovementPoint { observed_at: string; elo: number; market: number | null; spread: number | null }
 export interface FormResult { match_id: number; opponent: string; result: "W" | "L"; completed_at: string }
 export interface MapRecord { map: string; played: number; won: number; round_share: number }
+export interface TeamProfile {
+  team_id: number; name: string; logo: string | null; tag: string | null;
+  record: { wins: number; losses: number };
+  results: {
+    match_id: number; completed_at: string; opponent: string; opponent_id: number | null;
+    result: "W" | "L"; maps_for: number; maps_against: number;
+  }[];
+  fixtures: {
+    match_id: number; scheduled_at: string; opponent: string; opponent_id: number | null; p_win: number;
+  }[];
+  note: string;
+}
 export interface Movement {
   match_id: number; team_a: string; team_b: string; scheduled_at: string;
   team_a_key: string; team_b_key: string;

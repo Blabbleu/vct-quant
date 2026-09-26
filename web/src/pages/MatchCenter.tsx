@@ -21,6 +21,9 @@ export default function MatchCenter() {
   const teamA = f?.team_a ?? m!.team_a, teamB = f?.team_b ?? m!.team_b;
   const logoA = f?.logo_a ?? m?.logo_a ?? null, logoB = f?.logo_b ?? m?.logo_b ?? null;
   const tagA = f?.tag_a ?? m?.tag_a ?? null, tagB = f?.tag_b ?? m?.tag_b ?? null;
+  const keyA = m?.team_a_key, keyB = m?.team_b_key;
+  const idA = keyA && /^[1-9]\d*$/.test(keyA) && Number.isSafeInteger(Number(keyA)) ? keyA : null;
+  const idB = keyB && /^[1-9]\d*$/.test(keyB) && Number.isSafeInteger(Number(keyB)) ? keyB : null;
   const start = f?.start ?? m!.scheduled_at;
   const last = m?.points.at(-1);
   const p = f?.p_a ?? last?.elo ?? 0.5;
@@ -41,9 +44,9 @@ export default function MatchCenter() {
 
       <section className="panel pad">
         <div className="odds">
-          <div className="side"><TeamLogo src={logoA} name={teamA} size={56} /><div className="big num">{pct(p)}</div><div className="muted small"><TeamName name={teamA} tag={tagA} mode="auto" /></div></div>
+          <div className="side"><TeamLogo src={logoA} name={teamA} size={56} /><div className="big num">{pct(p)}</div><div className="muted small">{idA ? <Link className="team-link" to={`/team/${idA}`}><TeamName name={teamA} tag={tagA} mode="auto" /> →</Link> : <TeamName name={teamA} tag={tagA} mode="auto" />}</div></div>
           <div className="odds-mid"><SplitBar p={p} /><div className="muted small center">model series odds</div></div>
-          <div className="side right"><TeamLogo src={logoB} name={teamB} size={56} /><div className="big num dim">{pct(1 - p)}</div><div className="muted small"><TeamName name={teamB} tag={tagB} mode="auto" /></div></div>
+          <div className="side right"><TeamLogo src={logoB} name={teamB} size={56} /><div className="big num dim">{pct(1 - p)}</div><div className="muted small">{idB ? <Link className="team-link" to={`/team/${idB}`}><TeamName name={teamB} tag={tagB} mode="auto" /> →</Link> : <TeamName name={teamB} tag={tagB} mode="auto" />}</div></div>
         </div>
       </section>
 

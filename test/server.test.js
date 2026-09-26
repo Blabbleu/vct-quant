@@ -58,7 +58,7 @@ async function main() {
 
     // Every page route returns an HTML shell; the client router renders it.
     // With web/dist built that is the multipage app, otherwise the legacy desk.
-    for (const pagePath of ["/", "/matches", `/match/${matchId}`, "/rankings", "/edge", "/track-record", "/about"]) {
+    for (const pagePath of ["/", "/matches", `/match/${matchId}`, `/team/${teamBody.team_id}`, "/rankings", "/edge", "/track-record", "/about"]) {
       const page = await fetch(base + pagePath);
       assert.equal(page.status, 200, `${pagePath} answered ${page.status}`);
       assert.match(page.headers.get("content-type"), /text\/html/);
