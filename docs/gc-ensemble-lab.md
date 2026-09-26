@@ -15,3 +15,20 @@ Does a slower/fast GC rating blend or a fixed shrink of K=192 improve the alread
 * If a candidate wins tuning, score it **once** on 2025–26 against the K=192 reference on identical rows. Report n, mean log loss and Brier, paired per-match t (positive means candidate better), and per-year loss/t. A proposed **shadow only**, never primary, requires overall paired t >= 2 and lower mean loss in both 2025 and 2026. A failure is rejected, not retuned. The prospective live log is the only remaining clean test, subject to owner approval before logging a new shadow.
 
 Keep GC separate from Tier 1; no primary flag, ranking, data/raw, or live-DB change in this lab.
+
+## Result (dev DB snapshot, 2026-09-26)
+
+`vctdev python -m scripts.gc_ensemble_lab tune` scored n=5,779 decisive
+through-2024 GC matches: K=192 reference 0.592724, best blend (25% K=96,
+75% K=256) 0.592268, best fixed shrink a=1.1 0.592800. Selection was
+`blend_0.25`; no other test-year candidate was scored or selected.
+
+`vctdev python -m scripts.gc_ensemble_lab test --pick blend_0.25` scored
+n=5,664 in 2025–26: reference 0.603787 → blend **0.606527** (worse), paired
+t = **−4.98**; Brier 0.209876 → 0.210582. By year: 2025 n=3,298,
+0.602004 → 0.604321, t=−3.33; 2026 n=2,366, 0.606272 → 0.609602,
+t=−3.73. **Reject the blend; no GC shadow or primary change.** The
+fixed-shrink variants were tune-only and were not scored on 2025–26. Do not
+reselect a shrink setting based on this negative test.
+All numbers are retrospective and the years were already consulted in other GC
+labs. Production remains GC K=48 pending A73 and A74.
