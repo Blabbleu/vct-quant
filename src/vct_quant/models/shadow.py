@@ -88,6 +88,56 @@ def calibrated_probability(p: pd.Series, a: float) -> pd.Series:
     return pd.Series(_sigmoid(a * _logit(p)), index=p.index)
 
 
+# Game Changers side-1 advantage shadow (docs/gc-side-advantage.md): home-
+# advantage Elo on the GC pool, K and h tuned on GC <= 2024 (K=192, h=30), then
+# scored once on 2025-26: t = +3.76 vs K=192 without h (2025 +2.51, 2026 +2.85).
+# vlr.gg lists one side first before the match (slug order), and that side wins
+# ~5 points more often than Elo expects. OFF until the owner approves logging
+# it (A74); while off, fixtures and the prediction log are unchanged.
+GC_SIDE_SHADOW = False
+GC_SIDE_K = 192.0
+GC_SIDE_H = 30.0
+
+
+def side_advantage_ratings(history: pd.DataFrame, k: float = GC_SIDE_K,
+                           h: float = GC_SIDE_H) -> dict:
+    """Final ratings from a home-advantage Elo replay (h in prediction and update)."""
+    from ..features.build import margin_signal
+
+    ratings: dict = {}
+    for a, b, s in zip(history.team_a, history.team_b, margin_signal(history)):
+        ra = ratings.get(a, DEFAULT_BASE)
+        rb = ratings.get(b, DEFAULT_BASE)
+        e = expected_score(ra + h, rb)
+        ratings[a] = ra + k * (s - e)
+        ratings[b] = rb - k * (s - e)
+    return ratings
+
+
+def gc_side_probability(fixtures: pd.DataFrame, history: pd.DataFrame) -> pd.Series:
+    """P(team A = the feed's first-listed side wins) under the GC side-advantage shadow."""
+    ratings = side_advantage_ratings(history)
+    return pd.Series(
+        [expected_score(ratings.get(a, DEFAULT_BASE) + GC_SIDE_H, ratings.get(b, DEFAULT_BASE))
+         for a, b in zip(fixtures.team_a_key, fixtures.team_b_key)],
+        index=fixtures.index, dtype=float,
+    )
+
+
+def gc_shadow_columns(fixtures: pd.DataFrame, history: pd.DataFrame,
+                      enabled: bool | None = None) -> pd.DataFrame:
+    """Add `p_team_a_win_gc_side` to Game Changers fixtures when the flag is on."""
+    on = GC_SIDE_SHADOW if enabled is None else enabled
+    if not on:
+        return fixtures
+    out = fixtures.copy()
+    if out.empty or history.empty:
+        out["p_team_a_win_gc_side"] = math.nan
+        return out
+    out["p_team_a_win_gc_side"] = gc_side_probability(out, history)
+    return out
+
+
 def shadow_columns(
     fixtures: pd.DataFrame,
     history: pd.DataFrame,

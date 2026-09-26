@@ -157,7 +157,8 @@ def graded_log() -> dict:
     shadows = {}
     for column, name in (("p_team_a_win_ensemble", "ensemble"),
                          ("p_team_a_win_calibrated", "shrink"),
-                         ("p_team_a_win_carryover", "carry-over")):
+                         ("p_team_a_win_carryover", "carry-over"),
+                         ("p_team_a_win_gc_side", "GC side advantage")):
         if column not in scored:
             continue
         has = scored[column].notna().to_numpy()

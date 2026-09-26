@@ -51,4 +51,36 @@ Not in scope: Tier 1 (no gap after 2022), Tier 2 (zero Elo weight).
 
 ## Result
 
-(Filled in after the run.)
+Run 2026-09-26 on the dev DB snapshot (11,688 GC matches),
+`python scripts/gc_side_lab.py tune`, then `test`.
+
+Tune (years <= 2024, n = 5,779), mean log loss, h across, K down:
+
+| K | h=0 | 10 | 20 | **30** | 40 | 50 | 60 |
+|---|---|---|---|---|---|---|---|
+| 96 | .60814 | .60546 | .60354 | .60238 | .60198 | .60232 | .60340 |
+| 128 | .59976 | .59744 | .59589 | .59510 | .59507 | .59579 | .59724 |
+| **192** | .59272 | .59094 | .58994 | **.58971** | .59026 | .59157 | .59363 |
+| 256 | .59449 | .59308 | .59248 | .59268 | .59367 | .59544 | .59798 |
+
+Pick K = 192, h = 30 (interior; h up to 120 all worse).
+
+Test (2025-26, n = 5,664, scored once) vs A73 reference (K = 192, h = 0):
+
+* 0.603787 -> **0.599634, paired t = +3.76**; Brier 0.20988 -> 0.20798.
+* 2025: n = 3,298, 0.60200 -> 0.59839, t = +2.51.
+  2026: n = 2,366, 0.60627 -> 0.60137, t = +2.85. Both years favour H.
+* Side-1 win rate 0.604; mean p 0.549 (h = 0) -> 0.580 (h = 30). h = 30
+  closes about 60% of the gap; the < 50% buckets are still hot for side 1.
+
+**Decision under the frozen rule: propose H (K = 192, h = 30) as a GC shadow
+column**, graded on the live log before any primary switch. Approval A74.
+
+Caveats: (1) 2025-26 side-1 rates had been seen before this protocol was
+written; the rule was tightened for it, but only the live log is clean.
+(2) The mechanism (bracket seed listed first) is inferred, not verified from
+vlr.gg documentation. If side order were ever assigned after the result, this
+is leakage; the slug and the 6 logged fixtures say it is not, and the shadow
+would expose it (live fixtures are oriented before kickoff by construction).
+(3) h depends on K: combined with A73 only. On production K = 48 it was not
+tested.

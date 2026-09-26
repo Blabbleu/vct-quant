@@ -375,6 +375,11 @@ def predict_upcoming(
         out = shadow_columns(
             out, history, np.array([row["p_a_win"] for row in replay]), rosters
         )
+    elif "tier" in history and history.tier.eq(3).all():
+        # GC pool: its own shadow, behind a flag (off by default; A74).
+        from ..models.shadow import gc_shadow_columns
+
+        out = gc_shadow_columns(out, history)
     return add_score_predictions(out)
 
 
