@@ -51,6 +51,14 @@ type, shapes, components, states, copy and do-nots. Summary of the key points:
   localStorage. Put a small theme toggle in the nav/menu.
 - Phone first at 390 px (gutter 12 px, hit targets >= 44 px, nothing scrolls
   sideways), scaling to a 1200 px desktop layout.
+- **User requirement: it must look good on BOTH phone and desktop and never
+  out of place.** Desktop is designed, not a stretched or centred phone column:
+  use the foundation's container + grid helpers (multi-column boards, main +
+  aside layouts, wider tables with extra columns) so wide screens are used
+  well without huge empty areas or over-long lines. Phone never gets a
+  squeezed desktop layout. Check every page at 390x844, 768x1024 AND
+  1440x900, in both themes, and fix anything cramped, lost in empty space,
+  misaligned, or inconsistent with the rest of the app.
 - Motion: 120 ms state changes only; honour `prefers-reduced-motion`.
 - Honesty copy is FIXED text (see spec "Copy and do-nots").
 - Do-nots: rounded white cards with shadows, gradients, eyebrow labels above
