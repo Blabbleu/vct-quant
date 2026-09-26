@@ -4,11 +4,22 @@ export type LogoSize = 20 | 34 | 56;
 
 /**
  * Per-logo "is this basically black" cache, keyed by src. Computed once via
- * canvas mean luminance of opaque pixels; below ~0.18 it gets the light
- * `--logo-plate-dark` backing in dark theme so it doesn't vanish (EDG, PRX).
+ * canvas: the SHARE of opaque pixels that are near-black (luminance < 0.15),
+ * flagged dark when that share exceeds 0.5, so it gets the light
+ * `--logo-plate-dark` backing in dark theme and doesn't vanish.
+ *
+ * A plain mean-luminance cutoff can't separate EDG from 100T: EDG's mean is
+ * ~0.22 (mostly black background, a little white detail) and 100T's mean is
+ * ~0.24 (a light wordmark on transparent, so the few dark pixels drag the
+ * mean down too) — raising the mean threshold to include EDG also nets 100T.
+ * The near-black pixel SHARE separates them cleanly against real logos:
+ * EDG 0.67, Paper Rex 1.0 (solid black mark) both clear 0.5; 100T 0.43 and
+ * NRG 0 (no near-black pixels at all) both stay under it.
  * Module-level so every LogoSlot instance for the same team shares one probe.
  */
 const darkLogoCache = new Map<string, boolean>();
+const NEAR_BLACK_LUM = 0.15;
+const NEAR_BLACK_SHARE_THRESHOLD = 0.5;
 
 function computeIsDark(src: string): Promise<boolean> {
   return new Promise(resolve => {
@@ -24,16 +35,17 @@ function computeIsDark(src: string): Promise<boolean> {
         if (!ctx) return resolve(false);
         ctx.drawImage(img, 0, 0, w, h);
         const { data } = ctx.getImageData(0, 0, w, h);
-        let sum = 0;
+        let nearBlack = 0;
         let n = 0;
         for (let i = 0; i < data.length; i += 4) {
           const alpha = data[i + 3];
           if (alpha < 16) continue; // skip transparent pixels
           const r = data[i], g = data[i + 1], b = data[i + 2];
-          sum += (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+          const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+          if (lum < NEAR_BLACK_LUM) nearBlack++;
           n++;
         }
-        resolve(n > 0 && sum / n < 0.18);
+        resolve(n > 0 && nearBlack / n > NEAR_BLACK_SHARE_THRESHOLD);
       } catch {
         resolve(false); // any canvas error (e.g. tainted): fall back to the normal plate
       }
