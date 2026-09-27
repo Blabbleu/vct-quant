@@ -93,8 +93,9 @@ def calibrated_probability(p: pd.Series, a: float) -> pd.Series:
 # scored once on 2025-26: t = +3.76 vs K=192 without h (2025 +2.51, 2026 +2.85).
 # vlr.gg lists one side first before the match (slug order), and that side wins
 # ~5 points more often than Elo expects. OFF until the owner approves logging
-# it (A74); while off, fixtures and the prediction log are unchanged.
-GC_SIDE_SHADOW = False
+# it (A74), enabled after approval. This adds only a shadow column; primary
+# forecasts, Elo, and Tier-1 shadows are unchanged.
+GC_SIDE_SHADOW = True
 GC_SIDE_K = 192.0
 GC_SIDE_H = 30.0
 

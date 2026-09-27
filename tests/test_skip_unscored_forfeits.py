@@ -56,13 +56,13 @@ def test_skip_unscored_drops_forfeits_and_keeps_played_draws():
     assert kept.loc[kept.match_id.eq(4), "score_a"].item() == 0.5
 
 
-def test_flag_is_off_by_default_so_primary_forecasts_are_unchanged(monkeypatch):
-    assert build.SKIP_UNSCORED_FORFEITS is False
+def test_approved_default_skips_unscored_forfeits_and_flag_can_be_disabled(monkeypatch):
+    assert build.SKIP_UNSCORED_FORFEITS is True
     con = _db()
     try:
-        assert match_sequence(con).match_id.tolist() == [1, 2, 3, 4, 5]
-        monkeypatch.setattr(build, "SKIP_UNSCORED_FORFEITS", True)
         assert match_sequence(con).match_id.tolist() == [1, 4, 5]
+        monkeypatch.setattr(build, "SKIP_UNSCORED_FORFEITS", False)
+        assert match_sequence(con).match_id.tolist() == [1, 2, 3, 4, 5]
     finally:
         con.close()
 

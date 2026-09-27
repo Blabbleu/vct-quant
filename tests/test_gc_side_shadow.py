@@ -45,12 +45,14 @@ def test_gc_side_unrated_team_gets_base_plus_advantage():
     assert q.iloc[0] == pytest.approx(1 / (1 + 10 ** (-shadow.GC_SIDE_H / 400)))
 
 
-def test_gc_shadow_is_off_by_default_and_changes_nothing():
-    assert shadow.GC_SIDE_SHADOW is False
+def test_gc_shadow_is_enabled_by_approval_and_adds_only_shadow_column():
+    assert shadow.GC_SIDE_SHADOW is True
     f = _fixtures()
     out = shadow.gc_shadow_columns(f, _gc_history())
-    assert "p_team_a_win_gc_side" not in out
-    pd.testing.assert_frame_equal(out, f)
+    assert "p_team_a_win_gc_side" in out
+    assert list(out.columns) == list(f.columns) + ["p_team_a_win_gc_side"]
+    assert out.p_team_a_win_gc_side.between(0, 1).all()
+    pd.testing.assert_frame_equal(shadow.gc_shadow_columns(f, _gc_history(), enabled=False), f)
 
 
 def test_gc_shadow_on_adds_column_only():
@@ -72,6 +74,7 @@ def _fixture_frame():
 
 def test_predict_upcoming_gc_primary_unchanged_by_flag(monkeypatch):
     h = _gc_history()
+    monkeypatch.setattr(shadow, "GC_SIDE_SHADOW", False)
     off = build.predict_upcoming(_fixture_frame(), h)
     monkeypatch.setattr(shadow, "GC_SIDE_SHADOW", True)
     on = build.predict_upcoming(_fixture_frame(), h)
