@@ -185,6 +185,13 @@ const API_ROUTES = [
   "/api/paper-ledger", "/api/results", "/api/ops",
 ];
 
+function modelFailurePayload() {
+  return {
+    error: "the model layer failed",
+    hint: "run `vct init-db` and `vct update` first, or set PYTHON to your interpreter",
+  };
+}
+
 function send(res, status, body, type = "application/json; charset=utf-8") {
   res.writeHead(status, {
     "content-type": type,
@@ -256,11 +263,7 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, JSON.stringify(route(await snapshot())));
     } catch (err) {
       console.error(`[500] ${url.pathname}: ${err.message}`);
-      return send(res, 500, JSON.stringify({
-        error: "the model layer failed",
-        detail: err.message,
-        hint: "run `vct init-db` and `vct update` first, or set PYTHON to your interpreter",
-      }));
+      return send(res, 500, JSON.stringify(modelFailurePayload()));
     }
   }
   const match = /^\/api\/match\/([1-9][0-9]*)$/.exec(url.pathname);
@@ -366,4 +369,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { server, snapshot, ROUTES, createSnapshotter };
+module.exports = { server, snapshot, ROUTES, createSnapshotter, modelFailurePayload };

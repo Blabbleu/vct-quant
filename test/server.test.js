@@ -5,7 +5,14 @@
  */
 const assert = require("node:assert/strict");
 const net = require("node:net");
-const { server, ROUTES, createSnapshotter } = require("../server.js");
+const { server, ROUTES, createSnapshotter, modelFailurePayload } = require("../server.js");
+
+assert.deepEqual(modelFailurePayload(), {
+  error: "the model layer failed",
+  hint: "run `vct init-db` and `vct update` first, or set PYTHON to your interpreter",
+});
+assert.equal("detail" in modelFailurePayload(), false,
+  "public model errors must not expose subprocess details or local paths");
 
 async function checkSnapshotCacheRace() {
   let stamp = "old";
