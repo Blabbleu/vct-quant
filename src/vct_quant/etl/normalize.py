@@ -993,20 +993,15 @@ def load_vlrgg_match_details(
         details = _vlrgg_match_details()
         _resolve_team_ids(con, details, report)
         known = {row[0] for row in con.execute("SELECT match_id FROM match").fetchall()}
-        # Any existing map row counts as loaded: Kaggle can load a match's maps
-        # without player rows, and re-inserting those maps breaks the unique
-        # (match_id, map_number) key.
-        loaded = {
-            row[0]
-            for row in con.execute("SELECT DISTINCT match_id FROM match_map").fetchall()
+        existing_maps = {
+            (int(match_id), int(map_number)): int(match_map_id)
+            for match_map_id, match_id, map_number in con.execute(
+                "SELECT match_map_id, match_id, map_number FROM match_map"
+            ).fetchall()
         }
         report.drop(
             "details whose match is absent",
             sum(int(detail["match_id"]) not in known for detail in details),
-        )
-        report.drop(
-            "details already loaded",
-            sum(int(detail["match_id"]) in loaded for detail in details),
         )
         report.drop(
             "details without maps",
@@ -1014,9 +1009,7 @@ def load_vlrgg_match_details(
         )
         details = [
             detail for detail in details
-            if int(detail["match_id"]) in known
-            and int(detail["match_id"]) not in loaded
-            and detail.get("maps")
+            if int(detail["match_id"]) in known and detail.get("maps")
         ]
         if not details:
             return report
@@ -1032,6 +1025,18 @@ def load_vlrgg_match_details(
             "handle",
             "player_id",
         )
+        existing_scores = {
+            (int(match_map_id), int(team_number))
+            for match_map_id, team_number in con.execute(
+                "SELECT match_map_id, team_number FROM match_map_team_score"
+            ).fetchall()
+        }
+        existing_stats = {
+            (int(match_map_id), int(team_number), int(player_slot))
+            for match_map_id, team_number, player_slot in con.execute(
+                "SELECT match_map_id, team_number, player_slot FROM match_map_player_stat"
+            ).fetchall()
+        }
         maps: list[dict] = []
         scores: list[dict] = []
         stats: list[dict] = []
@@ -1039,35 +1044,41 @@ def load_vlrgg_match_details(
         for detail in details:
             match_id = int(detail["match_id"])
             for map_number, game_map in enumerate(detail.get("maps", []), 1):
-                # Detail payloads expose map order but not vlr.gg game IDs.
-                match_map_id = -(match_id * 10 + map_number)
-                maps.append({
-                    "match_map_id": match_map_id,
-                    "match_id": match_id,
-                    "map_number": map_number,
-                    "map_name": re.sub(
-                        r"PICK$", "", str(game_map.get("map_name", "")), flags=re.I
-                    ).strip(),
-                    "picked_by_raw": game_map.get("picked_by") or None,
-                    "duration_seconds": _duration_seconds(
-                        pd.Series([game_map.get("duration")])
-                    ).iloc[0],
-                    "status": detail.get("status"),
-                })
+                # Reuse canonical map IDs when Kaggle already supplied the map;
+                # detail payload IDs are only a fallback for missing map rows.
+                map_key = (match_id, map_number)
+                match_map_id = existing_maps.get(map_key, -(match_id * 10 + map_number))
+                if map_key not in existing_maps:
+                    maps.append({
+                        "match_map_id": match_map_id,
+                        "match_id": match_id,
+                        "map_number": map_number,
+                        "map_name": re.sub(
+                            r"PICK$", "", str(game_map.get("map_name", "")), flags=re.I
+                        ).strip(),
+                        "picked_by_raw": game_map.get("picked_by") or None,
+                        "duration_seconds": _duration_seconds(
+                            pd.Series([game_map.get("duration")])
+                        ).iloc[0],
+                        "status": detail.get("status"),
+                    })
 
                 for team_number, key in ((1, "team1"), (2, "team2")):
-                    scores.append({
-                        "match_map_id": match_map_id,
-                        "team_number": team_number,
-                        "team_id": team_ids.get((match_id, team_number)),
-                        "total_rounds": game_map.get("score", {}).get(key),
-                        "attack_rounds": game_map.get("score_t", {}).get(key),
-                        "defense_rounds": game_map.get("score_ct", {}).get(key),
-                        "overtime_rounds": game_map.get("score_ot", {}).get(key),
-                    })
+                    if (match_map_id, team_number) not in existing_scores:
+                        scores.append({
+                            "match_map_id": match_map_id,
+                            "team_number": team_number,
+                            "team_id": team_ids.get((match_id, team_number)),
+                            "total_rounds": game_map.get("score", {}).get(key),
+                            "attack_rounds": game_map.get("score_t", {}).get(key),
+                            "defense_rounds": game_map.get("score_ct", {}).get(key),
+                            "overtime_rounds": game_map.get("score_ot", {}).get(key),
+                        })
                     for slot, player in enumerate(
                         game_map.get("players", {}).get(key, []), 1
                     ):
+                        if (match_map_id, team_number, slot) in existing_stats:
+                            continue
                         stats.append({
                             "match_map_id": match_map_id,
                             "team_number": team_number,
@@ -1092,19 +1103,21 @@ def load_vlrgg_match_details(
         map_df = pd.DataFrame(maps)
         score_df = pd.DataFrame(scores)
         stat_df = pd.DataFrame(stats)
-        for col in (
-            "total_rounds", "attack_rounds", "defense_rounds", "overtime_rounds"
-        ):
-            score_df[col] = _int(score_df[col])
-        for col in (
-            "kills", "deaths", "assists", "kill_death_diff",
-            "first_kills", "first_deaths", "first_kill_diff",
-        ):
-            stat_df[col] = _int(stat_df[col])
-        for col in ("rating", "acs", "adr"):
-            stat_df[col] = _num(stat_df[col])
-        for col in ("kast_pct", "headshot_pct"):
-            stat_df[col] = _pct(stat_df[col])
+        if not score_df.empty:
+            for col in (
+                "total_rounds", "attack_rounds", "defense_rounds", "overtime_rounds"
+            ):
+                score_df[col] = _int(score_df[col])
+        if not stat_df.empty:
+            for col in (
+                "kills", "deaths", "assists", "kill_death_diff",
+                "first_kills", "first_deaths", "first_kill_diff",
+            ):
+                stat_df[col] = _int(stat_df[col])
+            for col in ("rating", "acs", "adr"):
+                stat_df[col] = _num(stat_df[col])
+            for col in ("kast_pct", "headshot_pct"):
+                stat_df[col] = _pct(stat_df[col])
 
         con.execute("BEGIN")
         try:

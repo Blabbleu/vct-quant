@@ -347,9 +347,9 @@ def test_match_detail_replay_keeps_valid_snapshot_before_poison(tmp_path, monkey
     assert "match_details_43_20260925T080000Z.json" in str(recorded[1].message)
 
 
-def test_match_details_skip_matches_whose_maps_already_exist(tmp_path, monkeypatch):
-    # Kaggle can load a match's maps without any player rows. A detail payload
-    # for that match must not re-insert the maps (duplicate map_number).
+def test_match_details_backfill_stats_when_maps_already_exist(tmp_path, monkeypatch):
+    # Kaggle can load a match's maps without player rows. Details must reuse
+    # those map IDs and fill missing scores/stats without duplicating maps.
     import duckdb
 
     from vct_quant import db
@@ -369,9 +369,18 @@ def test_match_details_skip_matches_whose_maps_already_exist(tmp_path, monkeypat
         }],
     }}))
 
-    normalize.load_vlrgg_match_details(con)
+    report = normalize.load_vlrgg_match_details(con)
 
     assert con.execute("SELECT count(*) FROM match_map").fetchone() == (1,)
+    assert con.execute("SELECT count(*) FROM match_map_team_score").fetchone() == (2,)
+    assert con.execute("SELECT count(*) FROM match_map_player_stat").fetchone() == (1,)
+    assert con.execute("""SELECT kills FROM match_map_player_stat""").fetchone() == (20,)
+    assert report.inserted["match_map_player_stat"] == 1
+
+    repeated = normalize.load_vlrgg_match_details(con)
+    assert con.execute("SELECT count(*) FROM match_map_team_score").fetchone() == (2,)
+    assert con.execute("SELECT count(*) FROM match_map_player_stat").fetchone() == (1,)
+    assert repeated.inserted == {}
 
 
 def test_match_details_resolve_missing_team_ids(tmp_path, monkeypatch):
