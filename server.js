@@ -192,6 +192,13 @@ function computeOps() {
   });
 }
 
+// Share simultaneous reads without caching completed values. This avoids
+// duplicate Python processes while preserving freshness on later requests.
+const computeChampionsInFlight = createInFlight(computeChampions);
+const computePaperLedgerInFlight = createInFlight(computePaperLedger);
+const computeResultsInFlight = createInFlight(computeResults);
+const computeOpsInFlight = createInFlight(computeOps);
+
 const ROUTES = {
   "/api/snapshot": data => data,
   "/api/fixtures": data => data.fixtures,
@@ -332,7 +339,7 @@ const server = http.createServer(async (req, res) => {
   }
   if (url.pathname === "/api/champions/2766") {
     try {
-      return send(res, 200, JSON.stringify(await computeChampions()));
+      return send(res, 200, JSON.stringify(await computeChampionsInFlight("champions")));
     } catch (err) {
       console.error(`[500] ${url.pathname}: ${err.message}`);
       return send(res, 500, JSON.stringify({ error: "the Champions layer failed" }));
@@ -340,7 +347,7 @@ const server = http.createServer(async (req, res) => {
   }
   if (url.pathname === "/api/paper-ledger") {
     try {
-      return send(res, 200, JSON.stringify(await computePaperLedger()));
+      return send(res, 200, JSON.stringify(await computePaperLedgerInFlight("paper-ledger")));
     } catch (err) {
       console.error(`[500] ${url.pathname}: ${err.message}`);
       return send(res, 500, JSON.stringify({ error: "the paper ledger failed" }));
@@ -348,7 +355,7 @@ const server = http.createServer(async (req, res) => {
   }
   if (url.pathname === "/api/results") {
     try {
-      return send(res, 200, JSON.stringify(await computeResults()));
+      return send(res, 200, JSON.stringify(await computeResultsInFlight("results")));
     } catch (err) {
       console.error(`[500] ${url.pathname}: ${err.message}`);
       return send(res, 500, JSON.stringify({ error: "the results list failed" }));
@@ -357,7 +364,7 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === "/api/ops") {
     // Uncached on purpose: freshness is the point, and it reads only local files.
     try {
-      return send(res, 200, JSON.stringify(await computeOps()));
+      return send(res, 200, JSON.stringify(await computeOpsInFlight("ops")));
     } catch (err) {
       console.error(`[500] ${url.pathname}: ${err.message}`);
       return send(res, 500, JSON.stringify({ error: "the ops status failed" }));
