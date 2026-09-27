@@ -41,4 +41,3 @@
 .status-run-head { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
 .status-run-time { font-weight: 700; }
 .status-warning { color: var(--text); background: var(--surface-2); border: 1px solid var(--line-strong); padding: var(--s-2); font-size: var(--fs-meta); }
-

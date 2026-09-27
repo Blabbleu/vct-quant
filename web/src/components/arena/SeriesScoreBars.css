@@ -15,4 +15,3 @@
 .series-score-tile-block-filled { background: var(--model); }
 .series-score-tile-block-filled.series-score-tile-block-b { background: var(--model-2); }
 .series-score-tile-pct { font-size: 12px; color: var(--text-3); }
-
