@@ -68,6 +68,9 @@ def summarize(rows: list[tuple]) -> list[dict]:
             "latest_series_match_id": latest[0],
             "latest_series_date": latest[1].date().isoformat(),
             "scored_maps_in_latest_series": latest[2],
+            "scored_maps_in_history": sum(row[2] for row in matches),
+            "maps_with_player_stats_in_history": sum(row[3] for row in matches),
+            "scored_maps_missing_player_stats": sum(max(0, row[2] - row[3]) for row in matches),
             "latest_player_stats_match_id": latest_covered[0] if latest_covered else None,
             "latest_player_stats_date": latest_covered[1].date().isoformat() if latest_covered else None,
             "series_since_player_stats": since_covered if latest_covered else len(matches),
@@ -99,6 +102,8 @@ def main() -> None:
     print(json.dumps({"team_count": len(rows),
                       "teams_with_no_player_stats": sum(r["latest_player_stats_match_id"] is None for r in rows),
                       "teams_with_recent_gap": sum(r["series_since_player_stats"] > 0 for r in rows),
+                      "teams_with_scored_maps_missing_stats": sum(r["scored_maps_missing_player_stats"] > 0 for r in rows),
+                      "scored_maps_missing_player_stats": sum(r["scored_maps_missing_player_stats"] for r in rows),
                       "worst_coverage": rows[:args.limit]}, indent=2, allow_nan=False))
 
 
