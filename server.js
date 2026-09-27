@@ -224,7 +224,12 @@ async function serveApp(res, pathname) {
   const ext = path.extname(rel);
   if (rel && ext && ext !== ".html" && file.startsWith(DIST + path.sep)) {
     try {
-      const body = await fs.readFile(file);
+      const root = await fs.realpath(DIST);
+      const resolved = await fs.realpath(file);
+      if (!resolved.startsWith(root + path.sep)) {
+        return send(res, 404, JSON.stringify({ error: "not found" }));
+      }
+      const body = await fs.readFile(resolved);
       res.writeHead(200, {
         "content-type": TYPES[ext] || "application/octet-stream",
         "content-length": body.length,

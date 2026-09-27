@@ -4,7 +4,9 @@
  *   npm run check          # needs the database: vct init-db && vct update
  */
 const assert = require("node:assert/strict");
+const fs = require("node:fs/promises");
 const net = require("node:net");
+const path = require("node:path");
 const { server, ROUTES, createSnapshotter, modelFailurePayload } = require("../server.js");
 
 assert.deepEqual(modelFailurePayload(), {
@@ -265,6 +267,15 @@ async function main() {
     ]);
     assert.equal((await fetch(base + "/assets/missing.js")).status, 404);
     assert.equal((await fetch(base + "/assets/..%2F..%2Fserver.js")).status, 404);
+    const escapeLink = path.join(__dirname, "../web/dist/assets/autodev-escape.txt");
+    try {
+      await fs.symlink("/etc/passwd", escapeLink);
+      const escaped = await fetch(base + "/assets/autodev-escape.txt");
+      assert.equal(escaped.status, 404, "static assets must not follow symlinks outside web/dist");
+      assert.doesNotMatch(await escaped.text(), /root:/, "outside files must not be served");
+    } finally {
+      await fs.unlink(escapeLink).catch(() => {});
+    }
     assert.equal((await fetch(base + "/%E0%A4%A")).status, 400);
     assert.equal((await fetch(base + "/api/health")).status, 200,
       "malformed path must not take down the backend");
