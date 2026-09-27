@@ -239,6 +239,7 @@ const server = http.createServer(async (req, res) => {
     return send(res, 400, JSON.stringify({ error: "malformed path" }));
   }
   if (req.method !== "GET" && req.method !== "HEAD") {
+    res.setHeader("allow", "GET, HEAD");
     return send(res, 405, JSON.stringify({ error: "read-only API: GET only" }));
   }
   const route = ROUTES[url.pathname];

@@ -267,7 +267,9 @@ async function main() {
       "invalid request target should return 400 without crashing the server");
     assert.equal((await fetch(base + "/api/health")).status, 200,
       "backend should survive an invalid request target");
-    assert.equal((await fetch(base + "/api/snapshot", { method: "POST" })).status, 405);
+    const readOnly = await fetch(base + "/api/snapshot", { method: "POST" });
+    assert.equal(readOnly.status, 405);
+    assert.equal(readOnly.headers.get("allow"), "GET, HEAD");
     console.log("  unknown API/asset 404, traversal blocked, read-only 405 ok");
     console.log("all checks passed");
   } finally {
