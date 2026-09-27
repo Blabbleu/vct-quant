@@ -84,10 +84,14 @@ def parse_matchday_log(text: str) -> list[dict]:
 
 def _classify(run: dict, lines: list[str]) -> dict:
     out = {**run, "outcome": "incomplete", "reason": None, "upcoming_fetched": None,
-           "upcoming_retained": None, "graded_n": None, "warnings": []}
+           "upcoming_retained": None, "graded_n": None, "warnings": [], "api_root": "unknown"}
     failed = False
     for line in lines:
         text = line.strip()
+        if text == "vlrggapi root healthy":
+            out["api_root"] = "ok"
+        elif text.startswith("vlrggapi on :3001 is down"):
+            out["api_root"] = "down"
         fetched = FETCHED.match(text)
         if fetched:
             out["outcome"] = "ok"

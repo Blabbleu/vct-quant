@@ -19,6 +19,19 @@ log loss 0.5837   (backtest 0.6567, coin flip 0.6931)
 """
 
 
+def test_matchday_log_tracks_api_root_separately_from_feed_health():
+    text = (
+        "=== 2026-09-26T00:15:01Z\nvlrggapi on :3001 is down; skipping (start it)\n"
+        "=== 2026-09-26T02:15:01Z\nvlrggapi root healthy\nevents feed unavailable; skipping update\n"
+        "=== 2026-09-26T04:15:01Z\nvlrggapi root healthy\nFetched 1 upcoming entries; retained 1 official -> p\n"
+    )
+    runs = parse_matchday_log(text)
+    assert [run["api_root"] for run in runs] == ["down", "ok", "ok"]
+    # Root reachability is not upstream feed health: the middle run proves the distinction.
+    assert runs[1]["outcome"] == "skipped"
+    assert runs[2]["outcome"] == "ok"
+
+
 def test_parses_ok_skipped_and_failed_runs_in_order():
     text = (
         "=== 2026-09-25T08:15:01Z\nTraceback (most recent call last):\n"

@@ -24,6 +24,7 @@ if ! curl -sf -m 10 -o /dev/null http://127.0.0.1:3001/; then
   echo "vlrggapi on :3001 is down; skipping (start it in tmux session vlrggapi)"
   exit 1
 fi
+echo "vlrggapi root healthy"
 
 exec 9>data/interim/matchday.lock
 if ! flock -n 9; then
