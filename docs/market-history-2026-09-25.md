@@ -27,3 +27,15 @@ favor. The median lag of the latest snapshot is **133.7 hours** (range
 Only one series shows >=10 percentage points of model–market disagreement;
 no subgroup paired statistic is available. Re-run after more live results;
 do not infer a market edge from three matches.
+
+## Refreshed snapshot (2026-09-27)
+
+The same read-only diagnostic now finds 7 played series with two liquid,
+pre-scheduled-start snapshots. The latest observation is a median 0.7 hours
+before scheduled start (range 0.2–136.7h); the wide maximum means these remain
+sampled quotes, not verified closing prices. First-snapshot Elo log loss is
+0.5867 versus market 0.5647 (paired t=-0.18); latest-snapshot Elo is 0.5888
+versus market 0.5469 (t=-0.32). In the fixed >=10pp disagreement subgroup,
+first is Elo 0.6756 vs market 0.6650 (n=4, t=-0.05), latest is Elo 0.6916 vs
+market 0.6373 (n=4, t=-0.22). None of these small samples establishes a
+reliable advantage; positive t favors Elo. No outcomes or settings were tuned.
