@@ -29,6 +29,26 @@ async function checkSnapshotCacheRace() {
   assert.equal(calls, 2, "a request crossing a data update must recompute instead of caching stale data");
   assert.deepEqual(await get(), { version: "new" });
   assert.equal(calls, 2, "the verified snapshot should be cached");
+
+  let failureStamp = "old";
+  let rejectFirst;
+  let failureCalls = 0;
+  const recover = createSnapshotter(
+    async () => failureStamp,
+    () => {
+      failureCalls += 1;
+      if (failureCalls === 1) return new Promise((_, reject) => { rejectFirst = reject; });
+      return { version: "recovered" };
+    },
+  );
+  const staleRequest = recover();
+  while (!rejectFirst) await new Promise(resolve => setImmediate(resolve));
+  failureStamp = "new";
+  const freshRequest = recover();
+  rejectFirst(new Error("stale computation failed"));
+  await assert.rejects(staleRequest, /stale computation failed/);
+  assert.deepEqual(await freshRequest, { version: "recovered" });
+  assert.equal(failureCalls, 2, "a failed stale computation must not block a fresh snapshot");
   console.log("  snapshot cache update race retries and caches the new payload");
 }
 

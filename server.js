@@ -46,7 +46,7 @@ function createSnapshotter(readStamp, compute) {
       const stamp = await readStamp();
       if (cached.stamp === stamp && cached.payload) return cached.payload;
       if (pending && pending.stamp !== stamp) {
-        await pending.promise;
+        await pending.promise.catch(() => {});
         continue;
       }
       if (!pending) {
