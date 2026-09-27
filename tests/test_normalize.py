@@ -368,16 +368,29 @@ def test_match_details_backfill_stats_when_maps_already_exist(tmp_path, monkeypa
             "players": {"team1": [{"name": "p1", "kills": "20"}], "team2": []},
         }],
     }}))
+    con.execute("INSERT INTO match (match_id, status) VALUES (10268, 'completed')")
+    (tmp_path / "match_details_10268_test.json").write_text(json.dumps({"data": {
+        "match_id": "10268",
+        "teams": [],
+        "maps": [{
+            "map_name": "Ascent",
+            "score": {"team1": 13, "team2": 8},
+            "players": {"team1": [{"name": "unapproved", "kills": "99"}], "team2": []},
+        }],
+    }}))
 
-    report = normalize.load_vlrgg_match_details(con)
+    report = normalize.load_vlrgg_match_details(con, match_id=10267)
 
     assert con.execute("SELECT count(*) FROM match_map").fetchone() == (1,)
     assert con.execute("SELECT count(*) FROM match_map_team_score").fetchone() == (2,)
     assert con.execute("SELECT count(*) FROM match_map_player_stat").fetchone() == (1,)
     assert con.execute("""SELECT kills FROM match_map_player_stat""").fetchone() == (20,)
     assert report.inserted["match_map_player_stat"] == 1
+    assert con.execute("SELECT count(*) FROM match WHERE match_id = 10268").fetchone() == (1,)
+    assert con.execute("SELECT count(*) FROM match_map WHERE match_id = 10268").fetchone() == (0,)
+    assert con.execute("SELECT count(*) FROM player WHERE handle = 'unapproved'").fetchone() == (0,)
 
-    repeated = normalize.load_vlrgg_match_details(con)
+    repeated = normalize.load_vlrgg_match_details(con, match_id=10267)
     assert con.execute("SELECT count(*) FROM match_map_team_score").fetchone() == (2,)
     assert con.execute("SELECT count(*) FROM match_map_player_stat").fetchone() == (1,)
     assert repeated.inserted == {}

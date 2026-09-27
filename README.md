@@ -24,6 +24,7 @@ python scripts/backfill_vlrgg.py --pages 12
 vct load-vlrgg       # merge the harvested vlr.gg event matches
 python scripts/backfill_promoted_details.py  # Tier-2 player form for promoted teams
 vct load-vlrgg-details
+vct load-vlrgg-details --match-id 450589  # optionally limit detail backfill to one match
 vct ingest-vlrgg --what upcoming  # filtered Tier-1 fixtures + Elo probabilities
 vct prediction 698904              # winner + exact score, sweep, and map count
 vct prediction 698904 --json       # one machine-readable forecast

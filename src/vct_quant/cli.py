@@ -99,7 +99,8 @@ def main() -> None:
     sub.add_parser("inspect-kaggle", help="List Kaggle CSVs and their columns")
     sub.add_parser("load-kaggle", help="Load Kaggle CSVs into the canonical tables")
     sub.add_parser("load-vlrgg", help="Merge the vlrggapi event harvest into match/match_team")
-    sub.add_parser("load-vlrgg-details", help="Load harvested maps and player stats")
+    p = sub.add_parser("load-vlrgg-details", help="Load harvested maps and player stats")
+    p.add_argument("--match-id", type=int, help="Restrict the load to one positive match ID")
     p = sub.add_parser(
         "predict", aliases=["prediction"],
         help="Predict one upcoming official Tier-1 match",
@@ -196,7 +197,9 @@ def main() -> None:
     elif args.cmd == "load-vlrgg-details":
         from .etl import normalize
 
-        print(normalize.load_vlrgg_match_details())
+        if args.match_id is not None and args.match_id <= 0:
+            parser.error("match_id must be positive")
+        print(normalize.load_vlrgg_match_details(match_id=args.match_id))
     elif args.cmd in ("predict", "prediction"):
         import pandas as pd
 

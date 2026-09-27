@@ -984,13 +984,18 @@ def unresolved_team_detail_targets(
 
 def load_vlrgg_match_details(
     con: duckdb.DuckDBPyConnection | None = None,
+    match_id: int | None = None,
 ) -> LoadReport:
-    """Load harvested match maps, scores, and player stats. Safe to re-run."""
+    """Load harvested detail maps/stats, optionally limiting to one match ID."""
+    if match_id is not None and match_id <= 0:
+        raise ValueError("match_id must be positive")
     report = LoadReport()
     owned = con is None
     con = con or connect()
     try:
         details = _vlrgg_match_details()
+        if match_id is not None:
+            details = [detail for detail in details if int(detail["match_id"]) == match_id]
         _resolve_team_ids(con, details, report)
         known = {row[0] for row in con.execute("SELECT match_id FROM match").fetchall()}
         existing_maps = {

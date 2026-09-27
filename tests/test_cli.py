@@ -21,11 +21,28 @@ def test_load_vlrgg_dispatches_to_loader(monkeypatch, capsys):
 
 def test_load_vlrgg_details_dispatches_to_loader(monkeypatch, capsys):
     monkeypatch.setattr(sys, "argv", ["vct", "load-vlrgg-details"])
-    monkeypatch.setattr(normalize, "load_vlrgg_match_details", lambda: "loaded details")
+    calls = []
+    monkeypatch.setattr(
+        normalize, "load_vlrgg_match_details",
+        lambda **kwargs: calls.append(kwargs) or "loaded details",
+    )
 
     cli.main()
 
     assert capsys.readouterr().out.strip() == "loaded details"
+    assert calls == [{"match_id": None}]
+
+    monkeypatch.setattr(sys, "argv", ["vct", "load-vlrgg-details", "--match-id", "450589"])
+    cli.main()
+    assert capsys.readouterr().out.strip() == "loaded details"
+    assert calls[-1] == {"match_id": 450589}
+
+
+def test_load_vlrgg_details_rejects_nonpositive_match_id(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["vct", "load-vlrgg-details", "--match-id", "0"])
+    with pytest.raises(SystemExit) as exc:
+        cli.main()
+    assert exc.value.code == 2
 
 
 def test_update_refreshes_results_before_predictions(monkeypatch, tmp_path, capsys):
@@ -58,7 +75,7 @@ def test_update_refreshes_results_before_predictions(monkeypatch, tmp_path, caps
     )
     monkeypatch.setattr(
         normalize, "load_vlrgg_match_details",
-        lambda: calls.append("load details") or "details",
+        lambda **kwargs: calls.append(f"load details {kwargs.get('match_id')}") or "details",
     )
     monkeypatch.setattr(
         vlrgg, "fetch_upcoming_matches",
@@ -76,7 +93,7 @@ def test_update_refreshes_results_before_predictions(monkeypatch, tmp_path, caps
 
     assert calls == [
         "fetch events", "fetch event 1", "fetch upcoming", "load results",
-        "find unresolved", "fetch details 42", "load details",
+        "find unresolved", "fetch details 42", "load details None",
         "predict upcoming",
     ]
     out = capsys.readouterr().out
