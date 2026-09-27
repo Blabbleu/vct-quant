@@ -71,6 +71,25 @@ const snapshot = createSnapshotter(
   computeSnapshot,
 );
 
+function createInFlight(compute) {
+  const pending = new Map();
+  return key => {
+    if (!pending.has(key)) {
+      let promise;
+      try {
+        promise = Promise.resolve(compute(key));
+      } catch (err) {
+        promise = Promise.reject(err);
+      }
+      pending.set(key, promise);
+      promise.finally(() => {
+        if (pending.get(key) === promise) pending.delete(key);
+      }).catch(() => {});
+    }
+    return pending.get(key);
+  };
+}
+
 function computeMatch(matchId) {
   return new Promise((resolve, reject) => {
     execFile(PYTHON, ["-m", "vct_quant.match_center", matchId],
@@ -112,6 +131,10 @@ function computePlayer(playerId) {
       });
   });
 }
+
+const computeMatchInFlight = createInFlight(computeMatch);
+const computeTeamInFlight = createInFlight(computeTeam);
+const computePlayerInFlight = createInFlight(computePlayer);
 
 function computeChampions() {
   return new Promise((resolve, reject) => {
@@ -274,7 +297,7 @@ const server = http.createServer(async (req, res) => {
   const match = /^\/api\/match\/([1-9][0-9]*)$/.exec(url.pathname);
   if (match && Number.isSafeInteger(Number(match[1]))) {
     try {
-      const result = await computeMatch(match[1]);
+      const result = await computeMatchInFlight(match[1]);
       return result === null
         ? send(res, 404, JSON.stringify({ error: "match not found in prediction log" }))
         : send(res, 200, JSON.stringify(result));
@@ -286,7 +309,7 @@ const server = http.createServer(async (req, res) => {
   const team = /^\/api\/team\/([1-9][0-9]*)$/.exec(url.pathname);
   if (team && Number.isSafeInteger(Number(team[1]))) {
     try {
-      const result = await computeTeam(team[1]);
+      const result = await computeTeamInFlight(team[1]);
       return result === null
         ? send(res, 404, JSON.stringify({ error: "team not found in Tier-1 history or cached fixtures" }))
         : send(res, 200, JSON.stringify(result));
@@ -298,7 +321,7 @@ const server = http.createServer(async (req, res) => {
   const player = /^\/api\/player\/([1-9][0-9]*)$/.exec(url.pathname);
   if (player && Number.isSafeInteger(Number(player[1]))) {
     try {
-      const result = await computePlayer(player[1]);
+      const result = await computePlayerInFlight(player[1]);
       return result === null
         ? send(res, 404, JSON.stringify({ error: "player ID not found" }))
         : send(res, 200, JSON.stringify(result));
@@ -374,4 +397,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { server, snapshot, ROUTES, createSnapshotter, modelFailurePayload };
+module.exports = { server, snapshot, ROUTES, createSnapshotter, createInFlight, modelFailurePayload };

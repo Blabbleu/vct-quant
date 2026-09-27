@@ -7,7 +7,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs/promises");
 const net = require("node:net");
 const path = require("node:path");
-const { server, ROUTES, createSnapshotter, modelFailurePayload } = require("../server.js");
+const { server, ROUTES, createSnapshotter, createInFlight, modelFailurePayload } = require("../server.js");
 
 assert.deepEqual(modelFailurePayload(), {
   error: "the model layer failed",
@@ -61,8 +61,32 @@ async function checkSnapshotCacheRace() {
   console.log("  snapshot cache update race retries and caches the new payload");
 }
 
+async function checkInFlightDeduplication() {
+  let calls = 0;
+  const release = new Map();
+  const get = createInFlight(key => {
+    calls += 1;
+    return new Promise(resolve => { release.set(key, () => resolve(key)); });
+  });
+  const first = get("team:42");
+  const duplicate = get("team:42");
+  const separate = get("team:43");
+  assert.equal(calls, 2, "identical in-flight lookups should share one computation");
+  release.get("team:42")();
+  release.get("team:43")();
+  assert.equal(await first, "team:42");
+  assert.equal(await duplicate, "team:42");
+  assert.equal(await separate, "team:43");
+  const later = get("team:42");
+  assert.equal(calls, 3, "completed results must not be cached");
+  release.get("team:42")();
+  assert.equal(await later, "team:42");
+  console.log("  identical dynamic lookups share only in-flight work");
+}
+
 async function main() {
   await checkSnapshotCacheRace();
+  await checkInFlightDeduplication();
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   try {
