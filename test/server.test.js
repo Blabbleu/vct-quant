@@ -270,7 +270,16 @@ async function main() {
     const readOnly = await fetch(base + "/api/snapshot", { method: "POST" });
     assert.equal(readOnly.status, 405);
     assert.equal(readOnly.headers.get("allow"), "GET, HEAD");
-    console.log("  unknown API/asset 404, traversal blocked, read-only 405 ok");
+    const getHead = await fetch(base + "/api/health");
+    const headApi = await fetch(base + "/api/health", { method: "HEAD" });
+    assert.equal(headApi.status, getHead.status);
+    assert.equal(headApi.headers.get("content-length"), getHead.headers.get("content-length"));
+    assert.equal(await headApi.text(), "", "HEAD API response must not contain a body");
+    const staticGet = await fetch(base + "/");
+    const staticHead = await fetch(base + "/", { method: "HEAD" });
+    assert.equal(staticHead.headers.get("content-length"), staticGet.headers.get("content-length"));
+    assert.equal(await staticHead.text(), "", "HEAD static response must not contain a body");
+    console.log("  unknown API/asset 404, traversal blocked, read-only 405 and HEAD semantics ok");
     console.log("all checks passed");
   } finally {
     server.close();
