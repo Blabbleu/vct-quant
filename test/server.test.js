@@ -84,9 +84,29 @@ async function checkInFlightDeduplication() {
   console.log("  identical dynamic lookups share only in-flight work");
 }
 
+async function checkInFlightFailureRetry() {
+  let calls = 0;
+  let rejectFirst;
+  const get = createInFlight(() => {
+    calls += 1;
+    if (calls === 1) return new Promise((_, reject) => { rejectFirst = reject; });
+    return Promise.resolve("recovered");
+  });
+  const first = get("player:7");
+  const duplicate = get("player:7");
+  assert.equal(calls, 1, "a failed in-flight computation should still be shared");
+  rejectFirst(new Error("temporary failure"));
+  await assert.rejects(first, /temporary failure/);
+  await assert.rejects(duplicate, /temporary failure/);
+  assert.equal(await get("player:7"), "recovered", "a rejection must be removed so later requests can retry");
+  assert.equal(calls, 2);
+  console.log("  failed dynamic lookups are shared, then retried on a later request");
+}
+
 async function main() {
   await checkSnapshotCacheRace();
   await checkInFlightDeduplication();
+  await checkInFlightFailureRetry();
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   try {
