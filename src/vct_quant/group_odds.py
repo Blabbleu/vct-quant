@@ -9,6 +9,7 @@ title odds: playoff routing is still unverified, so this stops at the group.
 from __future__ import annotations
 
 from itertools import product
+from math import isfinite
 from typing import Callable
 
 from .features.ratings import DEFAULT_BASE, expected_score
@@ -60,6 +61,8 @@ def qualification_odds(group: dict, p_win: Callable[[int, int], float]) -> dict:
                 continue
             a_wins = picks[key] == 0
             p = p_win(pair[0], pair[1])
+            if not isfinite(p) or not 0.0 <= p <= 1.0:
+                raise ValueError(f"invalid pairwise probability for {key}: {p!r}")
             weight *= p if a_wins else 1.0 - p
             outcome[key] = (pair[0], pair[1]) if a_wins else (pair[1], pair[0])
         total += weight

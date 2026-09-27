@@ -75,6 +75,12 @@ def test_pairwise_probability_is_the_primary_elo_formula_with_string_keys():
     assert elo_p_win(ratings)(1, 99) == expected_score(1600.0, 1500.0)
 
 
+@pytest.mark.parametrize("p", [-0.01, 1.01, float("nan"), float("inf")])
+def test_invalid_pairwise_probability_is_rejected(p):
+    with pytest.raises(ValueError, match="probability"):
+        qualification_odds(group(), lambda a, b: p)
+
+
 def test_attach_withholds_unverified_or_unrated_groups():
     ratings = {str(t): 1500.0 + t for t in (1, 2, 3, 4)}
     counts = {str(t): 10 for t in (1, 2, 3, 4)}
