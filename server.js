@@ -24,9 +24,6 @@ const DB = path.join(ROOT, "data", "vct.duckdb");
 const PYTHON = process.env.PYTHON ||
   path.join(ROOT, process.platform === "win32" ? ".venv/Scripts/python.exe" : ".venv/bin/python");
 
-let cache = { stamp: null, payload: null };
-let inFlight = null;
-
 function computeSnapshot() {
   return new Promise((resolve, reject) => {
     execFile(PYTHON, ["-m", "vct_quant.dashboard"], { cwd: ROOT, maxBuffer: 64 << 20 },
@@ -41,16 +38,38 @@ function computeSnapshot() {
   });
 }
 
-async function snapshot() {
-  // mtime is the cache key, so `vct update` invalidates without restarting.
-  const stamp = await fs.stat(DB).then(s => String(s.mtimeMs), () => "no-db");
-  if (cache.stamp === stamp && cache.payload) return cache.payload;
-  // One python process even if ten requests land together.
-  inFlight ??= computeSnapshot().finally(() => { inFlight = null; });
-  const payload = await inFlight;
-  cache = { stamp, payload };
-  return payload;
+function createSnapshotter(readStamp, compute) {
+  let cached = { stamp: null, payload: null };
+  let pending = null;
+  return async function getSnapshot() {
+    while (true) {
+      const stamp = await readStamp();
+      if (cached.stamp === stamp && cached.payload) return cached.payload;
+      if (pending && pending.stamp !== stamp) {
+        await pending.promise;
+        continue;
+      }
+      if (!pending) {
+        const entry = { stamp, promise: Promise.resolve().then(compute) };
+        pending = entry;
+        entry.promise.finally(() => {
+          if (pending === entry) pending = null;
+        }).catch(() => {});
+      }
+      const entry = pending;
+      const payload = await entry.promise;
+      if (pending === entry) pending = null;
+      if (await readStamp() !== stamp) continue;
+      cached = { stamp, payload };
+      return payload;
+    }
+  };
 }
+
+const snapshot = createSnapshotter(
+  () => fs.stat(DB).then(s => String(s.mtimeMs), () => "no-db"),
+  computeSnapshot,
+);
 
 function computeMatch(matchId) {
   return new Promise((resolve, reject) => {
@@ -338,4 +357,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { server, snapshot, ROUTES };
+module.exports = { server, snapshot, ROUTES, createSnapshotter };

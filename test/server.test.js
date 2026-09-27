@@ -5,9 +5,35 @@
  */
 const assert = require("node:assert/strict");
 const net = require("node:net");
-const { server, ROUTES } = require("../server.js");
+const { server, ROUTES, createSnapshotter } = require("../server.js");
+
+async function checkSnapshotCacheRace() {
+  let stamp = "old";
+  let calls = 0;
+  let releaseFirst;
+  const get = createSnapshotter(
+    async () => stamp,
+    () => {
+      calls += 1;
+      if (calls === 1) return new Promise(resolve => { releaseFirst = resolve; });
+      return { version: "new" };
+    },
+  );
+  const firstRequest = get();
+  while (!releaseFirst) await new Promise(resolve => setImmediate(resolve));
+  stamp = "new";
+  const concurrentRequest = get();
+  releaseFirst({ version: "old" });
+  assert.deepEqual(await firstRequest, { version: "new" });
+  assert.deepEqual(await concurrentRequest, { version: "new" });
+  assert.equal(calls, 2, "a request crossing a data update must recompute instead of caching stale data");
+  assert.deepEqual(await get(), { version: "new" });
+  assert.equal(calls, 2, "the verified snapshot should be cached");
+  console.log("  snapshot cache update race retries and caches the new payload");
+}
 
 async function main() {
+  await checkSnapshotCacheRace();
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   try {
