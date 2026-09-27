@@ -179,6 +179,12 @@ const ROUTES = {
   "/api/health": data => ({ ok: true, generated_at: data.generated_at, coverage: data.coverage }),
 };
 
+const API_ROUTES = [
+  ...Object.keys(ROUTES),
+  "/api/match/:id", "/api/team/:id", "/api/player/:id", "/api/champions/2766",
+  "/api/paper-ledger", "/api/results", "/api/ops",
+];
+
 function send(res, status, body, type = "application/json; charset=utf-8") {
   res.writeHead(status, {
     "content-type": type,
@@ -325,7 +331,7 @@ const server = http.createServer(async (req, res) => {
     }
   }
   if (url.pathname.startsWith("/api/")) {
-    return send(res, 404, JSON.stringify({ error: "not found", routes: Object.keys(ROUTES) }));
+    return send(res, 404, JSON.stringify({ error: "not found", routes: API_ROUTES }));
   }
   const logo = /^\/logos\/([1-9][0-9]{0,9})\.(png|jpg|webp|svg)$/.exec(url.pathname);
   if (logo) {

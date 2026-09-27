@@ -246,7 +246,13 @@ async function main() {
     assert.equal((await fetch(base + "/logos/1.exe")).status, 404);
     console.log("  /logos only serves numeric image files");
 
-    assert.equal((await fetch(base + "/api/nope")).status, 404);
+    const unknownApi = await fetch(base + "/api/nope");
+    assert.equal(unknownApi.status, 404);
+    assert.deepEqual((await unknownApi.json()).routes, [
+      "/api/snapshot", "/api/fixtures", "/api/backtest", "/api/live", "/api/rankings",
+      "/api/ledger", "/api/health", "/api/match/:id", "/api/team/:id", "/api/player/:id",
+      "/api/champions/2766", "/api/paper-ledger", "/api/results", "/api/ops",
+    ]);
     assert.equal((await fetch(base + "/assets/missing.js")).status, 404);
     assert.equal((await fetch(base + "/assets/..%2F..%2Fserver.js")).status, 404);
     assert.equal((await fetch(base + "/%E0%A4%A")).status, 400);
