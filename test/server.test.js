@@ -138,9 +138,10 @@ async function main() {
         assert.ok(Math.abs(aWins - fixture.p_a) < 1e-6, `score odds disagree with p_a for ${fixture.match_id}`);
       }
     }
-    assert.equal((await fetch(base + "/api/match/0")).status, 404);
-    assert.equal((await fetch(base + "/api/match/999999999")).status, 404);
-    assert.equal((await fetch(base + "/api/match/1%2F2")).status, 404);
+    for (const invalidId of ["0", "01", "-1", "9007199254740992", "1%2F2"]) {
+      assert.equal((await fetch(base + `/api/match/${invalidId}`)).status, 404,
+        `unsafe match ID ${invalidId} must not reach the match layer`);
+    }
     console.log("  /api/match/:id movement and unknown IDs ok");
 
     const team = await fetch(base + "/api/team/4529");
@@ -148,9 +149,10 @@ async function main() {
     const teamBody = await team.json();
     assert.equal(teamBody.team_id, 4529);
     assert.ok(Array.isArray(teamBody.results));
-    assert.equal((await fetch(base + "/api/team/0")).status, 404);
-    assert.equal((await fetch(base + "/api/team/999999999")).status, 404);
-    assert.equal((await fetch(base + "/api/team/1%2F2")).status, 404);
+    for (const invalidId of ["0", "01", "-1", "9007199254740992", "1%2F2"]) {
+      assert.equal((await fetch(base + `/api/team/${invalidId}`)).status, 404,
+        `unsafe team ID ${invalidId} must not reach the team layer`);
+    }
     console.log("  /api/team/:id identity and unknown IDs ok");
 
     const player = await fetch(base + "/api/player/9801");
@@ -159,9 +161,10 @@ async function main() {
     assert.equal(playerBody.player_id, 9801);
     assert.ok(playerBody.recorded_maps > 0 && playerBody.maps.length <= 20);
     assert.ok(Array.isArray(playerBody.agents) && Array.isArray(playerBody.teams));
-    assert.equal((await fetch(base + "/api/player/0")).status, 404);
-    assert.equal((await fetch(base + "/api/player/999999999")).status, 404);
-    assert.equal((await fetch(base + "/api/player/1%2F2")).status, 404);
+    for (const invalidId of ["0", "01", "-1", "9007199254740992", "1%2F2"]) {
+      assert.equal((await fetch(base + `/api/player/${invalidId}`)).status, 404,
+        `unsafe player ID ${invalidId} must not reach the player layer`);
+    }
     console.log("  /api/player/:id exact identity and unknown IDs ok");
 
     const champions = await fetch(base + "/api/champions/2766");
