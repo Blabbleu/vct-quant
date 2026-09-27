@@ -95,10 +95,40 @@ def _year_dirs() -> list[Path]:
     return sorted(p for p in RAW_KAGGLE_DIR.glob("vct_*") if p.is_dir())
 
 
+# Known mislabelled team columns in the Kaggle scrape, per year directory.
+# In vct_2025 and vct_2026 every NRG row carries the team label "Mega Minors"
+# (an unrelated 2021 org, vlr.gg 3788) while the Match Name still says NRG and
+# the players are NRG's (Ethan, s0m, brawk, mada, skuba, keiko). Resolving the
+# label as-is split NRG's 2025-26 record onto 3788. Scope is exact: only these
+# year dirs, only team-label columns; vct_2021's real Mega Minors is untouched.
+# Audit: scripts/team_label_audit.py (every other label matches its Match Name).
+KAGGLE_TEAM_LABEL_FIXES: dict[str, dict[str, str]] = {
+    "vct_2025": {"Mega Minors": "NRG"},
+    "vct_2026": {"Mega Minors": "NRG"},
+}
+
+
+def _team_label_columns(df: pd.DataFrame) -> list[str]:
+    """Columns holding a team label: Team, Team A/B, Player/Enemy Team, ..."""
+    return [c for c in df.columns if c in ("Team", "Teams") or c.startswith("Team ") and not c.endswith(
+        ("Score", "Attacker Score", "Defender Score", "Overtime Score")) or c.endswith(" Team")]
+
+
+def _fix_team_labels(df: pd.DataFrame, year: str) -> pd.DataFrame:
+    fixes = KAGGLE_TEAM_LABEL_FIXES.get(year)
+    if not fixes or df.empty:
+        return df
+    for c in _team_label_columns(df):
+        if not pd.api.types.is_numeric_dtype(df[c]):
+            df[c] = df[c].replace(fixes)
+    return df
+
+
 def _read_year(year_dir: Path, rel: str) -> pd.DataFrame:
     path = year_dir / rel
     # low_memory=False: the percentage columns are mixed int/str across chunks.
-    return pd.read_csv(path, low_memory=False) if path.exists() else pd.DataFrame()
+    df = pd.read_csv(path, low_memory=False) if path.exists() else pd.DataFrame()
+    return _fix_team_labels(df, year_dir.name)
 
 
 def _read_all(rel: str) -> pd.DataFrame:

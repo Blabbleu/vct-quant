@@ -425,3 +425,21 @@ def test_match_details_resolve_missing_team_ids(tmp_path, monkeypatch):
     ).fetchall()
     assert rows == [(1, "NRG", 1034), (1, "LEVIATÁN", 2359), (2, "NRG", 1034), (2, "LEVIATÁN", 2359)]
     assert con.execute("SELECT name FROM team WHERE team_id = 2359").fetchone() == ("LEVIATÁN",)
+
+
+def test_kaggle_team_label_fix_is_scoped_to_listed_years_and_label_columns():
+    df = pd.DataFrame({
+        "Match Name": ["NRG vs EDward Gaming"],
+        "Team A": ["Mega Minors"], "Team B": ["EDward Gaming"],
+        "Team A Score": [2], "Team": ["Mega Minors"], "Teams": ["Mega Minors"],
+        "Player Team": ["Mega Minors"], "Enemy Team": ["EDward Gaming"],
+        "Player": ["Mega Minors"],
+    })
+    fixed = normalize._fix_team_labels(df.copy(), "vct_2025")
+    assert list(fixed.loc[0, ["Team A", "Team", "Teams", "Player Team"]]) == ["NRG"] * 4
+    assert fixed.loc[0, "Enemy Team"] == "EDward Gaming"
+    assert fixed.loc[0, "Team A Score"] == 2
+    # Not a team column, never rewritten.
+    assert fixed.loc[0, "Player"] == "Mega Minors"
+    # The real 2021 Mega Minors keeps its label.
+    assert normalize._fix_team_labels(df.copy(), "vct_2021").loc[0, "Team A"] == "Mega Minors"
