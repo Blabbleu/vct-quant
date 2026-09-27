@@ -25,10 +25,12 @@ def test_summarize_reports_latest_coverage_and_series_gap():
         "latest_player_stats_match_id": 101,
         "latest_player_stats_date": "2025-01-01",
         "series_since_player_stats": 2,
+        "scored_series_since_player_stats": 1,
         "recent_5_series_with_player_stats": 1,
     }
     assert beta["latest_player_stats_match_id"] is None
     assert beta["series_since_player_stats"] == 1
+    assert beta["scored_series_since_player_stats"] == 0
     assert beta["recent_5_series_with_player_stats"] == 0
 
 

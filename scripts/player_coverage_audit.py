@@ -56,10 +56,13 @@ def summarize(rows: list[tuple]) -> list[dict]:
         latest = matches[-1]
         latest_covered = covered[-1] if covered else None
         since_covered = 0
+        scored_series_since_covered = 0
         for row in reversed(matches):
             if row[3] > 0:
                 break
             since_covered += 1
+            if row[2] > 0:
+                scored_series_since_covered += 1
         recent = matches[-5:]
         result.append({
             "team_id": team_id,
@@ -74,9 +77,14 @@ def summarize(rows: list[tuple]) -> list[dict]:
             "latest_player_stats_match_id": latest_covered[0] if latest_covered else None,
             "latest_player_stats_date": latest_covered[1].date().isoformat() if latest_covered else None,
             "series_since_player_stats": since_covered if latest_covered else len(matches),
+            "scored_series_since_player_stats": (
+                scored_series_since_covered if latest_covered
+                else sum(row[2] > 0 for row in matches)
+            ),
             "recent_5_series_with_player_stats": sum(row[3] > 0 for row in recent),
         })
     return sorted(result, key=lambda item: (
+        -item["scored_series_since_player_stats"],
         -item["series_since_player_stats"], item["team"].casefold(), item["team_id"]
     ))
 
@@ -102,6 +110,7 @@ def main() -> None:
     print(json.dumps({"team_count": len(rows),
                       "teams_with_no_player_stats": sum(r["latest_player_stats_match_id"] is None for r in rows),
                       "teams_with_recent_gap": sum(r["series_since_player_stats"] > 0 for r in rows),
+                      "teams_with_scored_series_since_player_stats": sum(r["scored_series_since_player_stats"] > 0 for r in rows),
                       "teams_with_scored_maps_missing_stats": sum(r["scored_maps_missing_player_stats"] > 0 for r in rows),
                       "scored_maps_missing_player_stats": sum(r["scored_maps_missing_player_stats"] for r in rows),
                       "worst_coverage": rows[:args.limit]}, indent=2, allow_nan=False))
