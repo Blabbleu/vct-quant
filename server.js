@@ -180,7 +180,13 @@ const TYPES = {
 };
 
 async function serveApp(res, pathname) {
-  const rel = path.normalize(decodeURIComponent(pathname)).replace(/^([/\\])+/, "");
+  let decoded;
+  try {
+    decoded = decodeURIComponent(pathname);
+  } catch {
+    return send(res, 400, JSON.stringify({ error: "malformed path" }));
+  }
+  const rel = path.normalize(decoded).replace(/^([/\\])+/, "");
   const file = path.join(DIST, rel);
   const ext = path.extname(rel);
   if (rel && ext && ext !== ".html" && file.startsWith(DIST + path.sep)) {

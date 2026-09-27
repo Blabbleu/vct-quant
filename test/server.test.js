@@ -202,6 +202,9 @@ async function main() {
     assert.equal((await fetch(base + "/api/nope")).status, 404);
     assert.equal((await fetch(base + "/assets/missing.js")).status, 404);
     assert.equal((await fetch(base + "/assets/..%2F..%2Fserver.js")).status, 404);
+    assert.equal((await fetch(base + "/%E0%A4%A")).status, 400);
+    assert.equal((await fetch(base + "/api/health")).status, 200,
+      "malformed path must not take down the backend");
     assert.equal((await fetch(base + "/api/snapshot", { method: "POST" })).status, 405);
     console.log("  unknown API/asset 404, traversal blocked, read-only 405 ok");
     console.log("all checks passed");
