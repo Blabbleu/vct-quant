@@ -190,6 +190,7 @@ function send(res, status, body, type = "application/json; charset=utf-8") {
     "content-type": type,
     "cache-control": "no-store",
     "content-length": Buffer.byteLength(body),
+    "x-content-type-options": "nosniff",
   });
   res.end(body);
 }
@@ -221,6 +222,7 @@ async function serveApp(res, pathname) {
         "content-type": TYPES[ext] || "application/octet-stream",
         "content-length": body.length,
         "cache-control": rel.startsWith("assets/") ? "public, max-age=31536000, immutable" : "no-cache",
+        "x-content-type-options": "nosniff",
       });
       return res.end(body);
     } catch {

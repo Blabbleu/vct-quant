@@ -277,11 +277,15 @@ async function main() {
     assert.equal(readOnly.status, 405);
     assert.equal(readOnly.headers.get("allow"), "GET, HEAD");
     const getHead = await fetch(base + "/api/health");
+    assert.equal(getHead.headers.get("x-content-type-options"), "nosniff",
+      "API responses should prevent MIME sniffing");
     const headApi = await fetch(base + "/api/health", { method: "HEAD" });
     assert.equal(headApi.status, getHead.status);
     assert.equal(headApi.headers.get("content-length"), getHead.headers.get("content-length"));
     assert.equal(await headApi.text(), "", "HEAD API response must not contain a body");
     const staticGet = await fetch(base + "/");
+    assert.equal(staticGet.headers.get("x-content-type-options"), "nosniff",
+      "static app responses should prevent MIME sniffing");
     const staticHead = await fetch(base + "/", { method: "HEAD" });
     assert.equal(staticHead.headers.get("content-length"), staticGet.headers.get("content-length"));
     assert.equal(await staticHead.text(), "", "HEAD static response must not contain a body");
