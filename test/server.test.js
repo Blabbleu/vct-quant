@@ -4,6 +4,7 @@
  *   npm run check          # needs the database: vct init-db && vct update
  */
 const assert = require("node:assert/strict");
+const net = require("node:net");
 const { server, ROUTES } = require("../server.js");
 
 async function main() {
@@ -205,6 +206,21 @@ async function main() {
     assert.equal((await fetch(base + "/%E0%A4%A")).status, 400);
     assert.equal((await fetch(base + "/api/health")).status, 200,
       "malformed path must not take down the backend");
+
+    const invalidTarget = await new Promise((resolve, reject) => {
+      const socket = net.connect(server.address().port, "127.0.0.1", () => {
+        socket.end("GET //[ HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n");
+      });
+      let response = "";
+      socket.setEncoding("utf8");
+      socket.on("data", chunk => { response += chunk; });
+      socket.on("end", () => resolve(response));
+      socket.on("error", reject);
+    });
+    assert.ok(invalidTarget.startsWith("HTTP/1.1 400 "),
+      "invalid request target should return 400 without crashing the server");
+    assert.equal((await fetch(base + "/api/health")).status, 200,
+      "backend should survive an invalid request target");
     assert.equal((await fetch(base + "/api/snapshot", { method: "POST" })).status, 405);
     console.log("  unknown API/asset 404, traversal blocked, read-only 405 ok");
     console.log("all checks passed");

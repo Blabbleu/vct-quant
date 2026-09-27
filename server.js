@@ -213,7 +213,12 @@ async function serveApp(res, pathname) {
 }
 
 const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url, `http://${req.headers.host}`);
+  let url;
+  try {
+    url = new URL(req.url, `http://${req.headers.host}`);
+  } catch {
+    return send(res, 400, JSON.stringify({ error: "malformed path" }));
+  }
   if (req.method !== "GET" && req.method !== "HEAD") {
     return send(res, 405, JSON.stringify({ error: "read-only API: GET only" }));
   }
