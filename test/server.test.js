@@ -7,7 +7,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs/promises");
 const net = require("node:net");
 const path = require("node:path");
-const { server, ROUTES, createSnapshotter, createInFlight, createBoundedInFlight, modelFailurePayload } = require("../server.js");
+const { server, ROUTES, createSnapshotter, createInFlight, createBoundedInFlight, computeSnapshot, modelFailurePayload } = require("../server.js");
 
 assert.deepEqual(modelFailurePayload(), {
   error: "the model layer failed",
@@ -15,6 +15,18 @@ assert.deepEqual(modelFailurePayload(), {
 });
 assert.equal("detail" in modelFailurePayload(), false,
   "public model errors must not expose subprocess details or local paths");
+
+async function checkSnapshotSubprocessTimeout() {
+  let options;
+  const payload = await computeSnapshot((command, args, opts, callback) => {
+    options = opts;
+    callback(null, JSON.stringify({ ok: true }), "");
+  });
+  assert.deepEqual(payload, { ok: true });
+  assert.equal(options.timeout, 120000,
+    "a hung dashboard subprocess must be terminated after the bounded snapshot timeout");
+  console.log("  dashboard subprocess has a bounded timeout");
+}
 
 async function checkSnapshotCacheRace() {
   let stamp = "old";
@@ -139,6 +151,7 @@ async function checkInFlightFailureRetry() {
 }
 
 async function main() {
+  await checkSnapshotSubprocessTimeout();
   await checkSnapshotCacheRace();
   await checkInFlightDeduplication();
   await checkInFlightFailureRetry();

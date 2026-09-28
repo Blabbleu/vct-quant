@@ -24,9 +24,9 @@ const DB = path.join(ROOT, "data", "vct.duckdb");
 const PYTHON = process.env.PYTHON ||
   path.join(ROOT, process.platform === "win32" ? ".venv/Scripts/python.exe" : ".venv/bin/python");
 
-function computeSnapshot() {
+function computeSnapshot(run = execFile) {
   return new Promise((resolve, reject) => {
-    execFile(PYTHON, ["-m", "vct_quant.dashboard"], { cwd: ROOT, maxBuffer: 64 << 20 },
+    run(PYTHON, ["-m", "vct_quant.dashboard"], { cwd: ROOT, maxBuffer: 64 << 20, timeout: 120000 },
       (err, stdout, stderr) => {
         if (err) return reject(new Error(stderr.trim() || err.message));
         try {
@@ -469,4 +469,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { server, snapshot, ROUTES, createSnapshotter, createInFlight, createBoundedInFlight, modelFailurePayload };
+module.exports = { server, snapshot, ROUTES, computeSnapshot, createSnapshotter, createInFlight, createBoundedInFlight, modelFailurePayload };
