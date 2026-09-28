@@ -25,7 +25,12 @@ async function checkSnapshotSubprocessTimeout() {
   assert.deepEqual(payload, { ok: true });
   assert.equal(options.timeout, 120000,
     "a hung dashboard subprocess must be terminated after the bounded snapshot timeout");
-  console.log("  dashboard subprocess has a bounded timeout");
+  const timeout = Object.assign(new Error("dashboard timed out"), { code: "ETIMEDOUT", killed: true });
+  await assert.rejects(computeSnapshot((command, args, opts, callback) => {
+    callback(timeout, "", "");
+  }), /dashboard timed out/,
+  "an execFile timeout must reject instead of resolving an empty payload");
+  console.log("  dashboard subprocess timeout is bounded and rejects");
 }
 
 async function checkSnapshotCacheRace() {
