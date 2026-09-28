@@ -118,6 +118,20 @@ async function checkBoundedInFlightZeroQueue() {
   console.log("  zero-queue dynamic lookup mode rejects only while saturated");
 }
 
+async function checkBoundedInFlightConfiguration() {
+  const compute = () => Promise.resolve();
+  for (const [concurrency, maxQueued] of [
+    [0, 0], [-1, 0], [1.5, 0], [Number.MAX_SAFE_INTEGER + 1, 0],
+    [1, -1], [1, 1.5], [1, Number.MAX_SAFE_INTEGER + 1],
+  ]) {
+    assert.throws(() => createBoundedInFlight(compute, concurrency, maxQueued),
+      RangeError, `invalid limits (${concurrency}, ${maxQueued}) must fail at construction`);
+  }
+  assert.equal(typeof createBoundedInFlight(compute, 1, 0), "function",
+    "positive integer concurrency and zero queue are valid");
+  console.log("  bounded lookup scheduler rejects invalid capacity configuration");
+}
+
 async function checkBoundedInFlightFailureRetry() {
   let calls = 0;
   let rejectFirst;
@@ -241,6 +255,7 @@ async function main() {
   await checkSnapshotCacheRace();
   await checkInFlightDeduplication();
   await checkBoundedInFlightZeroQueue();
+  await checkBoundedInFlightConfiguration();
   await checkInFlightFailureRetry();
   await checkBoundedInFlightFailureRetry();
   await checkBoundedInFlight();
