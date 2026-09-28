@@ -101,6 +101,23 @@ async function checkInFlightDeduplication() {
   console.log("  identical dynamic lookups share only in-flight work");
 }
 
+async function checkBoundedInFlightZeroQueue() {
+  let release;
+  const get = createBoundedInFlight(key => key === "active"
+    ? new Promise(resolve => { release = () => resolve(key); })
+    : Promise.resolve(key), 1, 0);
+  const active = get("active");
+  while (!release) await new Promise(resolve => setImmediate(resolve));
+  await assert.rejects(get("queued"), error => error.code === "OVERLOADED",
+    "zero queue capacity must reject distinct work while the sole slot is active");
+  release();
+  assert.equal(await active, "active");
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(await get("after"), "after",
+    "zero queue capacity must still allow work when a slot is free");
+  console.log("  zero-queue dynamic lookup mode rejects only while saturated");
+}
+
 async function checkBoundedInFlightFailureRetry() {
   let calls = 0;
   let rejectFirst;
@@ -189,6 +206,7 @@ async function main() {
   await checkSnapshotSubprocessTimeout();
   await checkSnapshotCacheRace();
   await checkInFlightDeduplication();
+  await checkBoundedInFlightZeroQueue();
   await checkInFlightFailureRetry();
   await checkBoundedInFlightFailureRetry();
   await checkBoundedInFlight();
