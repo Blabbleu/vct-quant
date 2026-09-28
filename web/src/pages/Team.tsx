@@ -1,6 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 import LogoSlot from "../components/arena/LogoSlot";
 import TeamLabel from "../components/arena/TeamLabel";
+import PlayerPhoto from "../components/arena/PlayerPhoto";
 import SectionHead from "../components/arena/SectionHead";
 import Panel from "../components/arena/Panel";
 import { Chip } from "../components/arena/Chip";
@@ -133,7 +134,7 @@ export default function Team() {
                 <div className="profile-tags">
                   {data.recent_lineup.players.map(player => (
                     <div className="profile-tag-row" key={player.player_id}>
-                      <Link to={`/player/${player.player_id}`}>{player.handle}</Link>
+                      <Link to={`/player/${player.player_id}`} className="lineup-player"><PlayerPhoto src={player.photo} handle={player.handle} size={32} />{player.handle}</Link>
                       <span className="num muted small">{player.maps} / {data.recent_lineup.maps_sampled} maps</span>
                     </div>
                   ))}

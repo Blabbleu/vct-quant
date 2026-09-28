@@ -95,7 +95,7 @@ export interface TeamProfile {
   team_id: number; name: string; logo: string | null; tag: string | null;
   record: { wins: number; losses: number };
   recent_lineup: { maps_sampled: number; latest_map_date: string | null; latest_match_id: number | null;
-    players: { player_id: number; handle: string; maps: number }[] };
+    players: { player_id: number; handle: string; maps: number; photo: string | null }[] };
   results: {
     match_id: number; completed_at: string; opponent: string; opponent_id: number | null;
     result: "W" | "L"; maps_for: number; maps_against: number;
@@ -119,7 +119,7 @@ export interface TeamProfile {
   note: string;
 }
 export interface PlayerProfile {
-  player_id: number; handle: string; country: string | null; recorded_maps: number;
+  player_id: number; handle: string; country: string | null; photo: string | null; recorded_maps: number;
   maps: {
     match_id: number; completed_at: string; map_number: number; map: string;
     team_id: number; team: string; opponent_id: number; opponent: string;

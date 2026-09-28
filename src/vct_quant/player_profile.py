@@ -11,6 +11,7 @@ from collections import Counter
 from datetime import datetime, time, timezone
 
 from . import db
+from .player_photos import local_photo
 
 _SQL = """
 SELECT m.match_id, m.completed_at, mm.map_number, mm.map_name,
@@ -80,6 +81,7 @@ def player_profile(player_id: int, *, con=None, as_of: datetime | None = None,
             })
     return {
         "player_id": player_id, "handle": player[0], "country": player[1],
+        "photo": local_photo(player_id),
         "recorded_maps": len(rows), "maps": maps,
         "agents": [{"agent": a, "maps": n} for a, n in agents.most_common()],
         "teams": [{"team_id": tid, "name": team_names[tid], "maps": n}

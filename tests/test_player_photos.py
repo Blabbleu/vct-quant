@@ -1,0 +1,28 @@
+from pathlib import Path
+
+from vct_quant.player_photos import clean_avatar_url, extract_roster, local_photo
+
+
+def test_avatar_url_allows_known_https_cdn_and_rejects_placeholder_or_other_hosts():
+    assert clean_avatar_url("https://owcdn.net/img/abc123.png") == "https://owcdn.net/img/abc123.png"
+    assert clean_avatar_url("https://www.vlr.gg/img/base/ph/sil.png") is None
+    assert clean_avatar_url("http://owcdn.net/img/abc.png") is None
+    assert clean_avatar_url("https://example.com/avatar.png") is None
+
+
+def test_extract_roster_keeps_only_positive_exact_player_ids_with_valid_avatar():
+    payload = {"data": {"segments": [{"roster": [
+        {"id": 42, "name": "Player", "avatar": "https://owcdn.net/img/a.png"},
+        {"id": "0", "name": "Bad", "avatar": "https://owcdn.net/img/b.png"},
+        {"id": 43, "name": "Placeholder", "avatar": "https://www.vlr.gg/img/base/ph/sil.png"},
+    ]}]}}
+    assert extract_roster(payload) == {"42": {"avatar": "https://owcdn.net/img/a.png", "handle": "Player"}}
+
+
+def test_local_photo_uses_only_a_valid_cached_file(tmp_path: Path):
+    photo_dir = tmp_path / "players"
+    photo_dir.mkdir()
+    (photo_dir / "42.webp").write_bytes(b"image")
+    assert local_photo("42", {"42": {"file": "42.webp"}}, photo_dir) == "/players/42.webp"
+    assert local_photo("../42", {"../42": {"file": "42.webp"}}, photo_dir) is None
+    assert local_photo("42", {"42": {"file": "42.svg"}}, photo_dir) is None

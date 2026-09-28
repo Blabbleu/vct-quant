@@ -14,6 +14,7 @@ import pandas as pd
 from .config import PROCESSED_DIR
 from .features.build import match_sequence
 from .logos import load_logos, load_tags
+from .player_photos import local_photo
 from .recent_lineup import recent_lineup
 
 
@@ -96,6 +97,8 @@ def team_profile(team_id: int) -> dict | None:
         result["logo"] = load_logos().get(str(team_id))
         result["tag"] = load_tags().get(str(team_id))
         result["recent_lineup"] = recent_lineup(team_id, as_of=now)
+        for player in result["recent_lineup"]["players"]:
+            player["photo"] = local_photo(player["player_id"])
         result["logged_results"] = logged_results_for(team_id)
     return result
 

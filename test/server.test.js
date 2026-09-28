@@ -487,6 +487,29 @@ async function main() {
     }
     console.log("  /agents only serves contained lowercase PNG icons");
 
+    const playerDir = path.join(__dirname, "../data/processed/players");
+    await fs.mkdir(playerDir, { recursive: true });
+    const playerPhoto = path.join(playerDir, "9999999997.webp");
+    const playerEscape = path.join(playerDir, "9999999996.webp");
+    try {
+      await fs.writeFile(playerPhoto, Buffer.from("photo"));
+      const servedPhoto = await fetch(base + "/players/9999999997.webp");
+      assert.equal(servedPhoto.status, 200);
+      assert.equal(servedPhoto.headers.get("content-type"), "image/webp");
+      assert.equal(servedPhoto.headers.get("x-content-type-options"), "nosniff");
+      assert.deepEqual(Buffer.from(await servedPhoto.arrayBuffer()), Buffer.from("photo"));
+      assert.equal((await fetch(base + "/players/0.png")).status, 404);
+      assert.equal((await fetch(base + "/players/9999999997.svg")).status, 404);
+      await fs.symlink("/etc/passwd", playerEscape);
+      const escapedPhoto = await fetch(base + "/players/9999999996.webp");
+      assert.equal(escapedPhoto.status, 404);
+      assert.doesNotMatch(await escapedPhoto.text(), /root:/);
+    } finally {
+      await fs.unlink(playerPhoto).catch(() => {});
+      await fs.unlink(playerEscape).catch(() => {});
+    }
+    console.log("  /players only serves contained numeric image files");
+
     const unknownApi = await fetch(base + "/api/nope");
     assert.equal(unknownApi.status, 404);
     assert.deepEqual((await unknownApi.json()).routes, [

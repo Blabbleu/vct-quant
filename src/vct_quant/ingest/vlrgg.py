@@ -191,6 +191,14 @@ def fetch_team(team_id: int | str, save: bool = True) -> dict:
     return data
 
 
+def fetch_player(player_id: int | str, save: bool = True) -> dict:
+    """Fetch exact player metadata; callers may disable raw archiving for caches."""
+    data = _get("/v2/player", {"id": player_id})
+    if save:
+        save_raw(data, f"player_{player_id}")
+    return data
+
+
 def fetch_events(page: int = 1, save: bool = True) -> dict:
     """One page of the event listing (~50-72 events, newest first)."""
     return _fetch_segmented("/v2/events", {"page": page}, f"events_page{page:03d}", save)

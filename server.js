@@ -430,6 +430,22 @@ const server = http.createServer(async (req, res) => {
     return send(res, 404, JSON.stringify({ error: "not found", routes: API_ROUTES }));
   }
   const logo = /^\/logos\/([1-9][0-9]{0,9})\.(png|jpg|webp|svg)$/.exec(url.pathname);
+  const playerPhoto = new RegExp("^/players/([1-9][0-9]{0,9})[.](png|jpg|webp)$").exec(url.pathname);
+  if (playerPhoto) {
+    try {
+      const projectRoot = await fs.realpath(ROOT);
+      const photoRoot = await fs.realpath(path.join(ROOT, "data", "processed", "players"));
+      if (!photoRoot.startsWith(projectRoot + path.sep)) return send(res, 404, JSON.stringify({ error: "no player photo" }));
+      const file = await fs.realpath(path.join(photoRoot, `${playerPhoto[1]}.${playerPhoto[2]}`));
+      if (!file.startsWith(photoRoot + path.sep)) return send(res, 404, JSON.stringify({ error: "no player photo" }));
+      const body = await fs.readFile(file);
+      res.writeHead(200, { "content-type": TYPES["." + playerPhoto[2]], "content-length": body.length,
+        "cache-control": "public, max-age=86400", "x-content-type-options": "nosniff" });
+      return res.end(body);
+    } catch {
+      return send(res, 404, JSON.stringify({ error: "no player photo" }));
+    }
+  }
   if (logo) {
     try {
       const projectRoot = await fs.realpath(ROOT);

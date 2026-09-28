@@ -4,6 +4,7 @@ import Panel from "../components/arena/Panel";
 import { Chip } from "../components/arena/Chip";
 import { EmptyState } from "../components/arena/States";
 import AgentIcon from "../components/arena/AgentIcon";
+import PlayerPhoto from "../components/arena/PlayerPhoto";
 import { Failure, Loading } from "../components/ui";
 import { usePlayerProfile } from "../lib/api";
 import "./Player.css";
@@ -25,6 +26,7 @@ export default function Player() {
     <>
       <Link to="/matches" className="profile-back">← All matches</Link>
       <header className="profile-head">
+        <PlayerPhoto src={data.photo} handle={data.handle} size={64} />
         <div className="profile-head-text">
           <h1 className="profile-title">{data.handle}</h1>
           <span className="profile-sub">

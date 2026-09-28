@@ -207,3 +207,10 @@ def test_detail_accepts_valid_v2_payload(monkeypatch):
     ]}}
     monkeypatch.setattr(vlrgg, "_get", lambda *a, **kw: payload)
     assert vlrgg.fetch_match_details(44, save=False) is payload
+
+
+def test_fetch_player_uses_exact_player_id_without_archiving(monkeypatch):
+    calls = []
+    monkeypatch.setattr(vlrgg, "_get", lambda path, params=None: calls.append((path, params)) or {"data": {}})
+    assert vlrgg.fetch_player(9801, save=False) == {"data": {}}
+    assert calls == [("/v2/player", {"id": 9801})]
