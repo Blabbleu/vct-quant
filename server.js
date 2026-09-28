@@ -454,6 +454,30 @@ const server = http.createServer(async (req, res) => {
       return send(res, 404, JSON.stringify({ error: "no logo" }));
     }
   }
+  const agentIcon = /^\/agents\/([a-z]{2,16})\.png$/.exec(url.pathname);
+  if (agentIcon) {
+    try {
+      const projectRoot = await fs.realpath(ROOT);
+      const agentRoot = await fs.realpath(path.join(ROOT, "data", "processed", "agents"));
+      if (!agentRoot.startsWith(projectRoot + path.sep)) {
+        return send(res, 404, JSON.stringify({ error: "no agent icon" }));
+      }
+      const file = await fs.realpath(path.join(agentRoot, `${agentIcon[1]}.png`));
+      if (!file.startsWith(agentRoot + path.sep)) {
+        return send(res, 404, JSON.stringify({ error: "no agent icon" }));
+      }
+      const body = await fs.readFile(file);
+      res.writeHead(200, {
+        "content-type": "image/png",
+        "content-length": body.length,
+        "cache-control": "public, max-age=86400",
+        "x-content-type-options": "nosniff",
+      });
+      return res.end(body);
+    } catch {
+      return send(res, 404, JSON.stringify({ error: "no agent icon" }));
+    }
+  }
   // The legacy single-page desk stays reachable while the web app grows.
   if (url.pathname === "/legacy" || url.pathname.startsWith("/legacy/")) {
     const page = await fs.readFile(path.join(ROOT, "frontend", "index.html"), "utf8");

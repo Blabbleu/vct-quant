@@ -3,6 +3,7 @@ import SectionHead from "../components/arena/SectionHead";
 import Panel from "../components/arena/Panel";
 import { Chip } from "../components/arena/Chip";
 import { EmptyState } from "../components/arena/States";
+import AgentIcon from "../components/arena/AgentIcon";
 import { Failure, Loading } from "../components/ui";
 import { usePlayerProfile } from "../lib/api";
 import "./Player.css";
@@ -51,7 +52,7 @@ export default function Player() {
                 <div className="player-map-row" key={`${m.match_id}:${m.map_number}`}>
                   <div className="player-map-main">
                     <div className="profile-map-meta">
-                      <span>{dateOnly(m.completed_at)} · {m.map} · {m.agent || "Unknown agent"}</span>
+                      <span className="player-agent-label"><AgentIcon agent={m.agent} size={24} />{dateOnly(m.completed_at)} · {m.map} · {m.agent || "Unknown agent"}</span>
                     </div>
                     <div className="profile-map-teams">
                       <Link to={`/team/${m.team_id}`}>{m.team}</Link> vs <Link to={`/team/${m.opponent_id}`}>{m.opponent}</Link>
@@ -79,7 +80,7 @@ export default function Player() {
                 <div className="profile-tags">
                   {data.agents.map(a => (
                     <div className="profile-tag-row" key={a.agent}>
-                      <span>{a.agent}</span><span className="num muted small">{a.maps} {a.maps === 1 ? "map" : "maps"}</span>
+                      <span className="player-agent-label"><AgentIcon agent={a.agent} size={24} />{a.agent}</span><span className="num muted small">{a.maps} {a.maps === 1 ? "map" : "maps"}</span>
                     </div>
                   ))}
                 </div>

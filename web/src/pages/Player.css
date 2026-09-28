@@ -12,6 +12,8 @@
 .player-map-result { font-family: var(--font-num); font-weight: 700; }
 .player-map-result-w { color: var(--result); }
 
+.player-agent-label { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+
 /* Phone: score + a wrapped row of labelled stat pairs (no bare numbers). */
 .player-map-nums { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-4); }
 .player-map-num {

@@ -464,6 +464,29 @@ async function main() {
     }
     console.log("  /logos only serves contained numeric image files");
 
+    const agentDir = path.join(__dirname, "../data/processed/agents");
+    await fs.mkdir(agentDir, { recursive: true });
+    const agentIcon = path.join(agentDir, "testagent.png");
+    const agentEscape = path.join(agentDir, "testescape.png");
+    try {
+      await fs.writeFile(agentIcon, Buffer.from([137, 80, 78, 71]));
+      const servedAgent = await fetch(base + "/agents/testagent.png");
+      assert.equal(servedAgent.status, 200);
+      assert.equal(servedAgent.headers.get("content-type"), "image/png");
+      assert.equal(servedAgent.headers.get("x-content-type-options"), "nosniff");
+      assert.deepEqual(Buffer.from(await servedAgent.arrayBuffer()), Buffer.from([137, 80, 78, 71]));
+      assert.equal((await fetch(base + "/agents/Bad.png")).status, 404);
+      assert.equal((await fetch(base + "/agents/..%2Fteam_logos.png")).status, 404);
+      await fs.symlink("/etc/passwd", agentEscape);
+      const escapedAgent = await fetch(base + "/agents/testescape.png");
+      assert.equal(escapedAgent.status, 404);
+      assert.doesNotMatch(await escapedAgent.text(), /root:/);
+    } finally {
+      await fs.unlink(agentIcon).catch(() => {});
+      await fs.unlink(agentEscape).catch(() => {});
+    }
+    console.log("  /agents only serves contained lowercase PNG icons");
+
     const unknownApi = await fetch(base + "/api/nope");
     assert.equal(unknownApi.status, 404);
     assert.deepEqual((await unknownApi.json()).routes, [

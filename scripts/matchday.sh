@@ -49,6 +49,7 @@ done
 for attempt in 1 2; do
   if vct update; then
     python scripts/grade_predictions.py
+    python -m vct_quant.agent_icons || echo "agent icon refresh failed; keeping cached icons"
     exit 0
   fi
   echo "vct update failed (attempt $attempt)"
