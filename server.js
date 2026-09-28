@@ -432,7 +432,16 @@ const server = http.createServer(async (req, res) => {
   const logo = /^\/logos\/([1-9][0-9]{0,9})\.(png|jpg|webp|svg)$/.exec(url.pathname);
   if (logo) {
     try {
-      const body = await fs.readFile(path.join(ROOT, "data", "processed", "logos", `${logo[1]}.${logo[2]}`));
+      const projectRoot = await fs.realpath(ROOT);
+      const logoRoot = await fs.realpath(path.join(ROOT, "data", "processed", "logos"));
+      if (!logoRoot.startsWith(projectRoot + path.sep)) {
+        return send(res, 404, JSON.stringify({ error: "no logo" }));
+      }
+      const file = await fs.realpath(path.join(logoRoot, `${logo[1]}.${logo[2]}`));
+      if (!file.startsWith(logoRoot + path.sep)) {
+        return send(res, 404, JSON.stringify({ error: "no logo" }));
+      }
+      const body = await fs.readFile(file);
       res.writeHead(200, {
         "content-type": TYPES["." + logo[2]] || "application/octet-stream",
         "content-length": body.length,

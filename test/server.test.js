@@ -336,7 +336,16 @@ async function main() {
     assert.equal((await fetch(base + "/logos/0.png")).status, 404);
     assert.equal((await fetch(base + "/logos/..%2Fteam_logos.json")).status, 404);
     assert.equal((await fetch(base + "/logos/1.exe")).status, 404);
-    console.log("  /logos only serves numeric image files");
+    const logoEscape = path.join(__dirname, "../data/processed/logos/9999999998.svg");
+    try {
+      await fs.symlink("/etc/passwd", logoEscape);
+      const escapedLogo = await fetch(base + "/logos/9999999998.svg");
+      assert.equal(escapedLogo.status, 404, "logo serving must not follow symlinks outside the logo directory");
+      assert.doesNotMatch(await escapedLogo.text(), /root:/, "outside files must not be served as logos");
+    } finally {
+      await fs.unlink(logoEscape).catch(() => {});
+    }
+    console.log("  /logos only serves contained numeric image files");
 
     const unknownApi = await fetch(base + "/api/nope");
     assert.equal(unknownApi.status, 404);
