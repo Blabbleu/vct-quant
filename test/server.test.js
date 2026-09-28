@@ -7,7 +7,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs/promises");
 const net = require("node:net");
 const path = require("node:path");
-const { server, ROUTES, createSnapshotter, createInFlight, modelFailurePayload } = require("../server.js");
+const { server, ROUTES, createSnapshotter, createInFlight, createBoundedInFlight, modelFailurePayload } = require("../server.js");
 
 assert.deepEqual(modelFailurePayload(), {
   error: "the model layer failed",
@@ -84,6 +84,41 @@ async function checkInFlightDeduplication() {
   console.log("  identical dynamic lookups share only in-flight work");
 }
 
+async function checkBoundedInFlight() {
+  let active = 0;
+  let maximum = 0;
+  const release = new Map();
+  const get = createBoundedInFlight(key => {
+    active += 1;
+    maximum = Math.max(maximum, active);
+    return new Promise(resolve => {
+      release.set(key, value => {
+        active -= 1;
+        resolve(value);
+      });
+    });
+  }, 1, 1);
+  const first = get("a");
+  const queued = get("b");
+  const duplicateQueued = get("b");
+  await assert.rejects(get("c"), error => error.code === "OVERLOADED");
+  while (!release.has("a")) await new Promise(resolve => setImmediate(resolve));
+  assert.equal(maximum, 1, "active work must not exceed the configured limit");
+  release.get("a")("A");
+  assert.equal(await first, "A");
+  while (!release.has("b")) await new Promise(resolve => setImmediate(resolve));
+  release.get("b")("B");
+  assert.equal(await queued, "B");
+  assert.equal(await duplicateQueued, "B", "queued duplicate IDs should share one slot");
+  assert.equal(maximum, 1);
+  const later = get("c");
+  while (!release.has("c")) await new Promise(resolve => setImmediate(resolve));
+  release.get("c")("C");
+  assert.equal(await later, "C", "overloaded work must not be retained; later requests can retry");
+  assert.equal(maximum, 1);
+  console.log("  distinct dynamic lookups have bounded concurrency and queueing");
+}
+
 async function checkInFlightFailureRetry() {
   let calls = 0;
   let rejectFirst;
@@ -107,6 +142,7 @@ async function main() {
   await checkSnapshotCacheRace();
   await checkInFlightDeduplication();
   await checkInFlightFailureRetry();
+  await checkBoundedInFlight();
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   try {

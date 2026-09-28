@@ -90,6 +90,50 @@ function createInFlight(compute) {
   };
 }
 
+function createBoundedInFlight(compute, concurrency = 4, maxQueued = 32) {
+  if (!Number.isSafeInteger(concurrency) || concurrency < 1 ||
+      !Number.isSafeInteger(maxQueued) || maxQueued < 0) {
+    throw new RangeError("concurrency must be positive and maxQueued non-negative");
+  }
+  const pending = new Map();
+  const queue = [];
+  let active = 0;
+
+  function start(entry) {
+    active += 1;
+    Promise.resolve().then(() => compute(entry.key)).then(entry.resolve, entry.reject)
+      .finally(() => {
+        if (pending.get(entry.key) === entry.promise) pending.delete(entry.key);
+        active -= 1;
+        drain();
+      });
+  }
+
+  function drain() {
+    while (active < concurrency && queue.length) {
+      const entry = queue.shift();
+      if (pending.get(entry.key) === entry.promise) start(entry);
+    }
+  }
+
+  return key => {
+    if (pending.has(key)) return pending.get(key);
+    if (active >= concurrency && queue.length >= maxQueued) {
+      const error = new Error("dynamic lookup capacity exceeded");
+      error.code = "OVERLOADED";
+      return Promise.reject(error);
+    }
+    let resolve;
+    let reject;
+    const promise = new Promise((res, rej) => { resolve = res; reject = rej; });
+    const entry = { key, promise, resolve, reject };
+    pending.set(key, promise);
+    if (active < concurrency) start(entry);
+    else queue.push(entry);
+    return promise;
+  };
+}
+
 function computeMatch(matchId) {
   return new Promise((resolve, reject) => {
     execFile(PYTHON, ["-m", "vct_quant.match_center", matchId],
@@ -132,9 +176,9 @@ function computePlayer(playerId) {
   });
 }
 
-const computeMatchInFlight = createInFlight(computeMatch);
-const computeTeamInFlight = createInFlight(computeTeam);
-const computePlayerInFlight = createInFlight(computePlayer);
+const computeMatchInFlight = createBoundedInFlight(computeMatch, 2, 16);
+const computeTeamInFlight = createBoundedInFlight(computeTeam, 2, 16);
+const computePlayerInFlight = createBoundedInFlight(computePlayer, 2, 16);
 
 function computeChampions() {
   return new Promise((resolve, reject) => {
@@ -309,6 +353,10 @@ const server = http.createServer(async (req, res) => {
         ? send(res, 404, JSON.stringify({ error: "match not found in prediction log" }))
         : send(res, 200, JSON.stringify(result));
     } catch (err) {
+      if (err.code === "OVERLOADED") {
+        res.setHeader("retry-after", "1");
+        return send(res, 503, JSON.stringify({ error: "match lookups are busy; retry shortly" }));
+      }
       console.error(`[500] ${url.pathname}: ${err.message}`);
       return send(res, 500, JSON.stringify({ error: "the match layer failed" }));
     }
@@ -321,6 +369,10 @@ const server = http.createServer(async (req, res) => {
         ? send(res, 404, JSON.stringify({ error: "team not found in Tier-1 history or cached fixtures" }))
         : send(res, 200, JSON.stringify(result));
     } catch (err) {
+      if (err.code === "OVERLOADED") {
+        res.setHeader("retry-after", "1");
+        return send(res, 503, JSON.stringify({ error: "team lookups are busy; retry shortly" }));
+      }
       console.error(`[500] ${url.pathname}: ${err.message}`);
       return send(res, 500, JSON.stringify({ error: "the team layer failed" }));
     }
@@ -333,6 +385,10 @@ const server = http.createServer(async (req, res) => {
         ? send(res, 404, JSON.stringify({ error: "player ID not found" }))
         : send(res, 200, JSON.stringify(result));
     } catch (err) {
+      if (err.code === "OVERLOADED") {
+        res.setHeader("retry-after", "1");
+        return send(res, 503, JSON.stringify({ error: "player lookups are busy; retry shortly" }));
+      }
       console.error(`[500] ${url.pathname}: ${err.message}`);
       return send(res, 500, JSON.stringify({ error: "the player layer failed" }));
     }
@@ -404,4 +460,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { server, snapshot, ROUTES, createSnapshotter, createInFlight, modelFailurePayload };
+module.exports = { server, snapshot, ROUTES, createSnapshotter, createInFlight, createBoundedInFlight, modelFailurePayload };
