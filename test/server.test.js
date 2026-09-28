@@ -183,6 +183,40 @@ async function checkBoundedInFlight() {
   console.log("  distinct dynamic lookups have bounded concurrency and queueing");
 }
 
+async function checkBoundedInFlightConcurrencyTwo() {
+  let active = 0;
+  let maximum = 0;
+  const release = new Map();
+  const started = [];
+  const get = createBoundedInFlight(key => {
+    active += 1;
+    maximum = Math.max(maximum, active);
+    started.push(key);
+    return new Promise(resolve => {
+      release.set(key, () => {
+        active -= 1;
+        resolve(key);
+      });
+    });
+  }, 2, 1);
+  const first = get("a");
+  const second = get("b");
+  const queued = get("c");
+  while (!release.has("a") || !release.has("b")) await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(started, ["a", "b"], "both configured slots should start before queued work");
+  assert.equal(maximum, 2, "active work must reach but never exceed concurrency two");
+  release.get("a")();
+  assert.equal(await first, "a");
+  while (!release.has("c")) await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(started, ["a", "b", "c"], "queued work should start when either slot frees");
+  assert.equal(active, 2, "queued work should refill the released slot while the other remains active");
+  release.get("b")();
+  release.get("c")();
+  assert.deepEqual(await Promise.all([second, queued]), ["b", "c"]);
+  assert.equal(active, 0);
+  console.log("  bounded lookups use two active slots and refill one freed slot");
+}
+
 async function checkInFlightFailureRetry() {
   let calls = 0;
   let rejectFirst;
@@ -210,6 +244,7 @@ async function main() {
   await checkInFlightFailureRetry();
   await checkBoundedInFlightFailureRetry();
   await checkBoundedInFlight();
+  await checkBoundedInFlightConcurrencyTwo();
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   try {
