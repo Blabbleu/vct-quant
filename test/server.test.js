@@ -101,6 +101,36 @@ async function checkInFlightDeduplication() {
   console.log("  identical dynamic lookups share only in-flight work");
 }
 
+async function checkBoundedInFlightFailureRetry() {
+  let calls = 0;
+  let rejectFirst;
+  const unhandled = [];
+  const observeUnhandled = reason => unhandled.push(reason);
+  process.on("unhandledRejection", observeUnhandled);
+  try {
+    const get = createBoundedInFlight(key => {
+      calls += 1;
+      if (calls === 1) return new Promise((_, reject) => { rejectFirst = reject; });
+      return Promise.resolve(`${key}:recovered`);
+    }, 1, 1);
+    const first = get("a");
+    while (!rejectFirst) await new Promise(resolve => setImmediate(resolve));
+    const queued = get("b");
+    rejectFirst(new Error("temporary bounded failure"));
+    await assert.rejects(first, /temporary bounded failure/);
+    assert.equal(await queued, "b:recovered",
+      "a failed bounded computation must release capacity for queued work");
+    assert.equal(await get("a"), "a:recovered",
+      "a rejected bounded computation must be removed so a later request can retry");
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(unhandled, [], "bounded lookup cleanup must not create an unhandled rejection");
+    assert.equal(calls, 3);
+  } finally {
+    process.off("unhandledRejection", observeUnhandled);
+  }
+  console.log("  failed bounded dynamic lookups release capacity, clean up, and retry");
+}
+
 async function checkBoundedInFlight() {
   let active = 0;
   let maximum = 0;
@@ -160,6 +190,7 @@ async function main() {
   await checkSnapshotCacheRace();
   await checkInFlightDeduplication();
   await checkInFlightFailureRetry();
+  await checkBoundedInFlightFailureRetry();
   await checkBoundedInFlight();
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
