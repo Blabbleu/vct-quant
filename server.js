@@ -16,6 +16,7 @@ const http = require("node:http");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const { execFile } = require("node:child_process");
+const zlib = require("node:zlib");
 
 const ROOT = __dirname;
 const PORT = Number(process.env.PORT || 8000);
@@ -279,13 +280,32 @@ function modelFailurePayload() {
   };
 }
 
+function acceptsGzip(header = "") {
+  const encodings = new Map();
+  for (const item of header.split(",")) {
+    const [rawName, ...params] = item.trim().split(";");
+    const name = rawName.toLowerCase();
+    const q = params.map(part => part.trim()).find(part => /^q=/i.test(part));
+    const quality = q ? Number(q.slice(2)) : 1;
+    if (name && Number.isFinite(quality) && quality >= 0 && quality <= 1) encodings.set(name, quality);
+  }
+  return (encodings.has("gzip") ? encodings.get("gzip") : encodings.get("*") ?? 0) > 0;
+}
+
 function send(res, status, body, type = "application/json; charset=utf-8") {
-  res.writeHead(status, {
+  const headers = {
     "content-type": type,
     "cache-control": "no-store",
     "content-length": Buffer.byteLength(body),
     "x-content-type-options": "nosniff",
-  });
+  };
+  if (type.startsWith("application/json")) headers.vary = "Accept-Encoding";
+  if (type.startsWith("application/json") && Buffer.byteLength(body) >= 1024 && acceptsGzip(res.req.headers["accept-encoding"])) {
+    body = zlib.gzipSync(body);
+    headers["content-encoding"] = "gzip";
+    headers["content-length"] = body.length;
+  }
+  res.writeHead(status, headers);
   res.end(body);
 }
 

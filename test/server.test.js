@@ -272,11 +272,16 @@ async function main() {
       console.log(`  ${route} ok`);
     }
 
-    const search = await fetch(base + "/api/search");
+    const search = await fetch(base + "/api/search", { headers: { "accept-encoding": "gzip" } });
     assert.equal(search.status, 200);
+    assert.equal(search.headers.get("content-encoding"), "gzip");
     const searchIndex = await search.json();
     for (const kind of ["teams", "players", "events"]) assert.ok(Array.isArray(searchIndex[kind]));
     assert.ok(searchIndex.teams.length > 0 && searchIndex.players.length > 0 && searchIndex.events.length > 0);
+    const identitySearch = await fetch(base + "/api/search", { headers: { "accept-encoding": "gzip;q=0, identity" } });
+    assert.equal(identitySearch.status, 200);
+    assert.equal(identitySearch.headers.get("content-encoding"), null, "explicit gzip;q=0 must disable compression");
+    assert.deepEqual(await identitySearch.json(), searchIndex);
     console.log(`  /api/search ${searchIndex.teams.length} teams, ${searchIndex.players.length} players, ${searchIndex.events.length} events`);
 
     const snapshot = await (await fetch(base + "/api/snapshot")).json();
@@ -448,7 +453,7 @@ async function main() {
       const page = await fetch(base + pagePath);
       assert.equal(page.status, 200, `${pagePath} answered ${page.status}`);
       assert.match(page.headers.get("content-type"), /text\/html/);
-      assert.match(await page.text(), /<div id="root">|VCT Quant Desk/);
+      assert.match(await page.text(), /<div id="root">|VCT Quant Desk/, `${pagePath} must return the app shell`);
     }
     console.log("  page routes serve the app shell");
 
