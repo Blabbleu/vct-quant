@@ -272,6 +272,13 @@ async function main() {
       console.log(`  ${route} ok`);
     }
 
+    const search = await fetch(base + "/api/search");
+    assert.equal(search.status, 200);
+    const searchIndex = await search.json();
+    for (const kind of ["teams", "players", "events"]) assert.ok(Array.isArray(searchIndex[kind]));
+    assert.ok(searchIndex.teams.length > 0 && searchIndex.players.length > 0 && searchIndex.events.length > 0);
+    console.log(`  /api/search ${searchIndex.teams.length} teams, ${searchIndex.players.length} players, ${searchIndex.events.length} events`);
+
     const snapshot = await (await fetch(base + "/api/snapshot")).json();
     for (const key of ["coverage", "backtest", "gc", "live", "fixtures", "rankings", "ledger"]) {
       assert.ok(key in snapshot, `snapshot is missing ${key}`);
@@ -515,7 +522,7 @@ async function main() {
     assert.deepEqual((await unknownApi.json()).routes, [
       "/api/snapshot", "/api/fixtures", "/api/backtest", "/api/live", "/api/rankings",
       "/api/ledger", "/api/health", "/api/match/:id", "/api/team/:id", "/api/player/:id",
-      "/api/champions/2766", "/api/paper-ledger", "/api/results", "/api/ops",
+      "/api/champions/2766", "/api/paper-ledger", "/api/results", "/api/ops", "/api/search",
     ]);
     assert.equal((await fetch(base + "/assets/missing.js")).status, 404);
     assert.equal((await fetch(base + "/assets/..%2F..%2Fserver.js")).status, 404);

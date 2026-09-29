@@ -21,6 +21,7 @@ const ROOT = __dirname;
 const PORT = Number(process.env.PORT || 8000);
 const HOST = process.env.HOST || "127.0.0.1";
 const DB = path.join(ROOT, "data", "vct.duckdb");
+const SEARCH_INDEX = path.join(ROOT, "data", "processed", "search_index.json");
 const PYTHON = process.env.PYTHON ||
   path.join(ROOT, process.platform === "win32" ? ".venv/Scripts/python.exe" : ".venv/bin/python");
 
@@ -243,6 +244,18 @@ const computePaperLedgerInFlight = createInFlight(computePaperLedger);
 const computeResultsInFlight = createInFlight(computeResults);
 const computeOpsInFlight = createInFlight(computeOps);
 
+let cachedSearchIndex = { stamp: null, payload: null };
+async function readSearchIndex() {
+  const stat = await fs.stat(SEARCH_INDEX);
+  const stamp = `${stat.mtimeMs}:${stat.size}`;
+  if (cachedSearchIndex.stamp === stamp && cachedSearchIndex.payload) return cachedSearchIndex.payload;
+  const payload = JSON.parse(await fs.readFile(SEARCH_INDEX, "utf8"));
+  if (!payload || !Array.isArray(payload.teams) || !Array.isArray(payload.players) ||
+      !Array.isArray(payload.events)) throw new Error("invalid search index shape");
+  cachedSearchIndex = { stamp, payload };
+  return payload;
+}
+
 const ROUTES = {
   "/api/snapshot": data => data,
   "/api/fixtures": data => data.fixtures,
@@ -256,7 +269,7 @@ const ROUTES = {
 const API_ROUTES = [
   ...Object.keys(ROUTES),
   "/api/match/:id", "/api/team/:id", "/api/player/:id", "/api/champions/2766",
-  "/api/paper-ledger", "/api/results", "/api/ops",
+  "/api/paper-ledger", "/api/results", "/api/ops", "/api/search",
 ];
 
 function modelFailurePayload() {
@@ -424,6 +437,14 @@ const server = http.createServer(async (req, res) => {
     } catch (err) {
       console.error(`[500] ${url.pathname}: ${err.message}`);
       return send(res, 500, JSON.stringify({ error: "the ops status failed" }));
+    }
+  }
+  if (url.pathname === "/api/search") {
+    try {
+      return send(res, 200, JSON.stringify(await readSearchIndex()));
+    } catch (err) {
+      console.error(`[503] ${url.pathname}: ${err.message}`);
+      return send(res, 503, JSON.stringify({ error: "search index is unavailable; run the matchday refresh" }));
     }
   }
   if (url.pathname.startsWith("/api/")) {
