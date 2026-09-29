@@ -7,7 +7,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs/promises");
 const net = require("node:net");
 const path = require("node:path");
-const { server, ROUTES, createSnapshotter, createInFlight, createBoundedInFlight, computeSnapshot, modelFailurePayload } = require("../server.js");
+const { server, ROUTES, createSnapshotter, createInFlight, createBoundedInFlight, computeSnapshot, searchIndex, modelFailurePayload } = require("../server.js");
 
 assert.deepEqual(modelFailurePayload(), {
   error: "the model layer failed",
@@ -250,7 +250,33 @@ async function checkInFlightFailureRetry() {
   console.log("  failed dynamic lookups are shared, then retried on a later request");
 }
 
+async function checkSearchIndexQuery() {
+  const index = {
+    teams: [
+      { id: 1, name: "Karmine Corp", tag: "KC", tier: 1 },
+      { id: 2, name: "G2 Esports", tag: "G2", tier: 1 },
+    ],
+    players: [
+      { id: 3, handle: "cNed", real_name: "Mehmet Yağız İpek", team_name: "NAVI" },
+      { id: 4, handle: "Leaf", real_name: null, team_name: "G2 Esports" },
+    ],
+    events: [{ id: 5, name: "VALORANT Champions Tour 2026", tier: 1 }],
+  };
+  assert.deepEqual(searchIndex(index, "karmine").teams.map(row => row.id), [1]);
+  assert.deepEqual(searchIndex(index, "yağiz").players.map(row => row.id), [3],
+    "diacritic-insensitive matching should find player real names");
+  assert.deepEqual(searchIndex(index, "G2").teams.map(row => row.id), [2]);
+  assert.deepEqual(searchIndex(index, "navi").players.map(row => row.id), [3],
+    "player search should include the latest recorded team");
+  assert.deepEqual(searchIndex(index, "5").events.map(row => row.id), [5],
+    "numeric IDs should be searchable");
+  assert.equal(searchIndex(index, "").teams.length, 2);
+  assert.equal(searchIndex(index, "g", 1).teams.length, 1, "per-category result limit should be applied");
+  console.log("  search query matches names, accents, team labels and IDs with bounded results");
+}
+
 async function main() {
+  await checkSearchIndexQuery();
   await checkSnapshotSubprocessTimeout();
   await checkSnapshotCacheRace();
   await checkInFlightDeduplication();
@@ -282,7 +308,20 @@ async function main() {
     assert.equal(identitySearch.status, 200);
     assert.equal(identitySearch.headers.get("content-encoding"), null, "explicit gzip;q=0 must disable compression");
     assert.deepEqual(await identitySearch.json(), searchIndex);
-    console.log(`  /api/search ${searchIndex.teams.length} teams, ${searchIndex.players.length} players, ${searchIndex.events.length} events`);
+    const firstTeam = searchIndex.teams[0];
+    const filtered = await fetch(base + `/api/search?q=${encodeURIComponent(firstTeam.name)}&limit=1`);
+    assert.equal(filtered.status, 200);
+    const filteredBody = await filtered.json();
+    assert.equal(filteredBody.query, firstTeam.name);
+    assert.equal(filteredBody.teams.length, 1);
+    assert.equal(filteredBody.teams[0].id, firstTeam.id);
+    assert.ok(filteredBody.players.length <= 1 && filteredBody.events.length <= 1);
+    for (const badSearch of ["/api/search?q=", "/api/search?q=test&limit=0",
+      "/api/search?q=test&limit=51", "/api/search?q=test&limit=1.5",
+      "/api/search?limit=1", `/api/search?q=${"x".repeat(101)}`]) {
+      assert.equal((await fetch(base + badSearch)).status, 400, `${badSearch} must be rejected`);
+    }
+    console.log(`  /api/search ${searchIndex.teams.length} teams, ${searchIndex.players.length} players, ${searchIndex.events.length} events; filtered query passed`);
 
     const snapshot = await (await fetch(base + "/api/snapshot")).json();
     for (const key of ["coverage", "backtest", "gc", "live", "fixtures", "rankings", "ledger"]) {

@@ -257,6 +257,40 @@ async function readSearchIndex() {
   return payload;
 }
 
+function foldSearchText(value) {
+  return String(value ?? "").normalize("NFKD").replace(/\p{M}/gu, "")
+    .replace(/ı/g, "i").toLocaleLowerCase();
+}
+
+function searchIndex(index, query, limit = 20) {
+  const needle = foldSearchText(query).trim();
+  if (!needle) return index;
+  const fields = {
+    teams: ["id", "name", "tag"],
+    players: ["id", "handle", "real_name", "team_name"],
+    events: ["id", "name"],
+  };
+  const result = { query: String(query).trim() };
+  for (const [kind, keys] of Object.entries(fields)) {
+    result[kind] = index[kind].filter(row => keys.some(key => foldSearchText(row[key]).includes(needle)))
+      .slice(0, limit);
+  }
+  return result;
+}
+
+function parseSearchRequest(url) {
+  if (!url.searchParams.has("q")) {
+    if (url.searchParams.has("limit")) return { error: "q is required when limit is supplied" };
+    return { query: null };
+  }
+  const query = url.searchParams.get("q").trim();
+  if (!query || query.length > 100) return { error: "q must contain 1 to 100 characters" };
+  const rawLimit = url.searchParams.get("limit");
+  if (rawLimit === null) return { query, limit: 20 };
+  if (!/^(?:[1-9]|[1-4][0-9]|50)$/.test(rawLimit)) return { error: "limit must be an integer from 1 to 50" };
+  return { query, limit: Number(rawLimit) };
+}
+
 const ROUTES = {
   "/api/snapshot": data => data,
   "/api/fixtures": data => data.fixtures,
@@ -461,7 +495,11 @@ const server = http.createServer(async (req, res) => {
   }
   if (url.pathname === "/api/search") {
     try {
-      return send(res, 200, JSON.stringify(await readSearchIndex()));
+      const search = parseSearchRequest(url);
+      if (search.error) return send(res, 400, JSON.stringify({ error: search.error }));
+      const index = await readSearchIndex();
+      return send(res, 200, JSON.stringify(search.query === null
+        ? index : searchIndex(index, search.query, search.limit)));
     } catch (err) {
       console.error(`[503] ${url.pathname}: ${err.message}`);
       return send(res, 503, JSON.stringify({ error: "search index is unavailable; run the matchday refresh" }));
@@ -550,4 +588,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { server, snapshot, ROUTES, computeSnapshot, createSnapshotter, createInFlight, createBoundedInFlight, modelFailurePayload };
+module.exports = { server, snapshot, ROUTES, computeSnapshot, createSnapshotter, createInFlight, createBoundedInFlight, searchIndex, modelFailurePayload };
