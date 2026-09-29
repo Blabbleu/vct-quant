@@ -7,7 +7,7 @@ import re
 from . import db
 from .config import PROCESSED_DIR
 from .logos import load_logos, load_tags
-from .player_photos import local_photo
+from .player_photos import local_photos
 
 
 def _local_asset(value: object, kind: str) -> str | None:
@@ -93,8 +93,9 @@ def search_index(con=None) -> dict:
     tags = load_tags()
     teams = [{"team_id": tid, "name": name, "tag": tag or tags.get(str(tid)), "tier": tier}
              for tid, name, tag, tier in team_rows]
+    photo_paths = local_photos(row[0] for row in player_rows)
     players = [{"player_id": pid, "handle": handle, "real_name": real_name,
-                "team_id": tid, "team_name": team_name, "photo": local_photo(pid)}
+                "team_id": tid, "team_name": team_name, "photo": photo_paths.get(str(pid))}
                for pid, handle, real_name, tid, team_name in player_rows]
     events = [{"event_id": eid, "name": name, "tier": tier}
               for eid, name, tier in event_rows]

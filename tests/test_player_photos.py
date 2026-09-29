@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from vct_quant.player_photos import clean_avatar_url, extract_roster, local_photo
+from vct_quant.player_photos import clean_avatar_url, extract_roster, local_photo, local_photos
 
 
 def test_avatar_url_allows_known_https_cdn_and_rejects_placeholder_or_other_hosts():
@@ -26,3 +26,13 @@ def test_local_photo_uses_only_a_valid_cached_file(tmp_path: Path):
     assert local_photo("42", {"42": {"file": "42.webp"}}, photo_dir) == "/players/42.webp"
     assert local_photo("../42", {"../42": {"file": "42.webp"}}, photo_dir) is None
     assert local_photo("42", {"42": {"file": "42.svg"}}, photo_dir) is None
+
+
+def test_local_photos_reuses_a_supplied_cache_for_many_ids(tmp_path: Path):
+    photo_dir = tmp_path / "players"
+    photo_dir.mkdir()
+    (photo_dir / "42.webp").write_bytes(b"image")
+    (photo_dir / "43.png").write_bytes(b"image")
+    assert local_photos([42, "43", 44],
+                        {"42": {"file": "42.webp"}, "43": {"file": "43.png"}},
+                        photo_dir) == {"42": "/players/42.webp", "43": "/players/43.png", "44": None}

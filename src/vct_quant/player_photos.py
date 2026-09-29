@@ -90,6 +90,18 @@ def local_photo(player_id: object, cache: dict[str, dict] | None = None,
     return f"/players/{filename}" if (photo_dir / filename).is_file() else None
 
 
+def local_photos(player_ids, cache: dict[str, dict] | None = None,
+                 photo_dir: Path | None = None) -> dict[str, str | None]:
+    """Resolve many local photos while parsing the cache only once."""
+    cache = _cache() if cache is None else cache
+    result = {}
+    for player_id in player_ids:
+        key = _player_id(player_id)
+        if key:
+            result[key] = local_photo(key, cache=cache, photo_dir=photo_dir)
+    return result
+
+
 def download(records: dict[str, dict], photo_dir: Path = PHOTO_DIR) -> int:
     import requests
 
