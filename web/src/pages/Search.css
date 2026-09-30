@@ -1,0 +1,45 @@
+/* Search (/search): grouped, exact-ID links with compact rows at phone widths. */
+.search-page { display: flex; flex-direction: column; gap: var(--s-5); min-width: 0; }
+.search-form { display: flex; flex-direction: column; gap: var(--s-2); }
+.search-form > label {
+  font-family: var(--font-num); font-size: var(--fs-meta); font-weight: 500;
+  letter-spacing: .08em; color: var(--text-3);
+}
+.search-input-wrap { display: flex; min-width: 0; background: var(--surface-1); border: 1px solid var(--line-strong); }
+.search-input-wrap:focus-within { border-color: var(--model); outline: 1px solid var(--model); outline-offset: 1px; }
+.search-input-wrap input {
+  flex: 1; min-width: 0; min-height: 52px; padding: 0 var(--s-3); border: 0; outline: 0;
+  background: transparent; color: var(--text); font: 600 17px var(--font-display);
+}
+.search-input-wrap input::placeholder { color: var(--text-ph); }
+.search-clear { min-width: var(--hit); padding: 0 var(--s-3); border: 0; background: transparent; color: var(--text-2); font: 700 12px var(--font-display); text-transform: uppercase; cursor: pointer; }
+.search-clear:hover { color: var(--model); }
+.search-hint { color: var(--text-3); font-size: var(--fs-meta); }
+.search-status, .search-count { color: var(--text-3); font-size: var(--fs-meta); letter-spacing: .04em; }
+.search-status { min-height: var(--hit); display: flex; align-items: center; }
+.search-results { display: flex; flex-direction: column; gap: var(--s-5); min-width: 0; }
+.search-section { display: flex; flex-direction: column; gap: var(--s-2); min-width: 0; }
+.search-list { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.search-row {
+  display: flex; align-items: center; gap: var(--s-3); min-height: 56px; padding: var(--s-2) var(--s-1);
+  border-bottom: 1px solid var(--line); min-width: 0; color: var(--text);
+}
+a.search-row:hover { background: var(--surface-2); text-decoration: none; }
+.search-primary { font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-secondary { color: var(--text-3); font-size: var(--fs-meta); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-player-name { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 180px; }
+.search-team { display: inline-flex; align-items: center; gap: var(--s-2); min-width: 0; margin-left: auto; color: var(--text-2); font-size: 13px; }
+.search-team > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-row-arrow { color: var(--text-3); margin-left: auto; flex: none; font-family: var(--font-num); }
+.search-event { color: var(--text-2); }
+.search-event-mark { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; flex: none; background: var(--surface-2); color: var(--model); font-size: 11px; }
+.search-event .search-primary { flex: 1; white-space: normal; overflow-wrap: anywhere; }
+.search-error { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3); border: 1px solid var(--line-strong); padding: var(--s-3); color: var(--text-2); }
+.search-error p { flex: 1 1 220px; }
+@media (max-width: 560px) {
+  .search-row { gap: var(--s-2); }
+  .search-row > .chip-arena { margin-left: auto; }
+  .search-team { display: none; }
+  .search-event .search-secondary { display: none; }
+  .search-primary { font-size: 14px; }
+}

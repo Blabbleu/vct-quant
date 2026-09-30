@@ -9,6 +9,7 @@ const PRIMARY = [
   { to: "/rankings", label: "Ranks" },
 ];
 const MORE = [
+  { to: "/search", label: "Search" },
   { to: "/champions/2766", label: "Champions" },
   { to: "/edge", label: "Edge" },
   { to: "/track-record", label: "Record" },

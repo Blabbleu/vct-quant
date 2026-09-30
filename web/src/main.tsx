@@ -25,6 +25,7 @@ import Status from "./pages/Status";
 import Champions from "./pages/Champions";
 import NotFound from "./pages/NotFound";
 import ArenaKit from "./pages/ArenaKit";
+import Search from "./pages/Search";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
@@ -43,6 +44,7 @@ createRoot(document.getElementById("root")!).render(
           <Route path="track-record" element={<TrackRecord />} />
           <Route path="about" element={<About />} />
           <Route path="status" element={<Status />} />
+          <Route path="search" element={<Search />} />
           <Route path="arena" element={<ArenaKit />} />
           <Route path="*" element={<NotFound />} />
         </Route>
