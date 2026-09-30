@@ -289,6 +289,9 @@ function searchIndex(index, query, limit = 20) {
 }
 
 function parseSearchRequest(url) {
+  if (url.searchParams.getAll("q").length > 1 || url.searchParams.getAll("limit").length > 1) {
+    return { error: "q and limit may each be supplied at most once" };
+  }
   if (!url.searchParams.has("q")) {
     if (url.searchParams.has("limit")) return { error: "q is required when limit is supplied" };
     return { query: null };

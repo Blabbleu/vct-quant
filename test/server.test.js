@@ -329,7 +329,8 @@ async function main() {
     assert.ok(filteredBody.players.length <= 1 && filteredBody.events.length <= 1);
     for (const badSearch of ["/api/search?q=", "/api/search?q=test&limit=0",
       "/api/search?q=test&limit=51", "/api/search?q=test&limit=1.5",
-      "/api/search?limit=1", `/api/search?q=${"x".repeat(101)}`]) {
+      "/api/search?limit=1", "/api/search?q=first&q=second",
+      "/api/search?q=test&limit=1&limit=2", `/api/search?q=${"x".repeat(101)}`]) {
       assert.equal((await fetch(base + badSearch)).status, 400, `${badSearch} must be rejected`);
     }
     console.log(`  /api/search ${searchIndex.teams.length} teams, ${searchIndex.players.length} players, ${searchIndex.events.length} events; filtered query passed`);
