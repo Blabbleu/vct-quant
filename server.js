@@ -272,8 +272,16 @@ function searchIndex(index, query, limit = 20) {
   };
   const result = { query: String(query).trim() };
   for (const [kind, keys] of Object.entries(fields)) {
-    result[kind] = index[kind].filter(row => keys.some(key => foldSearchText(row[key]).includes(needle)))
-      .slice(0, limit);
+    const matches = index[kind].map((row, position) => {
+      const values = keys.map(key => foldSearchText(row[key]));
+      if (!values.some(value => value.includes(needle))) return null;
+      const rank = values.some(value => value === needle) ? 0
+        : values.some(value => value.startsWith(needle)) ? 1 : 2;
+      return { row, position, rank };
+    }).filter(Boolean)
+      .sort((a, b) => a.rank - b.rank || a.position - b.position)
+      .slice(0, limit).map(item => item.row);
+    result[kind] = matches;
   }
   return result;
 }
