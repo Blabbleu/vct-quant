@@ -198,13 +198,18 @@ go to Masters. China: 8 partners + 2 visitor teams + 2 open. Two **Cups** per
 territory replace the league stages and qualify directly for Masters and
 Champions. Partners get no guaranteed Cup slot: low finishers at a Cup or
 Masters drop to **Open Playoffs**; teams without results restart in **Open
-Qualifiers**. Ascension is gone ("a single tier of competition"). **16 listed Open
-Qualifier regions** (4 Americas, 3 EMEA, 8 Pacific, 1 China), per Riot's
-[September 8 list](https://valorantesports.com/news/get-ready-for-vct-2027-open-qualifiers);
-open qualifiers per region; South Asia and Oceania go through a Pacific
-LCQ / Wild Card. **A team that keeps 3 of 5 players keeps its points.** Kickoff
-qualifiers start November 2026; slot counts, qualifier formats and the partner
-list are due around Champions Shanghai.
+Qualifiers**. Ascension is gone ("a single tier of competition").
+
+**Open Qualifiers:** Riot lists 16 subregions (4 Americas, 3 EMEA, 8 Pacific,
+1 China): North America, Latin America North, Latin America South, Brazil;
+Europe, Türkiye/Turkiye, MENA; South Korea, Japan, Thailand, Indonesia,
+Vietnam, Southeast Asia, South Asia, Oceania; and China ([September 8 list](https://valorantesports.com/news/get-ready-for-vct-2027-open-qualifiers)).
+Open Qualifiers begin in November 2026. Regions may host multiple qualifiers,
+and non-partner teams retaining at least 3/5 players keep competitive progress.
+Riot's region-specific info links still say "Additional Info Coming Soon";
+registration dates, formats, eligibility, and qualifier slot counts remain
+unconfirmed. South Asia and Oceania go through a Pacific LCQ / Wild Card. The
+full calendar and further regional information are still pending.
 
 **Model consequences, in order.**
 
