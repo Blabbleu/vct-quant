@@ -271,8 +271,19 @@ async function checkSearchIndexQuery() {
   assert.deepEqual(searchIndex(index, "5").events.map(row => row.id), [5],
     "numeric IDs should be searchable");
   assert.equal(searchIndex(index, "").teams.length, 2);
+  assert.deepEqual(searchIndex(index, "\u0301"), { query: "\u0301", teams: [], players: [], events: [] },
+    "a query that folds to empty must not match every indexed field");
   assert.equal(searchIndex(index, "g", 1).teams.length, 1, "per-category result limit should be applied");
-  console.log("  search query matches names, accents, team labels and IDs with bounded results");
+  const rankedIndex = {
+    teams: [
+      { id: 6, name: "The G2 Alumni", tag: "OLD" },
+      { id: 7, name: "G2 Esports Academy", tag: "G2A" },
+      { id: 8, name: "G2 Esports", tag: "G2" },
+    ], players: [], events: [],
+  };
+  assert.deepEqual(searchIndex(rankedIndex, "G2").teams.map(row => row.id), [8, 7, 6],
+    "exact then prefix matches should precede substring matches while preserving stable ties");
+  console.log("  search query matches names, accents, team labels and IDs with relevance-ranked bounded results");
 }
 
 async function main() {

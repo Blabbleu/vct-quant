@@ -263,8 +263,10 @@ function foldSearchText(value) {
 }
 
 function searchIndex(index, query, limit = 20) {
-  const needle = foldSearchText(query).trim();
-  if (!needle) return index;
+  const rawQuery = String(query).trim();
+  const needle = foldSearchText(rawQuery).trim();
+  if (!rawQuery) return index;
+  if (!needle) return { query: rawQuery, teams: [], players: [], events: [] };
   const fields = {
     teams: ["id", "name", "tag"],
     players: ["id", "handle", "real_name", "team_name"],
