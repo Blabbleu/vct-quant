@@ -208,8 +208,14 @@ Open Qualifiers begin in November 2026. Regions may host multiple qualifiers,
 and non-partner teams retaining at least 3/5 players keep competitive progress.
 Riot's region-specific info links still say "Additional Info Coming Soon";
 registration dates, formats, eligibility, and qualifier slot counts remain
-unconfirmed. South Asia and Oceania go through a Pacific LCQ / Wild Card. The
-full calendar and further regional information are still pending.
+unconfirmed. Riot's June 18 format article specifically confirms a Pacific
+Last Chance Qualifier (LCQ), where top teams from South Asia and Oceania can
+qualify into Kickoff and Cups
+([official format details](https://valorantesports.com/en-US/news/no-guaranteed-paths-inside-the-new-vct-2027)).
+Do not label this pathway a separate "Wild Card" without a source that says so;
+the open-stage tier rule still classifies Wild Card titles as Tier 2 if Riot/vlr.gg
+uses that title. The full calendar and further regional information are still
+pending.
 
 **Model consequences, in order.**
 
