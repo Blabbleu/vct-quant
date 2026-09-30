@@ -37,8 +37,8 @@ export default function Player() {
 
       <div className="profile-stats">
         <Chip variant="ghost">{data.recorded_maps} RECORDED MAPS</Chip>
-        <Chip variant="ghost">{data.agents.length} AGENTS</Chip>
-        <Chip variant="ghost">{data.teams.length} TEAMS</Chip>
+        <Chip variant="ghost">{data.agents.length} {data.agents.length === 1 ? "AGENT" : "AGENTS"}</Chip>
+        <Chip variant="ghost">{data.teams.length} {data.teams.length === 1 ? "TEAM" : "TEAMS"}</Chip>
       </div>
       <p className="muted small">{data.note} Agent/team counts cover all eligible maps; the list below shows the latest 20.</p>
 
