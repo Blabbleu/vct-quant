@@ -23,6 +23,11 @@ export default function Search() {
   const [retry, setRetry] = useState(0);
 
   useEffect(() => {
+    const query = params.get("q") ?? "";
+    setInput(current => current === query ? current : query);
+  }, [params]);
+
+  useEffect(() => {
     const trimmed = input.trim();
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
