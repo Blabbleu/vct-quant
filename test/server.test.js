@@ -312,13 +312,28 @@ async function main() {
     const search = await fetch(base + "/api/search", { headers: { "accept-encoding": "gzip" } });
     assert.equal(search.status, 200);
     assert.equal(search.headers.get("content-encoding"), "gzip");
+    const searchEtag = search.headers.get("etag");
+    assert.ok(searchEtag, "search payload should expose a representation validator");
+    assert.equal(search.headers.get("cache-control"), "no-cache");
+    const conditionalSearch = await fetch(base + "/api/search", {
+      headers: { "accept-encoding": "gzip", "if-none-match": searchEtag },
+    });
+    assert.equal(conditionalSearch.status, 304, "a matching validator should avoid retransmitting the index");
+    assert.equal(await conditionalSearch.text(), "");
+    assert.equal(conditionalSearch.headers.get("etag"), searchEtag);
     const searchIndex = await search.json();
     for (const kind of ["teams", "players", "events"]) assert.ok(Array.isArray(searchIndex[kind]));
     assert.ok(searchIndex.teams.length > 0 && searchIndex.players.length > 0 && searchIndex.events.length > 0);
     const identitySearch = await fetch(base + "/api/search", { headers: { "accept-encoding": "gzip;q=0, identity" } });
     assert.equal(identitySearch.status, 200);
     assert.equal(identitySearch.headers.get("content-encoding"), null, "explicit gzip;q=0 must disable compression");
+    const identityEtag = identitySearch.headers.get("etag");
+    assert.ok(identityEtag && identityEtag !== searchEtag, "encoded and identity representations need distinct validators");
     assert.deepEqual(await identitySearch.json(), searchIndex);
+    const weakIdentity = await fetch(base + "/api/search", {
+      headers: { "accept-encoding": "gzip;q=0", "if-none-match": `W/${identityEtag}` },
+    });
+    assert.equal(weakIdentity.status, 304, "If-None-Match uses weak comparison");
     const firstTeam = searchIndex.teams[0];
     const filtered = await fetch(base + `/api/search?q=${encodeURIComponent(firstTeam.name)}&limit=1`);
     assert.equal(filtered.status, 200);

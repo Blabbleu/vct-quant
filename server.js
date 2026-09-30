@@ -16,6 +16,7 @@ const http = require("node:http");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const { execFile } = require("node:child_process");
+const crypto = require("node:crypto");
 const zlib = require("node:zlib");
 
 const ROOT = __dirname;
@@ -339,10 +340,10 @@ function acceptsGzip(header = "") {
   return (encodings.has("gzip") ? encodings.get("gzip") : encodings.get("*") ?? 0) > 0;
 }
 
-function send(res, status, body, type = "application/json; charset=utf-8") {
+function send(res, status, body, type = "application/json; charset=utf-8", options = {}) {
   const headers = {
     "content-type": type,
-    "cache-control": "no-store",
+    "cache-control": options.cacheControl || "no-store",
     "content-length": Buffer.byteLength(body),
     "x-content-type-options": "nosniff",
   };
@@ -351,6 +352,19 @@ function send(res, status, body, type = "application/json; charset=utf-8") {
     body = zlib.gzipSync(body);
     headers["content-encoding"] = "gzip";
     headers["content-length"] = body.length;
+  }
+  if (options.etag) {
+    const etag = `"${crypto.createHash("sha256").update(body).digest("base64url")}"`;
+    headers.etag = etag;
+    const candidates = (res.req.headers["if-none-match"] || "").split(",").map(value => value.trim());
+    const matches = candidates.includes("*") || candidates.some(value => (value.startsWith("W/") ? value.slice(2) : value) === etag);
+    if (matches && status === 200 && ["GET", "HEAD"].includes(res.req.method)) {
+      delete headers["content-type"];
+      delete headers["content-length"];
+      delete headers["content-encoding"];
+      res.writeHead(304, headers);
+      return res.end();
+    }
   }
   res.writeHead(status, headers);
   res.end(body);
@@ -512,7 +526,8 @@ const server = http.createServer(async (req, res) => {
       if (search.error) return send(res, 400, JSON.stringify({ error: search.error }));
       const index = await readSearchIndex();
       return send(res, 200, JSON.stringify(search.query === null
-        ? index : searchIndex(index, search.query, search.limit)));
+        ? index : searchIndex(index, search.query, search.limit)), undefined,
+      { cacheControl: "no-cache", etag: true });
     } catch (err) {
       console.error(`[503] ${url.pathname}: ${err.message}`);
       return send(res, 503, JSON.stringify({ error: "search index is unavailable; run the matchday refresh" }));
