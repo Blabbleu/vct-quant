@@ -13,7 +13,7 @@ export default function AgentIcon({ agent, size = 24 }: { agent: string | null; 
     <span className="agent-icon" style={{ width: size, height: size }} title={name}>
       {agent && !failed ? (
         <img src={source} alt={name} width={size} height={size} onError={() => setFailed(true)} />
-      ) : <span className="agent-icon-fallback" aria-label={name}>{name}</span>}
+      ) : <span className="agent-icon-fallback" aria-hidden="true">{name.slice(0, 2).toUpperCase()}</span>}
     </span>
   );
 }
