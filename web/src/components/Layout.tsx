@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { getTheme, toggleTheme, type Theme } from "../lib/theme";
 
@@ -6,10 +6,9 @@ import { getTheme, toggleTheme, type Theme } from "../lib/theme";
 const PRIMARY = [
   { to: "/matches", label: "Matches" },
   { to: "/results", label: "Results" },
-  { to: "/rankings", label: "Ranks" },
 ];
 const MORE = [
-  { to: "/search", label: "Search" },
+  { to: "/rankings", label: "Ranks" },
   { to: "/champions/2766", label: "Champions" },
   { to: "/edge", label: "Edge" },
   { to: "/track-record", label: "Record" },
@@ -17,9 +16,9 @@ const MORE = [
   { to: "/status", label: "Status" },
 ];
 
-function NavTab({ to, label }: { to: string; label: string }) {
+function NavTab({ to, label, className = "" }: { to: string; label: string; className?: string }) {
   return (
-    <NavLink to={to} className={({ isActive }) => `nav-tab${isActive ? " nav-tab-active" : ""}`}>
+    <NavLink to={to} className={({ isActive }) => `nav-tab${isActive ? " nav-tab-active" : ""}${className ? ` ${className}` : ""}`}>
       <span>{label}</span>
     </NavLink>
   );
@@ -30,6 +29,7 @@ export default function Layout() {
   const [open, setOpen] = useState(false);
   const [theme, setThemeState] = useState<Theme>(() => getTheme());
   const menuRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
   useEffect(() => { setOpen(false); }, [pathname]);
@@ -47,6 +47,21 @@ export default function Layout() {
     };
   }, []);
 
+  // "/" jumps to search from anywhere (not while typing in a field).
+  useEffect(() => {
+    function onSlash(e: KeyboardEvent) {
+      if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
+      const el = e.target as HTMLElement | null;
+      if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+      e.preventDefault();
+      const field = document.getElementById("entity-search");
+      if (field) field.focus();
+      else navigate("/search", { state: { focus: true } });
+    }
+    document.addEventListener("keydown", onSlash);
+    return () => document.removeEventListener("keydown", onSlash);
+  }, [navigate]);
+
   useEffect(() => {
     const onChange = (e: Event) => setThemeState((e as CustomEvent<Theme>).detail);
     window.addEventListener("vctq-theme-change", onChange as EventListener);
@@ -63,7 +78,7 @@ export default function Layout() {
             <span>VCT QUANT</span>
           </NavLink>
           <nav className="nav" aria-label="Main">
-            {PRIMARY.map(n => <NavTab key={n.to} to={n.to} label={n.label} />)}
+            {PRIMARY.map(n => <NavTab key={n.to} to={n.to} label={n.label} className={n.to === "/results" ? "nav-wide-only" : ""} />)}
             {/* Merges into the same flex row at >=1200px; hidden below that. */}
             <div className="nav-more">
               {MORE.map(n => <NavTab key={n.to} to={n.to} label={n.label} />)}
@@ -72,6 +87,12 @@ export default function Layout() {
               </button>
             </div>
           </nav>
+          <Link to="/search" className={`nav-search${pathname === "/search" ? " nav-search-active" : ""}`}
+            aria-label="Search (press /)" title="Search (/)">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="square" aria-hidden="true">
+              <circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 21 21" />
+            </svg>
+          </Link>
           <div className="nav-overflow" ref={menuRef}>
             <button type="button" className="nav-overflow-btn" aria-haspopup="menu" aria-expanded={open}
               aria-label="More navigation" onClick={() => setOpen(o => !o)}>
@@ -79,6 +100,7 @@ export default function Layout() {
             </button>
             {open && (
               <div className="nav-overflow-panel" role="menu">
+                <NavTab to="/results" label="Results" className="nav-narrow-only" />
                 {MORE.map(n => <NavTab key={n.to} to={n.to} label={n.label} />)}
                 <button type="button" className="nav-tab" role="menuitem" onClick={toggleTheme}>
                   <span>{themeLabel}</span>

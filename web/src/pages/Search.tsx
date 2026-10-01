@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import LogoSlot from "../components/arena/LogoSlot";
 import PlayerPhoto from "../components/arena/PlayerPhoto";
 import SectionHead from "../components/arena/SectionHead";
@@ -21,6 +21,16 @@ export default function Search() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [retry, setRetry] = useState(0);
+  const [resultsFor, setResultsFor] = useState("");
+  const [enterPending, setEnterPending] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const focusRequested = (location.state as { focus?: boolean } | null)?.focus === true;
+
+  useEffect(() => {
+    if (focusRequested) inputRef.current?.focus();
+  }, [focusRequested, location.key]);
 
   useEffect(() => {
     const query = params.get("q") ?? "";
@@ -36,6 +46,7 @@ export default function Search() {
       setParams(next, { replace: true });
       if (!trimmed) {
         setResults(EMPTY);
+        setResultsFor("");
         setError(null);
         setLoading(false);
         return;
@@ -52,6 +63,7 @@ export default function Search() {
         .then(data => {
           if (Array.isArray(data.teams) && Array.isArray(data.players) && Array.isArray(data.events)) {
             setResults(data);
+            setResultsFor(trimmed);
           } else {
             throw new Error("Search returned an unexpected response.");
           }
@@ -73,9 +85,27 @@ export default function Search() {
 
   function changeQuery(value: string) {
     setInput(value);
+    setEnterPending(false);
   }
 
   const total = results.teams.length + results.players.length + results.events.length;
+  const firstHref = results.teams[0] ? `/team/${results.teams[0].id}`
+    : results.players[0] ? `/player/${results.players[0].id}` : null;
+  const current = !loading && !error && resultsFor === input.trim();
+
+  // Enter before results land waits for them, then opens the first linked result.
+  useEffect(() => {
+    if (!enterPending || !current) return;
+    setEnterPending(false);
+    if (firstHref) navigate(firstHref);
+  }, [enterPending, current, firstHref, navigate]);
+
+  function onSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!input.trim()) return;
+    if (current && firstHref) navigate(firstHref);
+    else setEnterPending(true);
+  }
 
   return (
     <div className="search-page">
@@ -84,10 +114,11 @@ export default function Search() {
         <p className="lede">Find Tier 1 and Tier 2 teams, players, and events by name, tag, or vlr.gg ID.</p>
       </header>
 
-      <form className="search-form" role="search" onSubmit={event => event.preventDefault()}>
+      <form className="search-form" role="search" onSubmit={onSubmit}>
         <label htmlFor="entity-search">TEAM, PLAYER, EVENT, OR ID</label>
         <div className="search-input-wrap">
           <input
+            ref={inputRef}
             id="entity-search"
             type="search"
             value={input}
@@ -98,7 +129,7 @@ export default function Search() {
           />
           {input && <button type="button" className="search-clear" onClick={() => changeQuery("")} aria-label="Clear search">Clear</button>}
         </div>
-        <span className="search-hint">Search updates as you type. Team and player results open recorded profiles; event listings come from official history.</span>
+        <span className="search-hint">Search updates as you type; Enter opens the first team or player. Team and player results open recorded profiles; event listings come from official history.</span>
       </form>
 
       {!input.trim() ? (
