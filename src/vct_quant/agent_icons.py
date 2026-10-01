@@ -32,7 +32,13 @@ def _icon_url(value: object) -> str | None:
     if not isinstance(value, str):
         return None
     parsed = urlparse(value)
-    if parsed.scheme != "https" or parsed.hostname != ALLOWED_IMAGE_HOST:
+    try:
+        port = parsed.port
+    except ValueError:
+        return None
+    if (parsed.scheme != "https" or parsed.hostname != ALLOWED_IMAGE_HOST
+            or port not in (None, 443) or parsed.username is not None
+            or parsed.password is not None):
         return None
     return value
 
