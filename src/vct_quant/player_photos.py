@@ -38,7 +38,12 @@ def clean_avatar_url(value: object) -> str | None:
 
 def _player_id(value: object) -> str | None:
     text = str(value or "").strip()
-    return text if text.isascii() and text.isdecimal() and int(text) > 0 else None
+    if not text.isascii() or not text.isdecimal() or len(text) > 16:
+        return None
+    try:
+        return text if 0 < int(text) <= 9_007_199_254_740_991 else None
+    except ValueError:
+        return None
 
 
 def _has_roster(payload: object) -> bool:

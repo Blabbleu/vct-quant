@@ -1,6 +1,12 @@
 from pathlib import Path
 
-from vct_quant.player_photos import _has_roster, clean_avatar_url, download, extract_roster, local_photo, local_photos
+from vct_quant.player_photos import _cache, _has_roster, clean_avatar_url, download, extract_roster, local_photo, local_photos
+
+
+def test_cache_ignores_oversized_numeric_player_ids(tmp_path):
+    path = tmp_path / "photos.json"
+    path.write_text('{"' + ("9" * 5000) + '": {"avatar": "https://owcdn.net/img/a.png"}}')
+    assert _cache(path) == {}
 
 
 def test_download_streams_and_stops_once_avatar_exceeds_size_limit(tmp_path, monkeypatch):
