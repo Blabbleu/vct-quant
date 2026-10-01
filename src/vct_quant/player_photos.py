@@ -41,6 +41,18 @@ def _player_id(value: object) -> str | None:
     return text if text.isascii() and text.isdecimal() and int(text) > 0 else None
 
 
+def _has_roster(payload: object) -> bool:
+    """Return whether a team response has the expected roster shape."""
+    data = payload.get("data") if isinstance(payload, dict) else None
+    if not isinstance(data, dict):
+        return False
+    segments = data.get("segments", [data])
+    return isinstance(segments, list) and any(
+        isinstance(segment, dict) and isinstance(segment.get("roster"), list)
+        for segment in segments
+    )
+
+
 def extract_roster(payload: object) -> dict[str, dict]:
     """Extract valid avatar records from a team-page response."""
     data = payload.get("data", {}) if isinstance(payload, dict) else {}
@@ -148,6 +160,9 @@ def refresh(*, limit: int = 150, player_limit: int = 150) -> dict[str, dict]:
     for team_id in [key for key in targets if key not in checked][:limit]:
         try:
             response = vlrgg.fetch_team(team_id, save=False)
+            if not _has_roster(response):
+                print(f"player roster response malformed for team {team_id}; will retry")
+                continue
             records.update({key: {**records.get(key, {}), **value}
                             for key, value in extract_roster(response).items()})
             checked.add(team_id)

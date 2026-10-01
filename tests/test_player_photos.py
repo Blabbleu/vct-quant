@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from vct_quant.player_photos import clean_avatar_url, extract_roster, local_photo, local_photos
+from vct_quant.player_photos import _has_roster, clean_avatar_url, extract_roster, local_photo, local_photos
 
 
 def test_avatar_url_allows_known_https_cdn_and_rejects_placeholder_or_other_hosts():
@@ -8,6 +8,13 @@ def test_avatar_url_allows_known_https_cdn_and_rejects_placeholder_or_other_host
     assert clean_avatar_url("https://www.vlr.gg/img/base/ph/sil.png") is None
     assert clean_avatar_url("http://owcdn.net/img/abc.png") is None
     assert clean_avatar_url("https://example.com/avatar.png") is None
+
+
+def test_team_response_roster_shape_distinguishes_empty_roster_from_bad_payload():
+    assert _has_roster({"data": {"segments": [{"roster": []}]}})
+    assert _has_roster({"data": {"roster": []}})
+    assert not _has_roster({"error": "temporary upstream failure"})
+    assert not _has_roster({"data": {"segments": [{"error": "bad segment"}]}})
 
 
 def test_extract_roster_keeps_only_positive_exact_player_ids_with_valid_avatar():
