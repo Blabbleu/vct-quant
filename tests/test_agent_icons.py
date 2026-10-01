@@ -24,6 +24,8 @@ def test_catalog_keeps_only_playable_https_official_icons():
          "displayIcon": "https://media.valorant-api.com:8443/evil.png"},
         {"displayName": "BadUserInfo", "isPlayableCharacter": True,
          "displayIcon": "https://attacker@media.valorant-api.com/evil.png"},
+        {"displayName": "MalformedAuthority", "isPlayableCharacter": True,
+         "displayIcon": "https://[::1/evil.png"},
     ]}
     assert _catalog(payload) == {
         "kayo": {"name": "KAY/O", "url": "https://media.valorant-api.com/agents/kayo/displayicon.png"},

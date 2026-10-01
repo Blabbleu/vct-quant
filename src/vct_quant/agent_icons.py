@@ -31,8 +31,8 @@ def slug(value: object) -> str | None:
 def _icon_url(value: object) -> str | None:
     if not isinstance(value, str):
         return None
-    parsed = urlparse(value)
     try:
+        parsed = urlparse(value)
         port = parsed.port
     except ValueError:
         return None
