@@ -45,6 +45,7 @@ def test_avatar_url_allows_known_https_cdn_and_rejects_placeholder_or_other_host
     assert clean_avatar_url("https://www.vlr.gg/img/base/ph/sil.png") is None
     assert clean_avatar_url("http://owcdn.net/img/abc.png") is None
     assert clean_avatar_url("https://example.com/avatar.png") is None
+    assert clean_avatar_url("https://@owcdn.net/img/avatar.png") is None
 
 
 def test_team_response_roster_shape_distinguishes_empty_roster_from_bad_payload():

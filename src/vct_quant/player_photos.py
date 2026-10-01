@@ -29,7 +29,7 @@ def clean_avatar_url(value: object) -> str | None:
     try:
         parsed = urlparse(url)
         host = (parsed.hostname or "").lower()
-        if parsed.username or parsed.password or parsed.port is not None:
+        if parsed.username is not None or parsed.password is not None or parsed.port is not None:
             return None
     except ValueError:
         return None
