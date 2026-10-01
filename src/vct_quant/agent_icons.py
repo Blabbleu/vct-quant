@@ -57,7 +57,8 @@ def refresh(*, session=None, cache: Path = CACHE, icon_dir: Path = ICON_DIR) -> 
     import requests
 
     session = session or requests.Session()
-    response = session.get(API_URL, timeout=30, headers={"User-Agent": "vct-quant/1.0"})
+    response = session.get(API_URL, timeout=30, headers={"User-Agent": "vct-quant/1.0"},
+                          allow_redirects=False)
     response.raise_for_status()
     catalog = _catalog(response.json())
     if not catalog:

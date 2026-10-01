@@ -49,7 +49,7 @@ def test_refresh_reuses_cached_icon_without_repeated_image_download(tmp_path):
         calls = []
 
         def get(self, url, **kwargs):
-            self.calls.append(url)
+            self.calls.append((url, kwargs))
             return Response()
 
     icon_dir = tmp_path / "agents"
@@ -63,6 +63,7 @@ def test_refresh_reuses_cached_icon_without_repeated_image_download(tmp_path):
 
     assert result["miks"]["file"] == "miks.png"
     assert len(session.calls) == 1  # catalog only; image is reused
+    assert session.calls[0][1]["allow_redirects"] is False
 
 
 def test_refresh_streams_and_rejects_oversized_image_without_buffering(tmp_path):
