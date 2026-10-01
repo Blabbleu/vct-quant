@@ -117,4 +117,5 @@ def test_refresh_streams_and_rejects_oversized_image_without_buffering(tmp_path)
     assert "file" not in result["miks"]
     assert not (icon_dir / "miks.png").exists()
     assert session.calls[1][1]["stream"] is True
+    assert session.calls[1][1]["allow_redirects"] is False
     assert all(response.closed for response in session.responses[1:])

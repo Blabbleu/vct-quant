@@ -80,7 +80,8 @@ def refresh(*, session=None, cache: Path = CACHE, icon_dir: Path = ICON_DIR) -> 
                 pass
         try:
             image = session.get(item["url"], timeout=30,
-                                headers={"User-Agent": "vct-quant/1.0"}, stream=True)
+                                headers={"User-Agent": "vct-quant/1.0"}, stream=True,
+                                allow_redirects=False)
             try:
                 image.raise_for_status()
                 final_url = urlparse(getattr(image, "url", item["url"]))
