@@ -45,6 +45,14 @@ def test_refresh_reuses_cached_icon_without_repeated_image_download(tmp_path):
                 "displayIcon": "https://media.valorant-api.com/agents/miks.png",
             }]}
 
+        def iter_content(self, chunk_size):
+            import json
+            assert chunk_size == 64 * 1024
+            yield json.dumps(self.json()).encode()
+
+        def close(self):
+            pass
+
     class Session:
         calls = []
 
@@ -64,6 +72,49 @@ def test_refresh_reuses_cached_icon_without_repeated_image_download(tmp_path):
     assert result["miks"]["file"] == "miks.png"
     assert len(session.calls) == 1  # catalog only; image is reused
     assert session.calls[0][1]["allow_redirects"] is False
+
+
+def test_refresh_rejects_oversized_catalog_without_buffering(tmp_path):
+    import pytest
+
+    from vct_quant.agent_icons import MAX_CATALOG_BYTES, refresh
+
+    class Response:
+        headers = {"content-type": "application/json"}
+        url = "https://valorant-api.com/v1/agents?isPlayableCharacter=true"
+
+        def __init__(self):
+            self.closed = False
+
+        @property
+        def content(self):
+            raise AssertionError("catalog body must be streamed, not buffered")
+
+        def raise_for_status(self):
+            pass
+
+        def iter_content(self, chunk_size):
+            assert chunk_size == 64 * 1024
+            yield b"x" * MAX_CATALOG_BYTES
+            yield b"x"
+
+        def close(self):
+            self.closed = True
+
+    class Session:
+        def __init__(self):
+            self.response = Response()
+
+        def get(self, url, **kwargs):
+            assert kwargs["stream"] is True
+            assert kwargs["allow_redirects"] is False
+            return self.response
+
+    session = Session()
+    with pytest.raises(ValueError, match="catalog exceeds"):
+        refresh(session=session, cache=tmp_path / "catalog.json", icon_dir=tmp_path / "agents")
+    assert session.response.closed
+    assert not (tmp_path / "catalog.json").exists()
 
 
 def test_refresh_streams_and_rejects_oversized_image_without_buffering(tmp_path):
@@ -93,7 +144,14 @@ def test_refresh_streams_and_rejects_oversized_image_without_buffering(tmp_path)
 
         def iter_content(self, chunk_size):
             assert chunk_size == 64 * 1024
-            yield b"x" * (MAX_BYTES + 1)
+            if self.catalog:
+                import json
+                yield json.dumps({"data": [{
+                    "displayName": "Miks", "isPlayableCharacter": True,
+                    "displayIcon": "https://media.valorant-api.com/agents/miks.png",
+                }]}).encode()
+            else:
+                yield b"x" * (MAX_BYTES + 1)
 
         def close(self):
             self.closed = True

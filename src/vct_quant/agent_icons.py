@@ -14,6 +14,7 @@ from .config import PROCESSED_DIR
 CACHE = PROCESSED_DIR / "agent_icons.json"
 ICON_DIR = PROCESSED_DIR / "agents"
 MAX_BYTES = 512 * 1024
+MAX_CATALOG_BYTES = 256 * 1024
 API_URL = "https://valorant-api.com/v1/agents?isPlayableCharacter=true"
 ALLOWED_IMAGE_HOST = "media.valorant-api.com"
 IMAGE_TYPE = "image/png"
@@ -58,9 +59,28 @@ def refresh(*, session=None, cache: Path = CACHE, icon_dir: Path = ICON_DIR) -> 
 
     session = session or requests.Session()
     response = session.get(API_URL, timeout=30, headers={"User-Agent": "vct-quant/1.0"},
-                          allow_redirects=False)
-    response.raise_for_status()
-    catalog = _catalog(response.json())
+                           stream=True, allow_redirects=False)
+    try:
+        response.raise_for_status()
+        content_length = response.headers.get("content-length", "")
+        if content_length.isdecimal():
+            try:
+                declared_length = int(content_length)
+            except ValueError:
+                declared_length = None
+            if declared_length is not None and declared_length > MAX_CATALOG_BYTES:
+                raise ValueError(f"VALORANT API catalog exceeds {MAX_CATALOG_BYTES} bytes")
+        body = bytearray()
+        for chunk in response.iter_content(chunk_size=64 * 1024):
+            if not chunk:
+                continue
+            if len(body) + len(chunk) > MAX_CATALOG_BYTES:
+                raise ValueError(f"VALORANT API catalog exceeds {MAX_CATALOG_BYTES} bytes")
+            body.extend(chunk)
+        payload = json.loads(body)
+    finally:
+        response.close()
+    catalog = _catalog(payload)
     if not catalog:
         raise ValueError("VALORANT API returned no playable agent icons")
     try:
