@@ -40,6 +40,27 @@ def test_download_streams_and_stops_once_avatar_exceeds_size_limit(tmp_path, mon
     assert list(tmp_path.iterdir()) == []
 
 
+def test_download_rejects_invalid_player_ids_before_building_cache_paths(tmp_path, monkeypatch):
+    import requests
+
+    calls = []
+    def unexpected_get(*args, **kwargs):
+        calls.append(args[0])
+        raise AssertionError("invalid IDs must be rejected before any download")
+
+    monkeypatch.setattr(requests, "get", unexpected_get)
+    photo_dir = tmp_path / "photos"
+    records = {
+        "../escaped": {"avatar": "https://owcdn.net/img/a.png"},
+        "0": {"avatar": "https://owcdn.net/img/b.png"},
+        "9007199254740992": {"avatar": "https://owcdn.net/img/c.png"},
+    }
+    assert download(records, photo_dir) == 0
+    assert calls == []
+    assert not (tmp_path / "escaped.png").exists()
+    assert list(photo_dir.iterdir()) == []
+
+
 def test_avatar_url_allows_known_https_cdn_and_rejects_placeholder_or_other_hosts():
     assert clean_avatar_url("https://owcdn.net/img/abc123.png") == "https://owcdn.net/img/abc123.png"
     assert clean_avatar_url("https://www.vlr.gg/img/base/ph/sil.png") is None

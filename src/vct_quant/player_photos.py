@@ -124,7 +124,10 @@ def download(records: dict[str, dict], photo_dir: Path = PHOTO_DIR) -> int:
 
     photo_dir.mkdir(parents=True, exist_ok=True)
     added = 0
-    for player_id, entry in records.items():
+    for raw_player_id, entry in records.items():
+        player_id = _player_id(raw_player_id)
+        if not player_id or not isinstance(entry, dict):
+            continue
         source = clean_avatar_url(entry.get("avatar"))
         if not source:
             continue
