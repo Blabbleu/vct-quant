@@ -111,9 +111,9 @@ def refresh(*, session=None, cache: Path = CACHE, icon_dir: Path = ICON_DIR) -> 
                                 allow_redirects=False)
             try:
                 image.raise_for_status()
-                final_url = urlparse(getattr(image, "url", item["url"]))
-                if final_url.scheme != "https" or final_url.hostname != ALLOWED_IMAGE_HOST:
-                    print(f"agent icon skipped for {item['name']}: redirected to an untrusted host")
+                final_url = getattr(image, "url", item["url"])
+                if _icon_url(final_url) is None:
+                    print(f"agent icon skipped for {item['name']}: response URL authority is untrusted")
                     continue
                 content_type = image.headers.get("content-type", "").split(";")[0].strip().lower()
                 if content_type != IMAGE_TYPE:

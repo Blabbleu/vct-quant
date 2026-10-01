@@ -182,3 +182,40 @@ def test_refresh_streams_and_rejects_oversized_image_without_buffering(tmp_path)
     assert session.calls[1][1]["stream"] is True
     assert session.calls[1][1]["allow_redirects"] is False
     assert all(response.closed for response in session.responses[1:])
+
+
+def test_refresh_rejects_image_response_with_untrusted_authority(tmp_path):
+    from vct_quant.agent_icons import refresh
+
+    class Response:
+        def __init__(self, url, *, catalog=False):
+            self.url = url
+            self.headers = {"content-type": "application/json" if catalog else "image/png"}
+
+        def raise_for_status(self):
+            pass
+
+        def iter_content(self, chunk_size):
+            if self.headers["content-type"] == "application/json":
+                import json
+                yield json.dumps({"data": [{
+                    "displayName": "Miks", "isPlayableCharacter": True,
+                    "displayIcon": "https://media.valorant-api.com/agents/miks.png",
+                }]}).encode()
+            else:
+                yield b"image-bytes"
+
+        def close(self):
+            pass
+
+    class Session:
+        def get(self, url, **kwargs):
+            if url.endswith("isPlayableCharacter=true"):
+                return Response(url, catalog=True)
+            return Response("https://user@media.valorant-api.com:8443/agents/miks.png")
+
+    icon_dir = tmp_path / "agents"
+    result = refresh(session=Session(), cache=tmp_path / "catalog.json", icon_dir=icon_dir)
+
+    assert "file" not in result["miks"]
+    assert not (icon_dir / "miks.png").exists()
