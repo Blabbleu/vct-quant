@@ -130,19 +130,35 @@ def download(records: dict[str, dict], photo_dir: Path = PHOTO_DIR) -> int:
             continue
         try:
             response = requests.get(source, timeout=15, headers={"User-Agent": "vct-quant/1.0"},
-                                   allow_redirects=False)
-            response.raise_for_status()
-            if clean_avatar_url(response.url) is None:
-                continue
-            extension = IMAGE_TYPES.get(response.headers.get("content-type", "").split(";")[0].strip().lower())
-            if not extension or not response.content or len(response.content) > MAX_BYTES:
-                continue
-            filename = f"{player_id}{extension}"
-            temporary = photo_dir / f".{filename}.tmp"
-            temporary.write_bytes(response.content)
-            temporary.replace(photo_dir / filename)
-            entry["file"], entry["source"] = filename, source
-            added += 1
+                                   allow_redirects=False, stream=True)
+            try:
+                response.raise_for_status()
+                if clean_avatar_url(response.url) is None:
+                    continue
+                extension = IMAGE_TYPES.get(response.headers.get("content-type", "").split(";")[0].strip().lower())
+                if not extension:
+                    continue
+                content_length = response.headers.get("content-length", "")
+                if content_length.isdecimal() and int(content_length) > MAX_BYTES:
+                    continue
+                content = bytearray()
+                for chunk in response.iter_content(chunk_size=64 * 1024):
+                    if not chunk:
+                        continue
+                    if len(content) + len(chunk) > MAX_BYTES:
+                        break
+                    content.extend(chunk)
+                else:
+                    if not content:
+                        continue
+                    filename = f"{player_id}{extension}"
+                    temporary = photo_dir / f".{filename}.tmp"
+                    temporary.write_bytes(content)
+                    temporary.replace(photo_dir / filename)
+                    entry["file"], entry["source"] = filename, source
+                    added += 1
+            finally:
+                response.close()
         except Exception as exc:
             print(f"player photo download failed for {player_id}: {exc}")
     return added

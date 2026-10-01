@@ -1,6 +1,37 @@
 from pathlib import Path
 
-from vct_quant.player_photos import _has_roster, clean_avatar_url, extract_roster, local_photo, local_photos
+from vct_quant.player_photos import _has_roster, clean_avatar_url, download, extract_roster, local_photo, local_photos
+
+
+def test_download_streams_and_stops_once_avatar_exceeds_size_limit(tmp_path, monkeypatch):
+    import requests
+
+    class OversizedResponse:
+        url = "https://owcdn.net/img/large.png"
+        headers = {"content-type": "image/png"}
+
+        def raise_for_status(self):
+            pass
+
+        def iter_content(self, chunk_size):
+            assert chunk_size > 0
+            yield b"a" * (512 * 1024)
+            yield b"b"
+            raise AssertionError("must stop reading after crossing the limit")
+
+        def close(self):
+            pass
+
+    calls = []
+    def fake_get(url, **kwargs):
+        calls.append(kwargs)
+        return OversizedResponse()
+    monkeypatch.setattr(requests, "get", fake_get)
+
+    photos = {"42": {"avatar": "https://owcdn.net/img/large.png"}}
+    assert download(photos, tmp_path) == 0
+    assert calls[0]["stream"] is True
+    assert list(tmp_path.iterdir()) == []
 
 
 def test_avatar_url_allows_known_https_cdn_and_rejects_placeholder_or_other_hosts():
