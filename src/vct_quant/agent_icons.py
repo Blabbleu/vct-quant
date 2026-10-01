@@ -79,24 +79,41 @@ def refresh(*, session=None, cache: Path = CACHE, icon_dir: Path = ICON_DIR) -> 
             except OSError:
                 pass
         try:
-            image = session.get(item["url"], timeout=30, headers={"User-Agent": "vct-quant/1.0"})
-            image.raise_for_status()
-            final_url = urlparse(getattr(image, "url", item["url"]))
-            if final_url.scheme != "https" or final_url.hostname != ALLOWED_IMAGE_HOST:
-                print(f"agent icon skipped for {item['name']}: redirected to an untrusted host")
-                continue
-            content_type = image.headers.get("content-type", "").split(";")[0].strip().lower()
-            if content_type != IMAGE_TYPE:
-                print(f"agent icon skipped for {item['name']}: content type {content_type or 'missing'}")
-                continue
-            if not image.content or len(image.content) > MAX_BYTES:
-                print(f"agent icon skipped for {item['name']}: image size {len(image.content)} bytes")
-                continue
-            name = f"{key}.png"
-            tmp = icon_dir / f".{name}.tmp"
-            tmp.write_bytes(image.content)
-            tmp.replace(icon_dir / name)
-            item["file"] = name
+            image = session.get(item["url"], timeout=30,
+                                headers={"User-Agent": "vct-quant/1.0"}, stream=True)
+            try:
+                image.raise_for_status()
+                final_url = urlparse(getattr(image, "url", item["url"]))
+                if final_url.scheme != "https" or final_url.hostname != ALLOWED_IMAGE_HOST:
+                    print(f"agent icon skipped for {item['name']}: redirected to an untrusted host")
+                    continue
+                content_type = image.headers.get("content-type", "").split(";")[0].strip().lower()
+                if content_type != IMAGE_TYPE:
+                    print(f"agent icon skipped for {item['name']}: content type {content_type or 'missing'}")
+                    continue
+                content_length = image.headers.get("content-length", "")
+                if content_length.isdecimal() and int(content_length) > MAX_BYTES:
+                    print(f"agent icon skipped for {item['name']}: image exceeds {MAX_BYTES} bytes")
+                    continue
+                content = bytearray()
+                for chunk in image.iter_content(chunk_size=64 * 1024):
+                    if not chunk:
+                        continue
+                    if len(content) + len(chunk) > MAX_BYTES:
+                        print(f"agent icon skipped for {item['name']}: image exceeds {MAX_BYTES} bytes")
+                        break
+                    content.extend(chunk)
+                else:
+                    if not content:
+                        print(f"agent icon skipped for {item['name']}: empty image")
+                        continue
+                    name = f"{key}.png"
+                    tmp = icon_dir / f".{name}.tmp"
+                    tmp.write_bytes(content)
+                    tmp.replace(icon_dir / name)
+                    item["file"] = name
+            finally:
+                image.close()
         except Exception as exc:
             print(f"agent icon download failed for {item['name']}: {exc}")
     cache.parent.mkdir(parents=True, exist_ok=True)

@@ -63,3 +63,58 @@ def test_refresh_reuses_cached_icon_without_repeated_image_download(tmp_path):
 
     assert result["miks"]["file"] == "miks.png"
     assert len(session.calls) == 1  # catalog only; image is reused
+
+
+def test_refresh_streams_and_rejects_oversized_image_without_buffering(tmp_path):
+    from vct_quant.agent_icons import MAX_BYTES, refresh
+
+    class Response:
+        def __init__(self, url, *, catalog=False):
+            self.url = url
+            self.catalog = catalog
+            self.headers = ({"content-type": "application/json"} if catalog else
+                            {"content-type": "image/png"})
+            self.closed = False
+
+        @property
+        def content(self):
+            assert self.catalog, "image body must be streamed, not buffered"
+            return b"catalog"
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"data": [{
+                "displayName": "Miks", "isPlayableCharacter": True,
+                "displayIcon": "https://media.valorant-api.com/agents/miks.png",
+            }]}
+
+        def iter_content(self, chunk_size):
+            assert chunk_size == 64 * 1024
+            yield b"x" * (MAX_BYTES + 1)
+
+        def close(self):
+            self.closed = True
+
+    class Session:
+        def __init__(self):
+            self.calls = []
+            self.responses = []
+
+        def get(self, url, **kwargs):
+            self.calls.append((url, kwargs))
+            response = Response(url, catalog=(url.endswith("isPlayableCharacter=true")))
+            self.responses.append(response)
+            return response
+
+    session = Session()
+    cache = tmp_path / "agent_icons.json"
+    icon_dir = tmp_path / "agents"
+
+    result = refresh(session=session, cache=cache, icon_dir=icon_dir)
+
+    assert "file" not in result["miks"]
+    assert not (icon_dir / "miks.png").exists()
+    assert session.calls[1][1]["stream"] is True
+    assert all(response.closed for response in session.responses[1:])
