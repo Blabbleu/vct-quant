@@ -102,21 +102,43 @@ def verify_openers(spec: dict, pages: dict[int, str]) -> int:
 
 
 def fetch_match_page(session: requests.Session, match_id: int) -> str:
-    """Fetch only the exact trusted match URL; never follow a redirect."""
+    """Fetch only the exact trusted match URL with a bounded response body."""
     response = session.get(
-        f"https://www.vlr.gg/{match_id}/", timeout=20, allow_redirects=False
+        f"https://www.vlr.gg/{match_id}/", timeout=20,
+        allow_redirects=False, stream=True,
     )
-    if response.status_code in {301, 302, 303, 307, 308}:
-        raise ValueError(f"{match_id}: redirect rejected")
-    response.raise_for_status()
-    parsed = urlparse(response.url)
-    if (
-        parsed.scheme != "https"
-        or parsed.netloc != "www.vlr.gg"
-        or not parsed.path.startswith(f"/{match_id}/")
-    ):
-        raise ValueError(f"{match_id}: returned a different match or host")
-    return response.text
+    try:
+        if response.status_code in {301, 302, 303, 307, 308}:
+            raise ValueError(f"{match_id}: redirect rejected")
+        response.raise_for_status()
+        parsed = urlparse(response.url)
+        if (
+            parsed.scheme != "https"
+            or parsed.netloc != "www.vlr.gg"
+            or not parsed.path.startswith(f"/{match_id}/")
+        ):
+            raise ValueError(f"{match_id}: returned a different match or host")
+
+        max_bytes = 2 * 1024 * 1024
+        content_length = response.headers.get("Content-Length")
+        if content_length is not None:
+            try:
+                declared_length = int(content_length)
+            except (TypeError, ValueError):
+                declared_length = None
+            if declared_length is not None and declared_length > max_bytes:
+                raise ValueError(f"{match_id}: page response too large")
+
+        body = bytearray()
+        for chunk in response.iter_content(chunk_size=65536):
+            if not chunk:
+                continue
+            if len(body) + len(chunk) > max_bytes:
+                raise ValueError(f"{match_id}: page response too large")
+            body.extend(chunk)
+        return bytes(body).decode(response.encoding or "utf-8", errors="replace")
+    finally:
+        response.close()
 
 
 def main() -> None:

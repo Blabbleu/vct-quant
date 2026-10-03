@@ -50,7 +50,16 @@ def test_fetch_match_page_disables_redirects_and_returns_verified_response():
     class Response:
         url = "https://www.vlr.gg/753444/opener"
         status_code = 200
-        text = "page html"
+        headers = {"Content-Length": "9"}
+        encoding = "utf-8"
+        closed = False
+
+        def iter_content(self, chunk_size):
+            assert chunk_size == 65536
+            yield b"page html"
+
+        def close(self):
+            self.closed = True
 
         def raise_for_status(self):
             pass
@@ -59,9 +68,66 @@ def test_fetch_match_page_disables_redirects_and_returns_verified_response():
         def get(self, url, **kwargs):
             assert url == "https://www.vlr.gg/753444/"
             assert kwargs["allow_redirects"] is False
-            return Response()
+            assert kwargs["stream"] is True
+            return response
 
+    response = Response()
     assert fetch_match_page(Session(), 753444) == "page html"
+    assert response.closed
+
+
+def test_fetch_match_page_rejects_declared_oversize_before_reading():
+    class Response:
+        url = "https://www.vlr.gg/753444/"
+        status_code = 200
+        headers = {"Content-Length": "2097153"}
+
+        def iter_content(self, chunk_size):
+            raise AssertionError("oversized response must not be read")
+
+        def close(self):
+            self.closed = True
+
+        def raise_for_status(self):
+            pass
+
+    class Session:
+        def get(self, url, **kwargs):
+            return response
+
+    response = Response()
+    response.closed = False
+    with pytest.raises(ValueError, match="too large"):
+        fetch_match_page(Session(), 753444)
+    assert response.closed
+
+
+def test_fetch_match_page_rejects_oversize_stream_without_content_length():
+    class Response:
+        url = "https://www.vlr.gg/753444/"
+        status_code = 200
+        headers = {}
+        closed = False
+
+        def iter_content(self, chunk_size):
+            yield b"x" * 65536
+            yield b"y" * (2 * 1024 * 1024)
+            raise AssertionError("must stop at first oversized chunk")
+
+        def close(self):
+            self.closed = True
+
+        def raise_for_status(self):
+            pass
+
+    class Session:
+        def get(self, url, **kwargs):
+            return response
+
+    response = Response()
+    with pytest.raises(ValueError, match="too large"):
+        fetch_match_page(Session(), 753444)
+    assert response.closed
 
 
 def test_fetch_match_page_rejects_redirect_status():
@@ -69,6 +135,9 @@ def test_fetch_match_page_rejects_redirect_status():
         url = "https://attacker.example/"
         status_code = 302
         text = ""
+
+        def close(self):
+            pass
 
         def raise_for_status(self):
             raise AssertionError("redirect should be rejected before status handling")
