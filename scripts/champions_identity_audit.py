@@ -101,6 +101,24 @@ def verify_openers(spec: dict, pages: dict[int, str]) -> int:
     return count
 
 
+def fetch_match_page(session: requests.Session, match_id: int) -> str:
+    """Fetch only the exact trusted match URL; never follow a redirect."""
+    response = session.get(
+        f"https://www.vlr.gg/{match_id}/", timeout=20, allow_redirects=False
+    )
+    if response.status_code in {301, 302, 303, 307, 308}:
+        raise ValueError(f"{match_id}: redirect rejected")
+    response.raise_for_status()
+    parsed = urlparse(response.url)
+    if (
+        parsed.scheme != "https"
+        or parsed.netloc != "www.vlr.gg"
+        or not parsed.path.startswith(f"/{match_id}/")
+    ):
+        raise ValueError(f"{match_id}: returned a different match or host")
+    return response.text
+
+
 def main() -> None:
     spec = load_bracket_spec(2766)
     pages: dict[int, str] = {}
@@ -108,12 +126,7 @@ def main() -> None:
     for group in spec["groups"].values():
         for key in ("opening_1", "opening_2"):
             match_id = group[key]["match_id"]
-            response = session.get(f"https://www.vlr.gg/{match_id}/", timeout=20)
-            response.raise_for_status()
-            parsed = urlparse(response.url)
-            if parsed.scheme != "https" or parsed.netloc != "www.vlr.gg" or not parsed.path.startswith(f"/{match_id}/"):
-                raise ValueError(f"{match_id}: redirected to a different match or host")
-            pages[match_id] = response.text
+            pages[match_id] = fetch_match_page(session, match_id)
     count = verify_openers(spec, pages)
     print(f"{datetime.now(timezone.utc).isoformat()} direct vlr.gg pages: {count}/8 opener identities match pinned names, IDs and order")
     for group in spec["groups"].values():

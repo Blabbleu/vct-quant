@@ -35,8 +35,9 @@ from this static schedule.
   all eight `https://www.vlr.gg/<match_id>/` pages (not the local API) and
   matched all 16 positional team names and `/team/<id>/` links to the pinned
   schedule, including the six previously ephemeral API observations.[7]
-  It rejects a wrong canonical match ID, event header, redirect, missing or
-  duplicate side, and name/ID/order drift. This closes the identity
+  It rejects a wrong canonical match ID, event header, redirect (the HTTP
+  request disables redirect following, so the target is never fetched), missing
+  or duplicate side, and name/ID/order drift. This closes the identity
   corroboration gap **as of that read-only observation**, but these pages
   were not archived and may change after play; rerun before title odds.
   Unknown or contradictory IDs block odds for that entrant.

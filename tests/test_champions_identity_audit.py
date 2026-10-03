@@ -1,7 +1,7 @@
 """Direct source-page IDs must corroborate bracket entrants, not just names."""
 import pytest
 
-from scripts.champions_identity_audit import parse_match_page, verify_openers
+from scripts.champions_identity_audit import fetch_match_page, parse_match_page, verify_openers
 
 
 def page(match_id=753444, event_id=2766, teams=((120, "100 Thieves"), (14, "T1"))):
@@ -44,3 +44,39 @@ def test_verify_openers_requires_positional_names_and_ids():
         verify_openers(spec, {753444: page(teams=((120, "100 Thieves"), (15, "T1"))), 753445: second})
     with pytest.raises(ValueError, match="missing"):
         verify_openers(spec, {753444: page()})
+
+
+def test_fetch_match_page_disables_redirects_and_returns_verified_response():
+    class Response:
+        url = "https://www.vlr.gg/753444/opener"
+        status_code = 200
+        text = "page html"
+
+        def raise_for_status(self):
+            pass
+
+    class Session:
+        def get(self, url, **kwargs):
+            assert url == "https://www.vlr.gg/753444/"
+            assert kwargs["allow_redirects"] is False
+            return Response()
+
+    assert fetch_match_page(Session(), 753444) == "page html"
+
+
+def test_fetch_match_page_rejects_redirect_status():
+    class Response:
+        url = "https://attacker.example/"
+        status_code = 302
+        text = ""
+
+        def raise_for_status(self):
+            raise AssertionError("redirect should be rejected before status handling")
+
+    class Session:
+        def get(self, url, **kwargs):
+            assert kwargs["allow_redirects"] is False
+            return Response()
+
+    with pytest.raises(ValueError, match="redirect"):
+        fetch_match_page(Session(), 753444)
