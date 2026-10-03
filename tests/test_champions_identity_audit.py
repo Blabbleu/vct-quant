@@ -130,11 +130,14 @@ def test_fetch_match_page_rejects_oversize_stream_without_content_length():
     assert response.closed
 
 
-def test_fetch_match_page_rejects_redirect_status():
+@pytest.mark.parametrize("status_code", [300, 302, 304, 305, 307, 308])
+def test_fetch_match_page_rejects_redirect_status(status_code):
     class Response:
         url = "https://attacker.example/"
-        status_code = 302
         text = ""
+
+        def __init__(self):
+            self.status_code = status_code
 
         def close(self):
             pass

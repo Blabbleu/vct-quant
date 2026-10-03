@@ -108,8 +108,8 @@ def fetch_match_page(session: requests.Session, match_id: int) -> str:
         allow_redirects=False, stream=True,
     )
     try:
-        if response.status_code in {301, 302, 303, 307, 308}:
-            raise ValueError(f"{match_id}: redirect rejected")
+        if 300 <= response.status_code < 400:
+            raise ValueError(f"{match_id}: redirect response rejected")
         response.raise_for_status()
         parsed = urlparse(response.url)
         if (
