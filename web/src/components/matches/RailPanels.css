@@ -1,0 +1,64 @@
+/* Right-rail panels (Matches, Home, Results). Cut corners come from <Panel>. */
+.rail-panel-wrap { min-width: 0; }
+.rail-panel { padding: var(--s-4); display: flex; flex-direction: column; gap: var(--s-3); min-width: 0; }
+.rail-panel .section-head h2 { margin-bottom: 0; }
+.rail-link { font-size: var(--fs-meta); color: var(--text-2); white-space: nowrap; }
+.rail-link:hover { color: var(--model); text-decoration: none; }
+.rail-sub { font-size: var(--fs-meta); color: var(--text-3); letter-spacing: .08em; text-transform: uppercase; margin-top: calc(var(--s-1) * -1); }
+
+.rail-skel { display: flex; flex-direction: column; gap: var(--s-3); }
+.rail-skel .loading-line { height: 18px; }
+
+.rail-big { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 var(--s-2); }
+.rail-big-num { font-size: var(--fs-num-xl); font-weight: 800; line-height: 1; color: var(--model); }
+.rail-big-of { font-size: var(--fs-num-l); font-weight: 700; color: var(--text-2); }
+.rail-big-cap { flex-basis: 100%; font-size: var(--fs-meta); color: var(--text-3); margin-top: var(--s-1); }
+
+.rail-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.rail-list > li + li { border-top: 1px solid var(--line); }
+.rail-row { display: flex; color: inherit; padding: var(--s-2) 0; min-width: 0; transition: background var(--dur) var(--ease); }
+.rail-row:hover { text-decoration: none; background: color-mix(in srgb, var(--surface-3) 60%, transparent); }
+
+.rail-side { display: flex; align-items: center; gap: var(--s-2); min-width: 0; color: var(--text-3); }
+.rail-side .team-label { color: var(--text-3); }
+.rail-side-right { flex-direction: row-reverse; text-align: right; }
+.rail-side-win, .rail-side-win .team-label { color: var(--text); }
+.rail-score { font-weight: 800; font-size: var(--fs-num-s); color: var(--result); white-space: nowrap; }
+
+.rail-recent { flex-direction: column; gap: 4px; }
+.rail-recent-teams { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: var(--s-2); align-items: center; }
+.rail-recent-pick { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); font-size: 11px; }
+
+.rail-bracket { flex-direction: column; gap: 4px; }
+.rail-bracket-teams { display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
+.rail-bracket-teams b { font-size: var(--fs-body); text-transform: uppercase; letter-spacing: .01em; color: var(--text-2); }
+.rail-bracket-teams .logo-slot:last-child { margin-left: auto; }
+.rail-bracket-meta { display: flex; justify-content: space-between; font-size: 11px; }
+.rail-fav, .rail-bracket-teams b.rail-fav { color: var(--model); }
+.rail-bracket .pipbar { padding-top: 0; }
+.rail-bracket .pipbar-track { height: 6px; }
+
+.rail-rank { align-items: center; gap: var(--s-2); min-height: 38px; }
+.rail-rank-i { width: 18px; color: var(--text-3); text-align: right; font-size: var(--fs-meta); }
+.rail-rank .team-label { flex: 1 1 auto; }
+.rail-rank-elo { font-weight: 700; }
+
+.rail-list > li.rail-miss-item { position: relative; border-top: 1px solid var(--line); }
+.rail-miss-ll { display: block; font-size: 11px; color: var(--text-3); padding-bottom: var(--s-2); }
+.rail-panel-stack { display: flex; flex-direction: column; gap: var(--s-4); min-width: 0; }
+
+/* Shared main + rail split used by Matches, Home and Results: one column on phone/tablet, rail on the right from 1200px. */
+.page-split { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-5); align-items: start; }
+.page-split-main { display: flex; flex-direction: column; gap: var(--s-5); min-width: 0; }
+.page-split-rail { display: flex; flex-direction: column; gap: var(--s-4); min-width: 0; }
+@media (min-width: 1200px) {
+  .page-split { grid-template-columns: minmax(0, 1fr) 360px; gap: var(--s-6); }
+}
+/* A board of cards that stretches to fill its column. */
+.fill-board { display: grid; gap: var(--s-3); grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); }
+
+/* Variant for pages with dense list rows (Results): the rail only sits beside the list from 1440px, otherwise it stacks below. */
+@media (min-width: 1200px) and (max-width: 1439px) {
+  .page-split.page-split-lg { grid-template-columns: minmax(0, 1fr); }
+  .page-split-lg .page-split-rail { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+}

@@ -1,7 +1,7 @@
 /* About (/about): plain-language "how it works" guide plus a board key.
    See design-terminal-arena.pdf typography table (Body 15/1.45, H2 section). */
 
-.about-page { display: flex; flex-direction: column; gap: var(--s-5); }
+.about-page { display: flex; flex-direction: column; gap: var(--s-5); width: 100%; max-width: 1080px; margin-inline: auto; }
 
 .about-head { display: flex; flex-direction: column; gap: var(--s-2); }
 .about-title {
@@ -12,7 +12,7 @@
 /* Phone: prose then key. Desktop: prose + sticky key aside. */
 .about-layout { display: grid; grid-template-columns: 1fr; gap: var(--s-5); align-items: start; }
 @media (min-width: 1024px) {
-  .about-layout { grid-template-columns: minmax(0, 68ch) minmax(300px, 380px); justify-content: space-between; gap: var(--s-6); }
+  .about-layout { grid-template-columns: minmax(0, 1fr) minmax(300px, 360px); gap: var(--s-6); }
   .about-aside { position: sticky; top: 84px; }
 }
 

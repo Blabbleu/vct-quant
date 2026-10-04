@@ -1,26 +1,35 @@
-/* Matches page. Owned by the Home/Matches page agent. */
+/* Matches page: event strip, a two-column layout (fixture days + context rail)
+   from 1200px, and a card grid that stretches to fill its column. */
 
-.matches-page { display: flex; flex-direction: column; gap: var(--s-5); }
+.matches-page { display: flex; flex-direction: column; gap: var(--s-5); min-width: 0; }
 
 .matches-filter { display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
 .matches-filter-label {
   font-family: var(--font-display); font-weight: 700; font-size: var(--fs-label);
   text-transform: uppercase; letter-spacing: var(--track-label); color: var(--text-3);
 }
-.matches-filter select { min-width: 220px; }
+.matches-filter select { min-width: 220px; max-width: 100%; }
 
-.matches-day { display: flex; flex-direction: column; gap: var(--s-3); }
+.matches-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-5); align-items: start; }
+.matches-main { display: flex; flex-direction: column; gap: var(--s-5); min-width: 0; }
+.matches-rail { display: flex; flex-direction: column; gap: var(--s-4); min-width: 0; }
+@media (min-width: 1200px) {
+  .matches-layout { grid-template-columns: minmax(0, 1fr) 360px; gap: var(--s-6); }
+}
+/* Stick the rail only when it fits in the viewport, otherwise its lower panels could never be reached. */
+@media (min-width: 1200px) and (min-height: 1120px) {
+  .matches-rail { position: sticky; top: 88px; }
+}
+
+.matches-day { display: flex; flex-direction: column; gap: var(--s-3); min-width: 0; }
 .matches-day-head {
-  font-family: var(--font-num); font-size: var(--fs-meta); font-weight: 500;
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); flex-wrap: wrap;
+  font-family: var(--font-num); font-size: var(--fs-meta); font-weight: 600;
   text-transform: uppercase; letter-spacing: .06em; color: var(--text-2);
   margin: 0; padding: 0 0 var(--s-2); border-bottom: 1px solid var(--line);
 }
+.matches-day-meta { color: var(--text-3); font-weight: 500; letter-spacing: .04em; }
 
-/* Phone: single column list (arena-board is already 1-col below 768px).
-   Desktop >=1024px: a wider board with more breathing room per card than
-   the 768px 2-col step, so cards read as a designed grid, not a stretched
-   list. */
-.matches-board { gap: var(--s-3); }
-@media (min-width: 1024px) and (max-width: 1199px) {
-  .matches-board { grid-template-columns: repeat(2, 1fr); }
-}
+/* Cards fill the column: as many 380px-minimum tracks as fit, each stretching with the rest.
+   min(100%, 380px) lets one track shrink below 380px on a phone instead of overflowing. */
+.matches-board { display: grid; gap: var(--s-3); grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); }

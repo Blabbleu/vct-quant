@@ -2,11 +2,9 @@ import { Link } from "react-router-dom";
 import { useSnapshot, useResults } from "../lib/api";
 import FixtureCard from "../components/FixtureCard";
 import SectionHead from "../components/arena/SectionHead";
-import Panel from "../components/arena/Panel";
-import RecordBar from "../components/arena/RecordBar";
+import { ModelRecord, PowerRanks, RecentResults } from "../components/matches/RailPanels";
 import { LoadingBlocks, ErrorPanel, EmptyState } from "../components/arena/States";
 import { COPY } from "../lib/constants";
-import { recordView } from "../lib/record";
 import { PageFade, Words, Stagger, StaggerItem, Reveal } from "../lib/motion";
 import "./Home.css";
 
@@ -25,11 +23,10 @@ export default function Home() {
   if (loading) return <LoadingBlocks label="Loading forecasts\u2026" />;
   if (error || !data) return <ErrorPanel detail={error ?? "no data"} onRetry={() => location.reload()} />;
 
-  const next = [...data.fixtures].sort((a, b) => a.start.localeCompare(b.start)).slice(0, 5);
+  const next = [...data.fixtures].sort((a, b) => a.start.localeCompare(b.start)).slice(0, 6);
   const nextEvent = next[0]?.event ?? data.fixtures[0]?.event;
   const nextStage = next[0]?.series ?? data.fixtures[0]?.series;
 
-  const record = recordView(results);
 
   return (
     <PageFade className="home-page">
@@ -43,8 +40,8 @@ export default function Home() {
         </p>
       </header>
 
-      <div className="arena-grid home-grid">
-        <div className="arena-grid-main">
+      <div className="page-split">
+        <div className="page-split-main">
           <SectionHead title="Next up" right={<Link to="/matches">All matches &rarr;</Link>} />
           {next.length === 0 ? (
             <EmptyState
@@ -52,44 +49,31 @@ export default function Home() {
               line={data.fixtures[0]?.event ? `Next known event: ${data.fixtures[0].event}.` : "No event is scheduled yet."}
             />
           ) : (
-            <Stagger className="home-next-list">
+            <Stagger className="fill-board">
               {next.map(f => <StaggerItem key={f.match_id} className="stagger-cell"><FixtureCard f={f} /></StaggerItem>)}
             </Stagger>
           )}
-        </div>
 
-        <div className="arena-grid-aside home-aside">
-          <Reveal>
-          <Panel cut="m" frame="line">
-            <div className="pad home-record">
-              <SectionHead title="Record" />
-              {record.kind === "ready" ? (
-                <>
-                  <p className="home-record-line">{record.line}</p>
-                  <RecordBar calls={record.tier.verified} hits={record.tier.favourite_won} logLoss={record.tier.log_loss} />
-                </>
-              ) : record.kind === "loading" ? (
-                <p className="muted small" role="status">Loading the graded record&hellip;</p>
-              ) : record.kind === "error" ? (
-                <p className="muted small">Record unavailable right now ({record.detail}).</p>
-              ) : (
-                <p className="muted small">No graded Tier 1 matches yet this season.</p>
-              )}
-            </div>
-          </Panel>
+          <Reveal className="home-quick-wrap">
+            <SectionHead title="Explore" />
+            <Stagger className="home-links">
+              {QUICK_LINKS.map(l => (
+                <StaggerItem key={l.to} lift>
+                  <Link to={l.to} className="panel home-link cut-m">
+                    <span className="home-link-title">{l.title}</span>
+                    <span className="muted small">{l.line}</span>
+                  </Link>
+                </StaggerItem>
+              ))}
+            </Stagger>
           </Reveal>
-
-          <Stagger className="home-links">
-            {QUICK_LINKS.map(l => (
-              <StaggerItem key={l.to} lift>
-                <Link to={l.to} className="panel home-link cut-m">
-                  <span className="home-link-title">{l.title}</span>
-                  <span className="muted small">{l.line}</span>
-                </Link>
-              </StaggerItem>
-            ))}
-          </Stagger>
         </div>
+
+        <aside className="page-split-rail" aria-label="Context">
+          <ModelRecord results={results} index={0} />
+          <RecentResults results={results} index={1} />
+          <PowerRanks rankings={data.rankings} index={2} />
+        </aside>
       </div>
     </PageFade>
   );

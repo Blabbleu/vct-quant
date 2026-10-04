@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useSnapshot } from "../lib/api";
+import { useResults, useSnapshot } from "../lib/api";
+import { ModelRecord, UpNext } from "../components/matches/RailPanels";
 import { eloWinProbability } from "../lib/format";
 import { Failure, Loading } from "../components/ui";
 import LogoSlot from "../components/arena/LogoSlot";
@@ -14,6 +15,7 @@ import "./Rankings.css";
 
 export default function Rankings() {
   const { data, error, loading } = useSnapshot();
+  const results = useResults();
   const [a, setA] = useState(0);
   const [b, setB] = useState(1);
   if (loading) return <Loading what="rankings" />;
@@ -100,6 +102,8 @@ export default function Rankings() {
               <p className="rankings-h2h-note small">Neutral-stage series odds. Model is Elo ratings only: no map veto or roster news.</p>
             </div>
           </Panel>
+          <UpNext fixtures={data.fixtures} index={1} />
+          <ModelRecord results={results} index={2} />
         </div>
       </div>
     </PageFade>

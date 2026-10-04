@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useResults } from "../lib/api";
+import { useResults, useSnapshot } from "../lib/api";
 import type { ResultRow } from "../lib/types";
 import { num, pct } from "../lib/format";
 import LogoSlot from "../components/arena/LogoSlot";
@@ -8,6 +8,7 @@ import TeamLabel from "../components/arena/TeamLabel";
 import { Chip } from "../components/arena/Chip";
 import { EmptyState } from "../components/arena/States";
 import { Failure, Loading } from "../components/ui";
+import { BiggestMisses, ModelRecord, PowerRanks, UpNext } from "../components/matches/RailPanels";
 import { COPY } from "../lib/constants";
 import { AnimatePresence, PageFade, Reveal } from "../lib/motion";
 import "./Results.css";
@@ -60,6 +61,7 @@ function ResultRowView({ r, index }: { r: ResultRow; index: number }) {
 
 export default function Results() {
   const { data, error, loading } = useResults();
+  const snap = useSnapshot();
   const [tier, setTier] = useState("all");
   if (loading) return <Loading what="results" />;
   if (error || !data) return <Failure error={error ?? "no data"} />;
@@ -68,15 +70,17 @@ export default function Results() {
 
   return (
     <PageFade className="page-fade">
-      <header className="results-head">
-        <h1 className="results-title">Results</h1>
-        <p className="results-lede">
-          Every logged match that has finished, with the last forecast the desk showed before kickoff.
-          A result is scored only once the stored score, winner and both teams check out; anything else
-          is listed as unverified.
-        </p>
-      </header>
 
+      <div className="page-split page-split-lg">
+        <div className="page-split-main">
+        <header className="results-head">
+          <h1 className="results-title">Results</h1>
+          <p className="results-lede">
+            Every logged match that has finished, with the last forecast the desk showed before kickoff.
+            A result is scored only once the stored score, winner and both teams check out; anything else
+            is listed as unverified.
+          </p>
+        </header>
       {Object.keys(data.by_tier).length > 0 && (
         <div className="results-summary">
           {Object.entries(data.by_tier).sort().map(([t, s]) => (
@@ -111,6 +115,15 @@ export default function Results() {
       ) : (
         <div className="results-list"><AnimatePresence initial={false}>{shown.map((r, i) => <ResultRowView key={r.match_id} r={r} index={Math.min(i, 8)} />)}</AnimatePresence></div>
       )}
+        </div>
+
+        <aside className="page-split-rail" aria-label="Context">
+          <ModelRecord results={{ data, error, loading }} index={0} />
+          <BiggestMisses results={{ data, error, loading }} index={1} />
+          {snap.data && <UpNext fixtures={snap.data.fixtures} index={2} />}
+          {snap.data && <PowerRanks rankings={snap.data.rankings} index={3} />}
+        </aside>
+      </div>
     </PageFade>
   );
 }

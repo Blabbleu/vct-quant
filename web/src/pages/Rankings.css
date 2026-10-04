@@ -37,7 +37,6 @@
   .rankings-name-tag { display: none; }
   .rankings-name-full { display: inline; }
   .rankings-rating { font-size: var(--fs-num-m); }
-  .rankings-h2h-aside { position: sticky; top: 88px; }
 }
 
 /* --- Head to head ---------------------------------------------------------- */
@@ -52,3 +51,5 @@
 .rankings-h2h-mid { display: flex; flex-direction: column; gap: var(--s-2); min-width: 0; }
 .rankings-h2h-mid .vs { text-align: center; }
 .rankings-h2h-note { color: var(--text-2); margin-top: var(--s-3); }
+
+.rankings-h2h-aside { display: flex; flex-direction: column; gap: var(--s-4); }

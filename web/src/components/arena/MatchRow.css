@@ -12,9 +12,11 @@
 .match-row-panel:hover .arena-surface { background: var(--surface-3); }
 .match-row-panel .arena-surface { transition: background var(--dur) var(--ease); }
 
+.match-row-panel .arena-frame, .match-row-panel .arena-surface { height: 100%; }
+.match-row-panel .arena-surface { display: flex; flex-direction: column; }
 .match-row-link {
   display: flex; flex-direction: column; gap: var(--s-2);
-  padding: var(--s-3) var(--s-4); color: inherit; height: 100%;
+  padding: var(--s-3) var(--s-4); color: inherit; flex: 1 1 auto;
 }
 .match-row-link:hover { text-decoration: none; }
 
@@ -39,7 +41,30 @@
 
 .match-row-lowdata-note { margin: 0; }
 
+/* Extra detail: Elo, sweep chance and the scoreline distribution. Always shown from 768px;
+   on phones it sits behind a toggle so the list stays compact. */
+.match-row-more { padding: 0 var(--s-4) var(--s-3); display: flex; flex-direction: column; gap: var(--s-2); }
+.match-row-toggle {
+  align-self: flex-start; min-height: 32px; padding: 0 var(--s-3); cursor: pointer;
+  font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  background: var(--surface-3); color: var(--text-2); border: 0; border-left: 2px solid var(--model);
+}
+.match-row-toggle:hover { color: var(--text); }
+@media (min-width: 768px) { .match-row-more { border-top: 1px dashed var(--line); padding-top: var(--s-3); } }
+.match-row-detail { display: flex; flex-direction: column; gap: var(--s-2); }
+.match-row-detail-stats { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--s-1) var(--s-4); font-size: var(--fs-meta); color: var(--text-2); }
+.match-row-detail-stats i { font-style: normal; font-weight: 600; letter-spacing: .08em; color: var(--text-3); margin-right: 2px; }
+.match-row-detail-stats b { color: var(--text); font-weight: 700; }
+.match-row-detail-gap { color: var(--model); font-weight: 700; }
+
+.match-row-scores { display: grid; gap: var(--s-2); }
+.match-row-score { display: grid; grid-template-columns: 1fr; gap: 3px; min-width: 0; }
+.match-row-score-label { font-size: var(--fs-meta); font-weight: 700; color: var(--text); }
+.match-row-score-track { display: block; height: 6px; background: var(--model-off); overflow: hidden; clip-path: polygon(3px 0, 100% 0, calc(100% - 3px) 100%, 0 100%); }
+.match-row-score-fill { display: block; height: 100%; background: var(--model); }
+.match-row-score-fill-b { background: var(--model-2); }
+.match-row-score-pct { font-size: 11px; color: var(--text-3); }
+
 @media (max-width: 420px) {
   .match-row-pct { font-size: var(--fs-num-m); }
-  .match-row-stage { display: none; }
 }

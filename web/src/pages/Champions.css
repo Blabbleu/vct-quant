@@ -116,3 +116,9 @@
 .champ-grid-cell { min-width: 0; }
 .champ-playoffs { min-width: 0; }
 .champ-bracket { display: flex; flex-direction: column; gap: var(--s-3); }
+
+/* Wide desktops: the four Upper QF cards sit in one row and the four groups across, instead of 2 + 2 with a void. */
+@media (min-width: 1280px) {
+  .champ-po-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .champ-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}

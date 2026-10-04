@@ -55,6 +55,11 @@
   }
   .results-row-meta { flex-direction: column; align-items: flex-start; gap: 2px; flex: 0 0 130px; }
   .results-row-teams { flex: 1 1 auto; gap: var(--s-3); }
-  .results-row-stats { flex: 0 0 auto; gap: var(--s-4); flex-wrap: nowrap; }
+  .results-row-stats { flex: 0 0 auto; gap: var(--s-4); flex-wrap: nowrap; justify-content: flex-end; white-space: nowrap; }
   .results-loglos { display: inline; }
+}
+
+/* With the context rail beside it (>=1440) fixed-width stats keep the scores in one column. */
+@media (min-width: 1440px) {
+  .results-row-stats { flex: 0 0 440px; }
 }

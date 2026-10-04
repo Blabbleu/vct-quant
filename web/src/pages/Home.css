@@ -37,3 +37,8 @@
 }
 @keyframes home-sweep { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @media (prefers-reduced-motion: reduce) { .home-sweep { animation: none; } }
+
+/* Quick links: a tile grid under the fixtures. */
+.home-quick-wrap { display: flex; flex-direction: column; gap: var(--s-3); }
+.home-quick-wrap .home-links { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: var(--s-2); }
+.home-quick-wrap .home-link { height: 100%; }

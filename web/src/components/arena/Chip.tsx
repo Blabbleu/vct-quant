@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useNow } from "../../lib/useNow";
 
 export type ChipVariant = "default" | "model" | "market" | "result" | "ghost";
 
@@ -13,7 +14,7 @@ export function Chip({ variant = "default", children }: { variant?: ChipVariant;
 
 /** T-14H / T-3D countdown to kick-off, or LIVE once start has passed. */
 export function CountdownChip({ iso }: { iso: string }) {
-  const diffMs = new Date(iso).getTime() - Date.now();
+  const diffMs = new Date(iso).getTime() - useNow(30_000);
   if (diffMs <= 0) {
     return (
       <Chip variant="market">

@@ -1,0 +1,47 @@
+/* Event context strip: event/stage + slate facts, the kick-off clock, and the stage tracker. */
+.event-hero { min-width: 0; }
+.event-hero-in {
+  display: grid; gap: var(--s-4); padding: var(--s-4); min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+.event-hero-track { padding-top: var(--s-3); border-top: 1px solid var(--line); min-width: 0; }
+@media (min-width: 768px) {
+  .event-hero-in { padding: var(--s-4) var(--s-5); grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+  .event-hero-track { grid-column: 1 / -1; }
+}
+
+.event-hero-main { display: flex; flex-direction: column; gap: var(--s-2); min-width: 0; }
+.event-hero-eyebrow { font-size: var(--fs-meta); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--model); }
+.event-hero-stage { font-size: clamp(22px, 3vw, 32px); font-weight: 700; line-height: 1.1; letter-spacing: -.01em; text-wrap: balance; }
+.event-hero-facts { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-4); font-size: var(--fs-meta); color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; }
+.event-hero-facts b { color: var(--text); font-weight: 800; margin-right: 2px; }
+
+.event-hero-clock {
+  display: flex; flex-direction: column; gap: 2px; min-width: 0;
+  padding-left: var(--s-4); border-left: 3px solid var(--model-fill);
+}
+.event-hero-clock-label { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
+.event-hero-count { font-size: clamp(26px, 3.4vw, 40px); font-weight: 800; line-height: 1.05; letter-spacing: -.01em; white-space: nowrap; }
+.event-hero-count-live { color: var(--market); }
+.event-hero-next { font-size: var(--fs-meta); color: var(--text-2); text-transform: uppercase; letter-spacing: .04em; }
+.event-hero-next:hover { color: var(--model); text-decoration: none; }
+
+.event-stages { list-style: none; margin: 0; padding: 0; display: flex; gap: 2px; min-width: 0; overflow: hidden; }
+.event-stage {
+  flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: var(--s-2) var(--s-3);
+  background: var(--surface-2); border-top: 3px solid var(--model-off);
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 100%, 6px 100%);
+  margin-right: -4px;
+}
+.event-stage-name { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.event-stage-date { font-size: 11px; color: var(--text-3); white-space: nowrap; }
+.event-stage-past { opacity: .6; border-top-color: var(--line-strong); }
+.event-stage-current { background: var(--surface-3); border-top-color: var(--model-fill); }
+.event-stage-current .event-stage-name { color: var(--text); }
+.event-stage-skel { height: 48px; opacity: .5; }
+
+/* Phone/tablet: the tracker scrolls sideways inside its own box rather than crushing ten stages. */
+@media (max-width: 1199px) {
+  .event-stages { overflow-x: auto; scrollbar-width: thin; padding-bottom: 2px; }
+  .event-stage { flex: 0 0 112px; }
+}

@@ -1,0 +1,12 @@
+.finished-teams { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: var(--s-3); align-items: center; }
+.finished-side { display: flex; align-items: center; gap: var(--s-2); min-width: 0; color: var(--text-3); }
+.finished-side .team-label { color: var(--text-3); }
+.finished-side-right { flex-direction: row-reverse; text-align: right; }
+.finished-win, .finished-win .team-label { color: var(--text); }
+.finished-score { font-size: var(--fs-num-l); font-weight: 800; line-height: 1; color: var(--result); }
+.finished-maps { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-2); }
+.finished-map { display: inline-flex; gap: 6px; align-items: baseline; background: var(--surface-3); padding: 2px var(--s-2); font-size: 11px; color: var(--text-3); }
+.finished-map i { font-style: normal; text-transform: uppercase; letter-spacing: .06em; }
+.finished-map b { font-weight: 700; color: var(--text-2); }
+.finished-map b.finished-map-a { color: var(--text); }
+.finished-chips { display: inline-flex; gap: var(--s-1); align-items: center; }
