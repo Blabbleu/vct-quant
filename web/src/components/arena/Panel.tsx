@@ -1,12 +1,9 @@
 import type { ReactNode } from "react";
 
 /**
- * Bordered cut-corner panel: two nested clipped layers (the spec's "a
- * bordered panel is two nested clipped layers"). The outer layer carries
- * --line (or --result for a winner frame) with 1-2px of padding; the inner
- * surface is clipped the same way so the border reads as a hairline even on
- * the cut corners. `brackets` adds the four 12px corner L-shapes used on the
- * one panel per page that matters most (the model-vs-market gap panel).
+ * Bordered panel: two nested layers, a --line frame with 1-2px of padding around
+ * a surface, both 4px-rounded (the cut-corner shapes are retired). `brackets` is
+ * kept for call-site compatibility; the corner marks are hidden by CSS.
  */
 export default function Panel({ cut, frame = "line", brackets = false, className, children }: {
   cut: "l" | "m"; frame?: "line" | "result" | "none"; brackets?: boolean; className?: string; children: ReactNode;

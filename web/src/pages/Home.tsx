@@ -6,6 +6,7 @@ import Panel from "../components/arena/Panel";
 import RecordBar from "../components/arena/RecordBar";
 import { LoadingBlocks, ErrorPanel, EmptyState } from "../components/arena/States";
 import { COPY } from "../lib/constants";
+import { recordView } from "../lib/record";
 import "./Home.css";
 
 const QUICK_LINKS = [
@@ -27,10 +28,7 @@ export default function Home() {
   const nextEvent = next[0]?.event ?? data.fixtures[0]?.event;
   const nextStage = next[0]?.series ?? data.fixtures[0]?.series;
 
-  const tier1 = results.data?.by_tier?.["1"];
-  const recordLine = tier1
-    ? `Model picked the winner in ${tier1.favourite_won} of ${tier1.verified} graded Tier 1 matches.`
-    : null;
+  const record = recordView(results);
 
   return (
     <div className="home-page">
@@ -62,11 +60,15 @@ export default function Home() {
           <Panel cut="m" frame="line">
             <div className="pad home-record">
               <SectionHead title="Record" />
-              {recordLine ? (
+              {record.kind === "ready" ? (
                 <>
-                  <p className="home-record-line">{recordLine}</p>
-                  <RecordBar calls={tier1!.verified} hits={tier1!.favourite_won} logLoss={tier1!.log_loss} />
+                  <p className="home-record-line">{record.line}</p>
+                  <RecordBar calls={record.tier.verified} hits={record.tier.favourite_won} logLoss={record.tier.log_loss} />
                 </>
+              ) : record.kind === "loading" ? (
+                <p className="muted small" role="status">Loading the graded record&hellip;</p>
+              ) : record.kind === "error" ? (
+                <p className="muted small">Record unavailable right now ({record.detail}).</p>
               ) : (
                 <p className="muted small">No graded Tier 1 matches yet this season.</p>
               )}

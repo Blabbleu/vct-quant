@@ -3,7 +3,7 @@ import { AGREE_POINTS, BIG_GAP_POINTS, COPY, WIDE_SPREAD } from "../../lib/const
 
 /**
  * Model-minus-market gap for team A, as the spec's table:
- *   <1pt AGREE (grey) · 1-10pt neutral surface · >=10pt BIG GAP (pink fill).
+ *   <1pt AGREE (grey) · 1-10pt neutral surface · >=10pt BIG GAP (gold fill).
  * No market renders the placeholder line instead of a chip; a wide spread
  * renders the market in --text-3 with a WIDE SPREAD chip alongside.
  * `favouredLabel` (e.g. "NRG FAVOURED") is an optional caller-supplied read

@@ -31,7 +31,7 @@ const SOURCE_LABEL: Record<string, string> = {
   polymarket: "Polymarket prices",
 };
 
-/** Status-board dot: OK is model-coloured, degraded states neutral, stale/failed reads as market-pink. */
+/** Status-board dot: OK is model-coloured, degraded states neutral, stale/failed reads as market-gold. */
 function Dot({ outcome }: { outcome: string }) {
   const cls = outcome === "ok" ? "status-dot-ok"
     : outcome === "stale" || outcome === "failed" ? "status-dot-bad"

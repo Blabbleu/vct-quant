@@ -3,7 +3,7 @@ import type { CalibrationBucket } from "../lib/types";
 /**
  * Hand-written SVG calibration plot: predicted vs actual win rate per bucket.
  * A dashed --line diagonal is the reference (perfectly calibrated); model
- * points/segments are chartreuse, sized by bucket n. Mono axis labels, at
+ * points/segments are red, sized by bucket n. Axis labels, at
  * most three per axis, no legend box.
  */
 export default function Calibration({ buckets }: { buckets: CalibrationBucket[] }) {

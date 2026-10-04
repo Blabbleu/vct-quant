@@ -1,6 +1,6 @@
 /**
- * 20 slanted blocks (10 on outcome tiles), each a fixed share of team A's win
- * chance. Filled blocks are --model, the rest --model-off. A pink triangle
+ * 20 rectangular blocks (10 on outcome tiles), each a fixed share of team A's win
+ * chance. Filled blocks are --model, the rest --model-off. A gold triangle
  * notch floats above the bar at the market's exact percentage (not rounded
  * to a block); it is omitted with no market. `lowData` renders outline
  * blocks instead of filled ones (see the Low data state in the spec).

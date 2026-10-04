@@ -8,7 +8,9 @@
    refuse to shrink past their widest line, which overflowed 2-col boards
    at 768px before this). */
 .match-row-panel { display: block; height: 100%; min-width: 0; }
-.match-row-panel:hover .arena-frame:not(.frame-result) { background: var(--model); }
+.match-row-panel:hover .arena-frame:not(.frame-result) { background: var(--line-strong); }
+.match-row-panel:hover .arena-surface { background: var(--surface-3); }
+.match-row-panel .arena-surface { transition: background var(--dur) var(--ease); }
 
 .match-row-link {
   display: flex; flex-direction: column; gap: var(--s-2);

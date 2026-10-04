@@ -23,7 +23,7 @@ export default function About() {
           <p className="about-fixed">{COPY.modelBasis}</p>
 
           <h2>The market</h2>
-          <p>The pink number is the Polymarket price, the crowd's view with money behind it. When the market is thin
+          <p>The gold number is the Polymarket price, the crowd's view with money behind it. When the market is thin
             (few trades, wide spread) we mark it and leave it in a lighter colour, because the price is mostly noise.</p>
           <p className="about-fixed">{COPY.marketBasis}</p>
 
@@ -48,11 +48,11 @@ export default function About() {
               <ul className="about-key-list">
                 <li>
                   <span className="about-sw about-sw-model slant" aria-hidden="true" />
-                  <span><b>Model</b> &middot; chartreuse, slanted blocks. The Elo forecast.</span>
+                  <span><b>Model</b> &middot; red, solid blocks. The Elo forecast.</span>
                 </li>
                 <li>
                   <span className="about-sw about-sw-market" aria-hidden="true" />
-                  <span><b>Market</b> &middot; pink, triangle notch. Last Polymarket price.</span>
+                  <span><b>Market</b> &middot; gold, triangle notch. Last Polymarket price.</span>
                 </li>
                 <li>
                   <span className="about-sw about-sw-result" aria-hidden="true" />

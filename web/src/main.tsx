@@ -1,13 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import "@fontsource/chakra-petch/latin-500.css";
-import "@fontsource/chakra-petch/latin-600.css";
-import "@fontsource/chakra-petch/latin-700.css";
-import "@fontsource/jetbrains-mono/latin-400.css";
-import "@fontsource/jetbrains-mono/latin-500.css";
-import "@fontsource/jetbrains-mono/latin-700.css";
-import "@fontsource/jetbrains-mono/latin-800.css";
+import "@fontsource-variable/inter/wght.css";
 import "./styles.css";
 import "./lib/theme";
 import Layout from "./components/Layout";

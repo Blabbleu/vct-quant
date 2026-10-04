@@ -33,7 +33,7 @@ export default function Matches() {
       <header className="page-head">
         <h1>Matches</h1>
         <p className="lede">
-          Upcoming Tier 1 matches grouped by day, in your local time. Chartreuse is the model, pink is the
+          Upcoming Tier 1 matches grouped by day, in your local time. Red is the model, gold is the
           market; both show the chance that the first-named team wins the series.
         </p>
       </header>
