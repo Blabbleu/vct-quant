@@ -69,12 +69,74 @@ def champions_status(db, spec: dict) -> dict:
     return output
 
 
+def attach_playoffs(status: dict, spec: dict, fixtures: list[dict], schedule: list[dict]) -> dict:
+    """Add the verified opening playoff pairings joined to their model fixtures.
+
+    Only ``verified_opening_pairings`` (pinned names/IDs) appear; the forecast,
+    kick-off and market come from a fixture with the same match ID *and* the
+    same two team names, otherwise they are withheld (never guessed). Later
+    slots are listed as TBD with dates only where the schedule supplies them.
+    Routing and title odds stay unresolved/null.
+    """
+    pairings = spec.get("verified_opening_pairings") or []
+    if not pairings:
+        return status
+    by_id = {f["match_id"]: f for f in fixtures}
+    dates = {row["match_id"]: row for row in schedule}
+    opening = []
+    for pairing in pairings:
+        names, team_ids = pairing["teams"], pairing["team_ids"]
+        fixture = by_id.get(pairing["match_id"])
+        p_a, flip, extra = None, False, {}
+        if fixture and [fixture["team_a"], fixture["team_b"]] in (names, names[::-1]):
+            flip = fixture["team_a"] != names[0]
+            p_a = fixture["p_a"] if not flip else 1 - fixture["p_a"]
+            if fixture.get("market") is not None:
+                market = fixture["market"] if not flip else 1 - fixture["market"]
+                extra = {"p_a": market, "spread": fixture.get("spread"), "volume": fixture.get("volume")}
+        else:
+            fixture = None
+
+        def side(index: int) -> dict:
+            src = (index + (1 if flip else 0)) % 2
+            key = "ab"[src]
+            return {"team_id": team_ids[index], "name": names[index],
+                    "logo": fixture[f"logo_{key}"] if fixture else None,
+                    "tag": fixture[f"tag_{key}"] if fixture else None,
+                    "matches": fixture[f"matches_{key}"] if fixture else None,
+                    "p_win": None if p_a is None else (p_a if index == 0 else 1 - p_a)}
+
+        opening.append({
+            "match_id": pairing["match_id"], "stage": pairing["stage"],
+            "start": fixture["start"] if fixture else None,
+            "best_of": fixture["best_of"] if fixture else None,
+            "url": fixture.get("url") if fixture else None,
+            "sides": [side(0), side(1)],
+            "market": extra or None,
+        })
+    paired = {m["match_id"] for m in opening}
+    later = [{"match_id": slot["match_id"], "stage": slot["stage"],
+              "start": dates.get(slot["match_id"], {}).get("start"),
+              "best_of": dates.get(slot["match_id"], {}).get("best_of")}
+             for slot in spec["playoffs"] if slot["match_id"] not in paired]
+    later.sort(key=lambda row: (row["start"] is None, row["start"] or ""))
+    status["playoffs"] = {"routing": "unresolved", "observed_at": spec["playoff_draw_observed_at"],
+                          "sources": list(spec["playoff_draw_sources"]), "opening": opening, "schedule": later}
+    return status
+
+
 if __name__ == "__main__":
     import json
     from .db import connect
     from .event_bracket import load_bracket_spec
     from .group_odds import attach_group_odds, current_elo
+    from .dashboard import fixtures as dashboard_fixtures, playoff_schedule
 
+    def playoff_inputs(spec):
+        return dashboard_fixtures(), playoff_schedule([slot["match_id"] for slot in spec["playoffs"]])
+
+    bracket = load_bracket_spec(2766)
     with connect(read_only=True) as connection:
-        status = champions_status(connection, load_bracket_spec(2766))
-    print(json.dumps(attach_group_odds(status, *current_elo())))
+        status = champions_status(connection, bracket)
+    status = attach_group_odds(status, *current_elo())
+    print(json.dumps(attach_playoffs(status, bracket, *playoff_inputs(bracket))))

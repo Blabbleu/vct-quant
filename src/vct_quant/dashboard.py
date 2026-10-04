@@ -211,6 +211,22 @@ def score_distribution(scores, best_of) -> list[dict] | None:
     return [{"score": k, "p": v} for k, v in zip(order, values)]
 
 
+def playoff_schedule(match_ids: list[int]) -> list[dict]:
+    """Kick-off and format for the given match IDs from the cached upcoming feed.
+
+    Unlike ``fixtures()`` this keeps TBD-vs-TBD rows: it carries only the date,
+    never teams or odds.
+    """
+    path = PROCESSED_DIR / "upcoming_tier1.parquet"
+    if not path.exists():
+        return []
+    up = pd.read_parquet(path, columns=["match_id", "scheduled_at", "best_of"])
+    up = up[up.match_id.isin(match_ids)].sort_values("scheduled_at")
+    return [{"match_id": int(r.match_id), "start": r.scheduled_at.isoformat(),
+             "best_of": int(r.best_of) if pd.notna(r.best_of) else None}
+            for r in up.itertuples() if pd.notna(r.scheduled_at)]
+
+
 def fixtures() -> list[dict]:
     path = PROCESSED_DIR / "upcoming_tier1.parquet"
     if not path.exists():

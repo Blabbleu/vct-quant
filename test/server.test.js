@@ -462,6 +462,23 @@ async function main() {
       assert.ok(Math.abs(sum - 2) < 1e-9 && Math.abs(first - 1) < 1e-9, `group ${letter} odds do not sum to 2/1`);
       for (const t of q.teams) if (t.qualified) assert.ok(Math.abs(t.p_qualify - 1) < 1e-12);
     }
+    // Verified opening playoff pairings joined to the model fixtures (no routing, no title odds).
+    const playoffs = championsBody.playoffs;
+    assert.ok(playoffs && playoffs.opening.length === 4, "verified opening pairings must be exposed");
+    assert.equal(playoffs.routing, "unresolved");
+    assert.deepEqual(playoffs.opening.map(m => m.match_id), [754730, 754731, 754732, 754733]);
+    const fixturesById = new Map(snapshot.fixtures.map(f => [f.match_id, f]));
+    for (const m of playoffs.opening) {
+      assert.equal(m.sides.length, 2);
+      const fixture = fixturesById.get(m.match_id);
+      if (!fixture) { assert.ok(m.sides.every(side => side.p_win === null)); continue; }
+      assert.deepEqual(m.sides.map(side => side.name), [fixture.team_a, fixture.team_b]);
+      assert.ok(Math.abs(m.sides[0].p_win - fixture.p_a) < 1e-12, `playoff p_win must equal fixture p_a for ${m.match_id}`);
+      assert.ok(Math.abs(m.sides[0].p_win + m.sides[1].p_win - 1) < 1e-12);
+      assert.equal(m.start, fixture.start);
+    }
+    for (const row of playoffs.schedule) assert.ok(!("sides" in row), "later slots must not name teams");
+    console.log(`  /api/champions/2766 playoffs: ${playoffs.opening.length} opening matchups, ${playoffs.schedule.length} TBD slots ok`);
     assert.equal((await fetch(base + "/api/champions/0")).status, 404);
     assert.equal((await fetch(base + "/api/champions/2767")).status, 404);
     console.log("  /api/champions/2766 source-pinned group status ok");

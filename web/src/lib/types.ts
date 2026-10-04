@@ -149,9 +149,24 @@ export interface ChampionsQualificationTeam {
 export type ChampionsQualification =
   | { withheld: string }
   | { model: string; ratings_through_match_id: number | null; teams: ChampionsQualificationTeam[] };
+export interface ChampionsPlayoffSide {
+  team_id: number; name: string; logo: string | null; tag: string | null;
+  matches: number | null; p_win: number | null;
+}
+export interface ChampionsPlayoffMatch {
+  match_id: number; stage: string; start: string | null; best_of: number | null; url: string | null;
+  sides: [ChampionsPlayoffSide, ChampionsPlayoffSide];
+  market: { p_a: number; spread: number | null; volume: number | null } | null;
+}
+export interface ChampionsPlayoffSlot { match_id: number; stage: string; start: string | null; best_of: number | null }
+export interface ChampionsPlayoffs {
+  routing: "unresolved"; observed_at: string; sources: string[];
+  opening: ChampionsPlayoffMatch[]; schedule: ChampionsPlayoffSlot[];
+}
 export interface ChampionsStatus {
   event_id: number; as_of: string | null; playoff_routing: "unresolved";
   title_odds: null; groups: Record<"A" | "B" | "C" | "D", ChampionsGroup>;
+  playoffs?: ChampionsPlayoffs;
 }
 export interface ResultMap { number: number; map: string; rounds_a: number; rounds_b: number }
 export interface MatchResult {
