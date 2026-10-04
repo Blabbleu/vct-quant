@@ -517,7 +517,7 @@ export class BracketEngine {
       vertexShader: GRID_VERT, fragmentShader: GRID_FRAG, transparent: true, depthWrite: false, blending,
       uniforms: {
         uColor: { value: this.light ? new THREE.Color(this.pal.text3) : accent.clone().multiplyScalar(1.0) },
-        uTime: timeU, uOpacity: { value: this.light ? 1.6 : 1 }, uRadius: { value: 110 },
+        uTime: timeU, uOpacity: { value: this.light ? 1.1 : 1 }, uRadius: { value: 110 },
         uMove: { value: this.heavy ? 1 : 0.4 },
       },
     });
