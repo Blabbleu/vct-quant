@@ -13,9 +13,9 @@ export default function Bracket3D({ playoffs, quality, onUnavailable }: {
   const graph = useMemo(() => buildBracketGraph(playoffs), [playoffs]);
   const hostRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<BracketEngine | null>(null);
-  const camRef = useRef<CameraState | null>(null);
+  const camRef = useRef<{ orientation: Orientation; state: CameraState } | null>(null);
   const [theme, setTheme] = useState<ThemeName>(readTheme);
-  const [orientation, setOrientation] = useState<Orientation>("wide");
+  const [orientation, setOrientation] = useState<Orientation | null>(null);
   const [hover, setHover] = useState<PickInfo | null>(null);
   const [sel, setSel] = useState<PickInfo | null>(null);
   const [active, setActive] = useState(quality === "heavy");
@@ -40,16 +40,16 @@ export default function Bracket3D({ playoffs, quality, onUnavailable }: {
     return () => ro.disconnect();
   }, []);
 
-  const layout = useMemo(() => layoutBracket(orientation), [orientation]);
+  const layout = useMemo(() => (orientation ? layoutBracket(orientation) : null), [orientation]);
 
   useEffect(() => {
     const host = hostRef.current;
-    if (!host) return;
+    if (!host || !layout || !orientation) return;
     let engine: BracketEngine;
     try {
       engine = new BracketEngine({
         container: host, graph, layout, quality, theme, reducedMotion: reduced,
-        initialCamera: camRef.current,
+        initialCamera: camRef.current?.orientation === orientation ? camRef.current.state : null,
         onHover: setHover, onSelect: setSel, onLost: onUnavailable,
       });
     } catch (e) {
@@ -63,7 +63,7 @@ export default function Bracket3D({ playoffs, quality, onUnavailable }: {
     engine.setInteractive(!coarse);
     engineRef.current = engine;
     return () => {
-      camRef.current = engine.getCameraState();
+      camRef.current = { orientation, state: engine.getCameraState() };
       engine.dispose();
       engineRef.current = null;
       setHover(null); setSel(null);
