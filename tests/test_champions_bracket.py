@@ -118,3 +118,32 @@ def test_bracket_rejects_unverified_or_incomplete_routes(change, error):
     change(spec)
     with pytest.raises(ValueError, match=error):
         validate_bracket_spec(spec)
+
+
+def test_champions_pins_only_officially_verified_quarterfinal_pairings():
+    spec = load_bracket_spec(2766)
+    pairings = spec["verified_opening_pairings"]
+    assert [row["match_id"] for row in pairings] == [754730, 754731, 754732, 754733]
+    assert [row["teams"] for row in pairings] == [
+        ["100 Thieves", "G2 Esports"],
+        ["Team Vitality", "Nongshim RedForce"],
+        ["NRG", "T1"],
+        ["Paper Rex", "LOUD"],
+    ]
+    assert spec["playoff_seeding"] == spec["playoff_advancement"] == "unresolved"
+    assert validate_bracket_spec(spec) is None
+
+
+@pytest.mark.parametrize("mutate, error", [
+    (lambda s: s["verified_opening_pairings"][0].update(match_id=754731), "quarterfinal slot"),
+    (lambda s: s["verified_opening_pairings"][0]["team_ids"].__setitem__(0, 2059), "inconsistent team identity"),
+    (lambda s: s["verified_opening_pairings"][0]["teams"].__setitem__(1, "LOUD"), "inconsistent team identity"),
+    (lambda s: s["verified_opening_pairings"][1]["team_ids"].__setitem__(0, 120), "inconsistent team identity"),
+    (lambda s: s.update(playoff_draw_sources=["http://not-https.example", "https://example.org"]), "provenance"),
+    (lambda s: s["verified_opening_pairings"].pop(), "provenance"),
+])
+def test_champions_rejects_unverified_quarterfinal_pairings(mutate, error):
+    spec = load_bracket_spec(2766)
+    mutate(spec)
+    with pytest.raises(ValueError, match=error):
+        validate_bracket_spec(spec)

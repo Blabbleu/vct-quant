@@ -15,6 +15,17 @@
   },
   "playoff_seeding": "unresolved",
   "playoff_advancement": "unresolved",
+  "playoff_draw_observed_at": "2026-10-04T16:02:00Z",
+  "playoff_draw_sources": [
+    "https://valorantesports.com/en-SG/tournament/115576361459045501/stage/115576361460159615",
+    "https://www.vlr.gg/event/2766/valorant-champions-2026"
+  ],
+  "verified_opening_pairings": [
+    {"match_id": 754730, "stage": "Upper Quarterfinals", "teams": ["100 Thieves", "G2 Esports"], "team_ids": [120, 11058]},
+    {"match_id": 754731, "stage": "Upper Quarterfinals", "teams": ["Team Vitality", "Nongshim RedForce"], "team_ids": [2059, 11060]},
+    {"match_id": 754732, "stage": "Upper Quarterfinals", "teams": ["NRG", "T1"], "team_ids": [1034, 14]},
+    {"match_id": 754733, "stage": "Upper Quarterfinals", "teams": ["Paper Rex", "LOUD"], "team_ids": [624, 6961]}
+  ],
   "groups": {
     "A": {
       "opening_1": {"match_id": 753444, "stage": "Opening (A)", "teams": ["100 Thieves", "T1"], "team_ids": [120, 14]},

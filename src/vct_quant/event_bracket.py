@@ -80,6 +80,35 @@ def validate_bracket_spec(spec: dict) -> None:
         stages[stage] = stages.get(stage, 0) + 1
     if stages != _PLAYOFF_STAGES:
         raise ValueError("incomplete playoff stage counts")
+    pairings = spec.get("verified_opening_pairings")
+    sources = spec.get("playoff_draw_sources")
+    observed_at = spec.get("playoff_draw_observed_at")
+    if (not isinstance(observed_at, str) or not observed_at.endswith("Z")
+            or not isinstance(sources, list) or len(sources) < 2
+            or any(not isinstance(url, str) or not url.startswith("https://") for url in sources)
+            or not isinstance(pairings, list) or len(pairings) != 4):
+        raise ValueError("missing playoff draw provenance or opening pairings")
+    known_entrants = {
+        team_id: name
+        for group in spec["groups"].values()
+        for key in ("opening_1", "opening_2")
+        for name, team_id in zip(group[key]["teams"], group[key]["team_ids"])
+    }
+    qf_ids = [slot["match_id"] for slot in spec["playoffs"][:4]]
+    seen_playoff_teams: set[int] = set()
+    for pairing, expected_id in zip(pairings, qf_ids):
+        if (pairing.get("match_id") != expected_id
+                or pairing.get("stage") != "Upper Quarterfinals"):
+            raise ValueError("playoff pairing does not match pinned quarterfinal slot")
+        names, team_ids = pairing.get("teams"), pairing.get("team_ids")
+        if (not isinstance(names, list) or len(names) != 2
+                or not isinstance(team_ids, list) or len(team_ids) != 2
+                or any(type(team_id) is not int or team_id not in known_entrants for team_id in team_ids)
+                or [known_entrants[team_id] for team_id in team_ids] != names
+                or team_ids[0] == team_ids[1]
+                or seen_playoff_teams.intersection(team_ids)):
+            raise ValueError("playoff pairing has unknown or inconsistent team identity")
+        seen_playoff_teams.update(team_ids)
 
 
 def _is_bo3_final(scores: list[int]) -> bool:

@@ -41,23 +41,23 @@ from this static schedule.
   corroboration gap **as of that read-only observation**, but these pages
   were not archived and may change after play; rerun before title odds.
   Unknown or contradictory IDs block odds for that entrant.
-- Verify the **playoff group-winner/runner-up seeding** and every upper/lower
-  advancement edge against an official bracket or a scored/drawn fixture
-  graph. Riot's format summary confirms double elimination but does **not**
-  specify the exact quarterfinal pairings or lower-bracket crossover. The
-  vlr.gg playoff bracket still showed all 14 slots as `TBD vs. TBD` on a
-  read-only 2026-09-26 probe, so it cannot verify group seeding either.[3]
-  Riot says playoff Pick'Ems open **October 4 after the Draw Show completes**
-  and matchups are confirmed.[6] The draw is a future evidence checkpoint,
-  not permission to assume a bracket now. Recheck the official drawn pairings
-  and lower-bracket graph then. Those edges are `unresolved` in the JSON.
-  Do not infer them from match IDs
-  or enumerated order. Riot's official event overview confirms group matches
-  and all playoff series are Bo3 **except Lower Final and Grand Final, both
-  Bo5**; the validated `series_best_of` records this separately.[5] It does
-  not state that a grand-final bracket reset is played. The vlr.gg graph has
-  one grand-final slot, but slot count alone is not proof of reset semantics;
-  confirm the rule before modeling title odds.
+- The Oct 4 draw has now published the **four opening playoff pairings** on
+  Riot's official Playoffs bracket: 100 Thieves–G2 Esports, Team Vitality–
+  Nongshim RedForce, NRG–T1, and Paper Rex–LOUD.[8] VLR's event bracket
+  independently corroborates those four matchups and labels them Upper
+  Quarterfinals.[9] The JSON pins each pairing to existing vlr.gg playoff
+  match IDs 754730–754733 and the exact entrant IDs from the group schedule.
+  The source observation is timestamped in `playoff_draw_observed_at`.
+- This verifies only the opening pairings. The rendered Riot page still shows
+  all later slots TBD; it does not establish the remaining upper/lower
+  advancement edges or grand-final reset semantics. Keep
+  `playoff_seeding="unresolved"` and `playoff_advancement="unresolved"`;
+  do not infer edges from visual order or match IDs. The JSON records verified
+  opening pairings separately from unresolved routing. Recheck the official
+  bracket for the remaining graph before any title simulation. Riot's official
+  event overview confirms group matches and all playoff series are Bo3 except
+  Lower Final and Grand Final, both Bo5.[5] One Grand Final slot is not proof
+  of reset semantics; confirm the rule before modeling title odds.
 - Group advancement is implemented as a **fail-closed routing primitive**,
   exposed descriptively at read-only `GET /api/champions/2766` using the
   canonical DB snapshot. No odds or inferred playoff pairings are emitted.
@@ -122,3 +122,5 @@ Playoff routing and title odds remain gated as above.
     https://www.vlr.gg/753454/ , https://www.vlr.gg/753455/ ,
     https://www.vlr.gg/753459/ , https://www.vlr.gg/753460/ .
     These live pages were checked at 2026-09-26 08:43 UTC; no raw HTML archive.
+[8] https://valorantesports.com/en-SG/tournament/115576361459045501/stage/115576361460159615 — Riot Games, Champions Shanghai Playoffs bracket; rendered first-round entrants checked 2026-10-04 16:02 UTC.
+[9] https://www.vlr.gg/event/2766/valorant-champions-2026 — VLR.gg, Champions 2026 bracket; four Upper Quarterfinal pairings checked 2026-10-04 16:03 UTC.
