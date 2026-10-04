@@ -7,7 +7,6 @@ import { Chip } from "../components/arena/Chip";
 import Panel from "../components/arena/Panel";
 import SectionHead from "../components/arena/SectionHead";
 import GapChip from "../components/arena/GapChip";
-import Bracket3DSection from "../components/bracket3d/Bracket3DSection";
 import { LoadingBlocks, ErrorPanel } from "../components/arena/States";
 import { useChampionsStatus } from "../lib/api";
 import { LOW_DATA_MATCHES } from "../lib/constants";
@@ -295,7 +294,6 @@ export default function Champions() {
         <a href="https://www.vlr.gg/event/2766/valorant-champions-2026" target="_blank" rel="noopener noreferrer">Check live schedule &#8599;</a>
       </p>
 
-      {playoffs && <Bracket3DSection playoffs={playoffs} />}
       {playoffs && <PlayoffsSection playoffs={playoffs} />}
 
       {playoffs && (

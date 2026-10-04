@@ -9,6 +9,5 @@ const api = process.env.API_ORIGIN || "http://127.0.0.1:8000";
 export default defineConfig({
   plugins: [react()],
   server: { proxy: { "/api": api, "/logos": api } },
-  // The lazy 3D bracket chunk bundles three.js (~600 kB); it never loads outside /champions.
-  build: { outDir: "dist", emptyOutDir: true, chunkSizeWarningLimit: 700 },
+  build: { outDir: "dist", emptyOutDir: true },
 });
