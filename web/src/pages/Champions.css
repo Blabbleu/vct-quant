@@ -124,3 +124,4 @@
   .champ-po-sched-list li { grid-template-columns: minmax(0, 1fr) auto; }
   .champ-po-sched-list li .champ-ph-line { display: none; }
 }
+.b3d-section { display: flex; flex-direction: column; gap: var(--s-3); min-width: 0; }

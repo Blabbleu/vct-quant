@@ -1,0 +1,49 @@
+.b3d { display: flex; flex-direction: column; gap: var(--s-2); min-width: 0; max-width: 100%; }
+.b3d-stage {
+  position: relative; width: 100%; max-width: 100%; overflow: hidden;
+  height: min(78vh, 640px); min-height: 420px;
+  background: var(--bg); border: 1px solid var(--line);
+}
+.b3d-host { position: absolute; inset: 0; }
+.b3d-canvas { display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
+.b3d-touch .b3d-canvas { touch-action: pan-y; }
+.b3d-touch.b3d-active .b3d-canvas { touch-action: none; }
+.b3d-ui { position: absolute; top: var(--s-2); right: var(--s-2); display: flex; gap: var(--s-2); z-index: 3; }
+.b3d-btn {
+  font-family: var(--font-display); font-weight: 700; text-transform: uppercase; letter-spacing: var(--track-label);
+  font-size: var(--fs-meta); color: var(--text); background: var(--surface-1); border: 1px solid var(--line-strong);
+  padding: 0 var(--s-3); min-height: 32px; cursor: pointer;
+}
+.b3d-btn:hover { border-color: var(--model); color: var(--model); }
+.b3d-btn:focus-visible, .b3d-gate:focus-visible { outline: 2px solid var(--model); outline-offset: 2px; }
+.b3d-gate {
+  position: absolute; left: 50%; bottom: var(--s-4); transform: translateX(-50%); z-index: 2;
+  display: flex; flex-direction: column; align-items: center; gap: 2px; max-width: calc(100% - 24px);
+  font-family: var(--font-display); font-weight: 700; text-transform: uppercase; letter-spacing: var(--track-label);
+  color: var(--text); background: color-mix(in srgb, var(--bg) 82%, transparent); border: 1px solid var(--model);
+  padding: var(--s-2) var(--s-4); min-height: var(--hit); cursor: pointer; text-align: center;
+}
+.b3d-gate small { font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--text-2); font-size: var(--fs-meta); }
+.b3d-tip {
+  position: absolute; z-index: 4; pointer-events: none; padding: var(--s-2) var(--s-3);
+  background: color-mix(in srgb, var(--surface-1) 94%, transparent); border: 1px solid var(--line-strong);
+  color: var(--text); font-size: var(--fs-meta); display: flex; flex-direction: column; gap: 2px;
+}
+.b3d-tip-head { display: flex; justify-content: space-between; gap: var(--s-2); font-family: var(--font-display); font-weight: 700; text-transform: uppercase; letter-spacing: var(--track-label); }
+.b3d-tip-when { color: var(--text-2); }
+.b3d-tip-row { display: flex; justify-content: space-between; gap: var(--s-3); color: var(--text-2); }
+.b3d-tip-name { font-family: var(--font-display); font-weight: 700; }
+.b3d-fav { color: var(--model); }
+.b3d-tip-note { color: var(--text-3); font-size: 11px; margin-top: 2px; }
+.b3d-cap { margin: 0; color: var(--text-2); font-size: var(--fs-meta); display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1) var(--s-3); }
+.b3d-capnote { color: var(--text-3); flex-basis: 100%; }
+.b3d-key { display: inline-block; width: 22px; height: 0; margin-right: 6px; vertical-align: middle; }
+.b3d-key-solid { border-top: 2px solid var(--model); }
+.b3d-key-dash { border-top: 2px dashed var(--text-3); }
+.b3d-fallback-msg { color: var(--text-3); font-size: var(--fs-meta); margin: 0; }
+@media (max-width: 719px) {
+  .b3d-stage { height: min(76vh, 600px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .b3d-btn, .b3d-gate { transition: none; }
+}

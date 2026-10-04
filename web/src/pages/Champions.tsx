@@ -7,12 +7,12 @@ import { Chip } from "../components/arena/Chip";
 import Panel from "../components/arena/Panel";
 import SectionHead from "../components/arena/SectionHead";
 import GapChip from "../components/arena/GapChip";
+import Bracket3DSection from "../components/bracket3d/Bracket3DSection";
 import { LoadingBlocks, ErrorPanel } from "../components/arena/States";
 import { useChampionsStatus } from "../lib/api";
 import { LOW_DATA_MATCHES } from "../lib/constants";
 import { utc, utcShort } from "../lib/format";
 import type { ChampionsGroup, ChampionsPlayoffMatch, ChampionsPlayoffs, ChampionsQualificationTeam } from "../lib/types";
-import Bracket3DSection from "../components/bracket3d/Bracket3DSection";
 import "./Champions.css";
 
 const ORDER = ["opening_1", "opening_2", "winners", "elimination", "decider"] as const;
