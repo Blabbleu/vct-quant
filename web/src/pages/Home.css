@@ -24,7 +24,7 @@
 .home-links { display: flex; flex-direction: column; gap: var(--s-2); }
 .home-link {
   display: flex; flex-direction: column; gap: 2px; padding: var(--s-3) var(--s-4);
-  color: inherit; border: 1px solid var(--line); background: var(--surface-2); border-radius: var(--radius);
+  color: inherit; border: 1px solid var(--line); background: var(--surface-2);
   transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
 }
 .home-link:hover { text-decoration: none; border-color: var(--line-strong); background: var(--surface-3); }

@@ -1,11 +1,15 @@
 /* Champions playoff bracket: HTML nodes over an SVG connector layer.
    x positions are percentages of a 1000-unit design width; heights are px. */
 .champ-bracket { min-width: 0; }
-.bracket-frame { position: relative; min-width: 0; }
+.bracket-frame {
+  position: relative; min-width: 0; background: var(--line); padding: 1px;
+  clip-path: polygon(var(--cut-l) 0, 100% 0, 100% calc(100% - var(--cut-l)), calc(100% - var(--cut-l)) 100%, 0 100%, 0 var(--cut-l));
+}
 .bracket-scroll {
   overflow-x: auto; overflow-y: hidden; min-width: 0;
   scroll-snap-type: x mandatory; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent;
-  border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-1);
+  background: var(--surface-1);
+  clip-path: polygon(var(--cut-l) 0, 100% 0, 100% calc(100% - var(--cut-l)), calc(100% - var(--cut-l)) 100%, 0 100%, 0 var(--cut-l));
   overscroll-behavior-x: contain;
 }
 .bracket-scroll:focus-visible { outline-offset: -2px; }
@@ -28,14 +32,22 @@
 .has-hot .bracket-edge:not(.is-hot) { opacity: .35; }
 
 .bracket-node {
+  --bn-line: var(--line); --bn-fill: var(--surface-2);
   position: absolute; display: flex; flex-direction: column; justify-content: space-between;
-  padding: 5px 8px 6px; min-width: 0;
-  background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius);
-  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease), opacity var(--dur) var(--ease);
+  padding: 6px 9px 7px; min-width: 0; isolation: isolate;
+  /* Arena cut (6px): a --bn-line frame with a 1px-inset fill clipped the same way, so the hairline follows the cut corners. */
+  background: var(--bn-line);
+  clip-path: polygon(var(--cut-s) 0, 100% 0, 100% calc(100% - var(--cut-s)), calc(100% - var(--cut-s)) 100%, 0 100%, 0 var(--cut-s));
+  transition: background var(--dur) var(--ease), opacity var(--dur) var(--ease);
 }
-.bracket-node-tbd { background: transparent; border-style: dashed; }
-.bracket-node.is-hot { border-color: var(--model); background: var(--surface-3); }
-.bracket-node.in-path:not(.is-hot) { border-color: var(--line-strong); }
+.bracket-node::before {
+  content: ""; position: absolute; inset: 1px; z-index: -1; background: var(--bn-fill);
+  clip-path: polygon(var(--cut-s) 0, 100% 0, 100% calc(100% - var(--cut-s)), calc(100% - var(--cut-s)) 100%, 0 100%, 0 var(--cut-s));
+  transition: background var(--dur) var(--ease);
+}
+.bracket-node-tbd { --bn-fill: var(--surface-1); --bn-line: var(--line-strong); }
+.bracket-node.is-hot { --bn-line: var(--model); --bn-fill: var(--surface-3); }
+.bracket-node.in-path:not(.is-hot) { --bn-line: var(--line-strong); }
 .has-hot .bracket-node:not(.in-path) { opacity: .45; }
 .bracket-node-meta { display: flex; justify-content: space-between; gap: 6px; font-size: 10px; line-height: 12px; color: var(--text-3); white-space: nowrap; }
 .bracket-code { font-weight: 700; letter-spacing: .04em; }
@@ -48,17 +60,17 @@
 .bracket-side-fav { color: var(--text); border-left-color: var(--model-fill); }
 .bracket-side-fav .bracket-side-pct { color: var(--model); }
 .bracket-side-tbd { color: var(--text-3); font-size: 11px; height: 20px; gap: 6px; border-left: 0; padding-left: 0; margin-left: 0; }
-.bracket-tbd-dot { width: 6px; height: 6px; border-radius: 50%; border: 1px solid var(--text-ph); flex: none; }
+.bracket-tbd-dot { width: 6px; height: 6px; transform: skewX(var(--slant)); border: 1px solid var(--text-ph); flex: none; }
 .bracket-tbd-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-3); }
 
-.bracket-fav-track { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--model-off); border-radius: 0 0 var(--radius) var(--radius); overflow: hidden; }
+.bracket-fav-track { position: absolute; left: 1px; right: 1px; bottom: 1px; height: 3px; background: var(--model-off); overflow: hidden; }
 .bracket-fav-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--model-fill); }
 
 .bracket-hint {
   position: absolute; right: 1px; top: 1px; bottom: 1px; width: 84px; pointer-events: none;
   display: flex; align-items: center; justify-content: flex-end; gap: 4px; padding-right: 10px;
   background: linear-gradient(90deg, transparent, var(--surface-1) 70%);
-  border-radius: 0 var(--radius) var(--radius) 0; font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2);
+  font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2);
 }
 .bracket-hint span:first-child { writing-mode: vertical-rl; transform: rotate(180deg); }
 .bracket-hint-arrow { font-size: 16px; color: var(--model); }

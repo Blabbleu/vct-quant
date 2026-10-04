@@ -63,7 +63,7 @@ function initialsFor(name: string, tag?: string | null): string {
 }
 
 /**
- * Team logo slot: 4px-rounded square, --logo-plate backing, 1px --line-strong
+ * Team logo slot: 6px cut square, --logo-plate backing, 1px --line-strong
  * border, logo contained with 12% padding. Falls back to initials (tag, or
  * first letters of a multi-word name, e.g. Mega Minors -> MM) in JetBrains
  * Mono 700 when there is no logo or it fails to load. `faded` drops a

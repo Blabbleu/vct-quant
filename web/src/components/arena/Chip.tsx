@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 export type ChipVariant = "default" | "model" | "market" | "result" | "ghost";
 
-/** Chip/tag used throughout (LOW DATA, UPSET, WIN, status). */
+/** Slanted chip/tag used throughout (LOW DATA, UPSET, WIN, status). */
 export function Chip({ variant = "default", children }: { variant?: ChipVariant; children: ReactNode }) {
   return (
     <span className={`chip-arena slant chip-arena-${variant}`}>

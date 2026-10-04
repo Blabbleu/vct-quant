@@ -1,6 +1,7 @@
 /* ==========================================================================
    VCT Quant · tokens, base, shared components. Neutral-black surfaces, red
-   accent, gold market colour, Inter, 4px radius, no cut corners or slants.
+   accent, gold market colour, Inter, and the original Terminal Arena shapes
+   (cut corners, slants, 0 radius, panel corner brackets).
    Page-specific rules live in web/src/pages/<Page>.css.
    ========================================================================== */
 
@@ -20,9 +21,9 @@
   /* space, shape, motion */
   --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px;
   --gutter: 12px; --hit: 44px;
-  --cut-l: 0px; --cut-m: 0px; --cut-s: 0px;
-  --slant: 0deg;
-  --radius: 4px;
+  --cut-l: 14px; --cut-m: 8px; --cut-s: 6px;
+  --slant: -14deg;
+  --radius: 0px;
   --dur: 200ms; --ease: cubic-bezier(.2, 0, 0, 1);
 
   /* Responsive container padding: 12px <768, 24px 768-1199, 32px >=1200.
@@ -184,16 +185,46 @@ svg { display: block; width: 100%; height: auto; }
    Shape helpers
    ------------------------------------------------------------------------- */
 
-/* Legacy shape classes (.cut-l/.cut-m/.cut-s, .slant): corners are 4px-rounded rectangles now. */
-.cut-l, .cut-m, .cut-s { border-radius: var(--radius); }
-.slant, .slant > * { display: inline-block; }
+/* Shape helpers. Large cut (14px): match card, scoreboard panel, event select. */
+.cut-l {
+  clip-path: polygon(
+    var(--cut-l) 0, 100% 0, 100% calc(100% - var(--cut-l)),
+    calc(100% - var(--cut-l)) 100%, 0 100%, 0 var(--cut-l)
+  );
+}
+/* Medium cut (8px): outcome tile, stat cell, map row. */
+.cut-m {
+  clip-path: polygon(
+    var(--cut-m) 0, 100% 0, 100% calc(100% - var(--cut-m)),
+    calc(100% - var(--cut-m)) 100%, 0 100%, 0 var(--cut-m)
+  );
+}
+/* Small cut (6px): logo slot. */
+.cut-s {
+  clip-path: polygon(
+    var(--cut-s) 0, 100% 0, 100% calc(100% - var(--cut-s)),
+    calc(100% - var(--cut-s)) 100%, 0 100%, 0 var(--cut-s)
+  );
+}
+
+/* Slant: skew the box, counter-skew its direct children so text stays upright. */
+.slant { display: inline-block; transform: skewX(var(--slant)); }
+.slant > * { display: inline-block; transform: skewX(calc(var(--slant) * -1)); }
+
+/*
+ * Bordered panel: two nested clipped layers. The outer layer is --line (or
+ * --result for a winner frame) with 1px of padding; the inner layer is the
+ * surface colour, clipped the same way so the border reads as a hairline
+ * even on the cut corners. Combine with .cut-l / .cut-m on both layers:
+ *   <div class="arena-frame cut-l"><div class="arena-surface cut-l">...
+ */
 .arena-frame {
-  display: block; background: var(--line); padding: 1px; border-radius: var(--radius);
+  display: block; background: var(--line); padding: 1px;
 }
 .arena-frame.frame-result { background: var(--result); padding: 2px; }
 .arena-frame.frame-none { background: transparent; padding: 0; }
 .arena-surface {
-  display: block; background: var(--surface-2); height: 100%; border-radius: calc(var(--radius) - 1px);
+  display: block; background: var(--surface-2); height: 100%;
 }
 
 /* -------------------------------------------------------------------------
@@ -203,7 +234,7 @@ svg { display: block; width: 100%; height: auto; }
   display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2);
   min-height: var(--hit); padding: 0 var(--s-4);
   font-family: var(--font-display); font-weight: 700; font-size: 14px;
-  letter-spacing: .015em; border-radius: var(--radius);
+  letter-spacing: .015em;
   border: none; cursor: pointer; background: none; color: var(--text);
   transition: background var(--dur) var(--ease), color var(--dur) var(--ease), border-color var(--dur) var(--ease);
 }
@@ -221,7 +252,11 @@ select {
   font-family: var(--font-display); font-weight: 600; font-size: var(--fs-label);
   background: var(--surface-2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23A3A3A3'/%3E%3C/svg%3E") no-repeat right 14px center;
   color: var(--text); border: 1px solid var(--line);
-  padding: 0 34px 0 var(--s-3); border-radius: var(--radius);
+  padding: 0 34px 0 var(--s-3);
+  clip-path: polygon(
+    var(--cut-m) 0, 100% 0, 100% calc(100% - var(--cut-m)),
+    calc(100% - var(--cut-m)) 100%, 0 100%, 0 var(--cut-m)
+  );
 }
 select:hover { border-color: var(--line-strong); }
 
@@ -247,9 +282,9 @@ select:hover { border-color: var(--line-strong); }
 .topbar { position: sticky; top: 0; z-index: 10; background: var(--topbar-bg); border-bottom: 1px solid var(--topbar-line); }
 .topbar-in { max-width: 1200px; margin: 0 auto; padding: var(--s-2) var(--container-pad); display: flex; align-items: center; gap: var(--s-3); min-height: var(--hit); position: relative; }
 
-/* Wordmark: red pill. */
+/* Wordmark: slanted red block, counter-skewed text (.slant on the link). */
 .wordmark {
-  flex: none; background: var(--model-fill); color: var(--on-model); border-radius: 12px;
+  flex: none; background: var(--model-fill); color: var(--on-model);
   padding: 0 var(--s-3); min-height: 32px; display: inline-flex; align-items: center;
   font-family: var(--font-display); font-weight: 700; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap;
 }
@@ -259,17 +294,18 @@ select:hover { border-color: var(--line-strong); }
   .topbar-in { min-height: 64px; }
 }
 
-/* Tabs. The active one is red with a 2px underline. */
+/* Tabs. Only the active one gets the slanted surface fill + 3px underline (a shared motion layoutId shape slides between tabs). */
 .nav { display: flex; align-items: center; gap: var(--s-1); flex: 1 1 auto; min-width: 0; overflow: hidden; position: relative; }
 .nav-tab {
   display: inline-flex; align-items: center; justify-content: center; min-height: var(--hit);
   padding: 0 var(--s-2); font-family: var(--font-display); font-weight: 600; font-size: 13px;
   text-transform: uppercase; letter-spacing: .08em; color: var(--text-2);
-  background: none; border: none; cursor: pointer; white-space: nowrap; flex: none; position: relative;
+  background: none; border: none; cursor: pointer; white-space: nowrap; flex: none; position: relative; isolation: isolate;
   transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
 }
 .nav-tab:hover { color: var(--text); text-decoration: none; }
-.nav-tab-active { color: var(--model); box-shadow: inset 0 -2px 0 var(--model-fill); }
+.nav-tab > span:not(.nav-underline) { position: relative; z-index: 1; }
+.nav-tab-active { color: var(--model); }
 .nav-tab-active:hover { color: var(--model); }
 
 /* Overflow items merge into the same row at >=1200px; hidden below that. */
@@ -285,21 +321,21 @@ select:hover { border-color: var(--line-strong); }
 /* Search entry: icon link visible at every width, next to the overflow button. */
 .nav-search {
   flex: none; min-width: var(--hit); min-height: var(--hit); display: inline-flex; align-items: center; justify-content: center;
-  color: var(--text-2); border: 1px solid var(--line-strong); background: none; border-radius: var(--radius);
+  color: var(--text-2); border: 1px solid var(--line-strong); background: none;
 }
 .nav-search:hover { color: var(--text); text-decoration: none; }
-.nav-search-active { color: var(--model); background: var(--surface-2); box-shadow: inset 0 -2px 0 var(--model-fill); }
+.nav-search-active { color: var(--model); background: var(--surface-2); box-shadow: inset 0 -3px 0 var(--model-fill); }
 
 /* Mobile/tablet overflow menu. */
 .nav-overflow { position: static; flex: none; }
 .nav-overflow-btn {
   min-width: var(--hit); min-height: var(--hit); display: inline-flex; align-items: center; justify-content: center;
-  background: none; border: 1px solid var(--line-strong); color: var(--text); font-size: 20px; line-height: 1; cursor: pointer; border-radius: var(--radius);
+  background: none; border: 1px solid var(--line-strong); color: var(--text); font-size: 20px; line-height: 1; cursor: pointer;
 }
 .nav-overflow-panel {
   position: absolute; right: var(--gutter); top: 100%; margin-top: var(--s-1);
   background: var(--surface-1); border: 1px solid var(--line); display: flex; flex-direction: column;
-  min-width: 200px; z-index: 20; border-radius: var(--radius); overflow: hidden;
+  min-width: 200px; z-index: 20;
 }
 .nav-overflow-panel .nav-tab { justify-content: flex-start; width: 100%; padding: 0 var(--s-3); }
 
@@ -325,13 +361,13 @@ select:hover { border-color: var(--line-strong); }
 section { display: flex; flex-direction: column; gap: var(--s-3); }
 .head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); flex-wrap: wrap; }
 .back { font-size: 14px; font-weight: 700; min-height: var(--hit); display: inline-flex; align-items: center; }
-.panel { background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; gap: var(--s-3); }
+.panel { background: var(--surface-1); border: 1px solid var(--line); overflow: hidden; display: flex; flex-direction: column; gap: var(--s-3); }
 .link-panel { color: inherit; gap: var(--s-2); }
 .link-panel:hover { text-decoration: none; border-color: var(--line-strong); background: var(--surface-3); }
 .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--s-3); }
 .scroll { overflow-x: auto; }
 .chip {
-  font-family: var(--font-display); font-size: 11px; font-weight: 700; letter-spacing: .015em; border-radius: 100px;
+  font-family: var(--font-display); font-size: 11px; font-weight: 700; letter-spacing: .015em;
   text-transform: uppercase; padding: 2px var(--s-2); background: var(--surface-2); color: var(--text-2); white-space: nowrap;
 }
 .chip.gap { background: var(--market); color: var(--result-ink); }
@@ -342,14 +378,14 @@ section { display: flex; flex-direction: column; gap: var(--s-3); }
 .legend .swatch + * { margin-right: var(--s-2); }
 
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--s-3); }
-.tile { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); padding: var(--s-3) var(--s-4); display: flex; flex-direction: column; gap: 3px; }
+.tile { background: var(--surface-2); border: 1px solid var(--line); padding: var(--s-3) var(--s-4); display: flex; flex-direction: column; gap: 3px; }
 .tile .v { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--fs-num-m); font-weight: 800; }
 .tile .k { font-size: 12px; color: var(--text-3); }
 .tile.hero { background: var(--surface-3); color: var(--text); border-color: var(--line-strong); }
 
 /* Fixture cards */
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--s-3); }
-.fx-card { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); padding: var(--s-3) var(--s-4); display: flex; flex-direction: column; gap: var(--s-2); color: inherit; }
+.fx-card { background: var(--surface-2); border: 1px solid var(--line); padding: var(--s-3) var(--s-4); display: flex; flex-direction: column; gap: var(--s-2); color: inherit; }
 .fx-card:hover { text-decoration: none; border-color: var(--line-strong); background: var(--surface-3); }
 .fx-meta { display: flex; justify-content: space-between; font-family: var(--font-num); font-size: 12px; color: var(--text-2); }
 .fx-teams { font-size: 17px; display: flex; flex-wrap: wrap; align-items: baseline; }
@@ -367,7 +403,7 @@ section { display: flex; flex-direction: column; gap: var(--s-3); }
 .filters { display: flex; gap: var(--s-2); flex-wrap: wrap; }
 .filters button {
   font: 700 13px var(--font-display); text-transform: uppercase; letter-spacing: var(--track-label);
-  color: var(--text-2); background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius);
+  color: var(--text-2); background: var(--surface-2); border: 1px solid var(--line);
   padding: var(--s-2) var(--s-3); min-height: var(--hit); cursor: pointer;
   transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), color var(--dur) var(--ease);
 }
@@ -469,7 +505,7 @@ section { display: flex; flex-direction: column; gap: var(--s-3); }
 .champions-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: var(--s-4); align-items: start; }
 .champions-group { min-width: 0; }
 .champions-slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: var(--s-2); }
-.champions-slot { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-2); padding: var(--s-2); min-width: 0; }
+.champions-slot { border: 1px solid var(--line); background: var(--surface-2); padding: var(--s-2); min-width: 0; }
 .champions-slot .head { gap: var(--s-1); }
 .champions-sides { min-height: 54px; margin: 7px 0 3px; }
 .champions-side { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s-2); align-items: baseline; }
@@ -484,7 +520,7 @@ section { display: flex; flex-direction: column; gap: var(--s-3); }
 /* Frozen paper entries: wrapping cards instead of a wide trading table. */
 .paper-summary { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-5); padding: var(--s-2) 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); font-size: 13px; }
 .paper-entries { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: var(--s-3); }
-.paper-entry { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-2); padding: var(--s-3); min-width: 0; display: flex; flex-direction: column; gap: var(--s-2); overflow-wrap: anywhere; }
+.paper-entry { border: 1px solid var(--line); background: var(--surface-2); padding: var(--s-3); min-width: 0; display: flex; flex-direction: column; gap: var(--s-2); overflow-wrap: anywhere; }
 .paper-entry .head { align-items: flex-start; }
 .paper-title { display: flex; flex-direction: column; min-width: 0; }
 .paper-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px var(--s-3); }
@@ -494,7 +530,7 @@ section { display: flex; flex-direction: column; gap: var(--s-3); }
 
 /* Team logos */
 .logo { display: inline-block; flex: none; object-fit: contain; }
-.logo.fallback { display: inline-flex; align-items: center; justify-content: center; background: var(--surface-2); color: var(--text-2); font-family: var(--font-display); font-weight: 700; letter-spacing: -.01em; border: 1px solid var(--line); border-radius: var(--radius); }
+.logo.fallback { display: inline-flex; align-items: center; justify-content: center; background: var(--surface-2); color: var(--text-2); font-family: var(--font-display); font-weight: 700; letter-spacing: -.01em; border: 1px solid var(--line); }
 .team { display: inline-flex; align-items: center; gap: var(--s-2); min-width: 0; }
 .fx-teams { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: var(--s-2); }
 .fx-teams .team.right { justify-content: flex-end; text-align: right; }
@@ -523,7 +559,7 @@ td .team { gap: 5px; flex-wrap: wrap; }
 .fx-teams .vs.score { font-size: 16px; font-weight: 700; color: var(--text); }
 .ops-status { display: flex; align-items: center; gap: var(--s-3); }
 .ops-status b { flex: 1; min-width: 0; }
-.ops-dot { width: 10px; height: 10px; flex: none; background: var(--text-3); border-radius: 50%; }
+.ops-dot { width: 10px; height: 10px; flex: none; background: var(--text-3); }
 .ops-dot.ok { background: var(--text); }
 .ops-dot.degraded, .ops-dot.skipped, .ops-dot.stopped, .ops-dot.incomplete { background: var(--text-2); }
 .ops-dot.stale, .ops-dot.failed { background: var(--market); }
@@ -537,7 +573,7 @@ td .team { gap: 5px; flex-wrap: wrap; }
 /* --- LogoSlot ------------------------------------------------------------ */
 .logo-slot {
   position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center;
-  background: var(--logo-plate); border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--logo-plate); border: 1px solid var(--line);
   transition: opacity var(--dur) var(--ease);
 }
 .logo-slot-dark { background: var(--logo-plate-dark); }
@@ -549,12 +585,14 @@ td .team { gap: 5px; flex-wrap: wrap; }
 .team-label { font-family: var(--font-display); font-weight: 700; text-transform: uppercase; letter-spacing: .01em; min-width: 0; }
 
 /* --- PipBar ---------------------------------------------------------------
-   20 rectangular blocks, 12px tall, 2px gaps; gold triangle notch floats above at
+   20 slanted blocks, 12px tall, 2px gaps; gold triangle notch floats above at
    the market's exact %. */
 .pipbar { position: relative; padding-top: 8px; }
 .pipbar-track { display: flex; gap: 2px; height: 12px; }
 .pipbar-block {
-  flex: 1 1 0; height: 100%; background: var(--model-off); border-radius: 1px;
+  flex: 1 1 0; height: 100%; background: var(--model-off);
+  /* slant as a clip-path parallelogram: motion's scaleX sweep owns `transform`, so skewX would be overwritten */
+  clip-path: polygon(3px 0, 100% 0, calc(100% - 3px) 100%, 0 100%);
   transition: background var(--dur) var(--ease);
 }
 .pipbar-block-filled { background: var(--model); }
@@ -571,11 +609,12 @@ td .team { gap: 5px; flex-wrap: wrap; }
 .gapchip-ph { color: var(--text-ph); font-size: var(--fs-meta); }
 .gapchip-read { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-label); text-transform: uppercase; letter-spacing: var(--track-label); color: var(--text-2); }
 
-/* --- Chip / CountdownChip -------------------------------------------------- */
+/* --- Chip / CountdownChip --------------------------------------------------
+   Slanted pill; text counter-skewed via the shared .slant rule. */
 .chip-arena {
   display: inline-flex; align-items: center; min-height: 22px; padding: 2px var(--s-2);
   font-family: var(--font-display); font-weight: 700; font-size: 11px; text-transform: uppercase;
-  letter-spacing: .015em; white-space: nowrap; background: var(--surface-3); color: var(--text-2); border-radius: 100px;
+  letter-spacing: .015em; white-space: nowrap; background: var(--surface-3); color: var(--text-2);
 }
 .chip-arena-model { background: var(--model-fill); color: var(--on-model); }
 .chip-arena-market { background: var(--market); color: var(--result-ink); }
@@ -590,7 +629,11 @@ td .team { gap: 5px; flex-wrap: wrap; }
 
 /* --- Panel (two-layer cut-corner border + optional corner brackets) ------ */
 .panel-arena-wrap { position: relative; }
-.panel-bracket { display: none; }
+.panel-bracket { position: absolute; width: 12px; height: 12px; pointer-events: none; }
+.panel-bracket-tl { top: -1px; left: -1px; border-top: 2px solid var(--model); border-left: 2px solid var(--model); }
+.panel-bracket-tr { top: -1px; right: -1px; border-top: 2px solid var(--model); border-right: 2px solid var(--model); }
+.panel-bracket-bl { bottom: -1px; left: -1px; border-bottom: 2px solid var(--model); border-left: 2px solid var(--model); }
+.panel-bracket-br { bottom: -1px; right: -1px; border-bottom: 2px solid var(--model); border-right: 2px solid var(--model); }
 
 /* --- SectionHead ----------------------------------------------------------
    H2 already carries the uppercase + hairline; this just adds the trailing slot. */
@@ -599,7 +642,7 @@ td .team { gap: 5px; flex-wrap: wrap; }
 .section-head-right { padding-bottom: var(--s-2); flex: none; }
 
 /* --- StatCell --------------------------------------------------------------- */
-.statcell { background: var(--surface-2); border-radius: var(--radius); padding: var(--s-2) var(--s-3); display: flex; flex-direction: column; gap: 2px; }
+.statcell { background: var(--surface-2); padding: var(--s-2) var(--s-3); display: flex; flex-direction: column; gap: 2px; }
 .statcell-value { font-size: var(--fs-num-m); font-weight: 800; color: var(--text); }
 .statcell-model .statcell-value { color: var(--model); }
 .statcell-market .statcell-value { color: var(--market); }
@@ -610,7 +653,7 @@ td .team { gap: 5px; flex-wrap: wrap; }
 .banner-arena {
   display: inline-flex; align-items: center; padding: var(--s-2) var(--s-3);
   font-family: var(--font-display); font-weight: 700; font-size: var(--fs-label);
-  text-transform: uppercase; letter-spacing: var(--track-banner); background: var(--surface-2); color: var(--text-2); border-radius: var(--radius);
+  text-transform: uppercase; letter-spacing: var(--track-banner); background: var(--surface-2); color: var(--text-2);
 }
 .banner-arena-complete { background: var(--surface-2); color: var(--text); }
 .banner-arena-live { background: var(--model-fill); color: var(--on-model); }
@@ -618,17 +661,17 @@ td .team { gap: 5px; flex-wrap: wrap; }
 
 /* --- States: loading / error / empty / stale ------------------------------ */
 .loading-blocks { display: flex; flex-direction: column; gap: var(--s-3); }
-.loading-card { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); padding: var(--s-3) var(--s-4); display: flex; flex-direction: column; gap: var(--s-2); }
+.loading-card { background: var(--surface-2); border: 1px solid var(--line); padding: var(--s-3) var(--s-4); display: flex; flex-direction: column; gap: var(--s-2); }
 .loading-line { height: 14px; background: var(--surface-1); box-shadow: inset 0 0 0 1px var(--line); }
 .loading-line-wide { width: 70%; }
 .loading-line-narrow { width: 40%; }
 
-.error-panel { border: 1px solid var(--line-strong); border-radius: var(--radius); padding: var(--s-4); display: flex; flex-direction: column; gap: var(--s-2); align-items: flex-start; }
+.error-panel { border: 1px solid var(--line-strong); padding: var(--s-4); display: flex; flex-direction: column; gap: var(--s-2); align-items: flex-start; }
 .error-panel-title { font-family: var(--font-display); font-weight: 700; text-transform: uppercase; letter-spacing: var(--track-label); }
 .error-panel-line { color: var(--text-2); }
 .error-panel-detail { color: var(--text-3); font-size: var(--fs-meta); }
 
-.empty-state { border: 1px solid var(--line); border-radius: var(--radius); padding: var(--s-5) var(--s-4); display: flex; flex-direction: column; gap: var(--s-2); align-items: flex-start; }
+.empty-state { border: 1px solid var(--line); padding: var(--s-5) var(--s-4); display: flex; flex-direction: column; gap: var(--s-2); align-items: flex-start; }
 .empty-state-title { font-family: var(--font-display); font-weight: 700; text-transform: uppercase; letter-spacing: var(--track-label); }
 .empty-state-line { color: var(--text-2); }
 
@@ -641,7 +684,7 @@ td .team { gap: 5px; flex-wrap: wrap; }
   font-size: var(--fs-label); text-transform: uppercase; letter-spacing: var(--track-label); color: var(--text-2);
 }
 .record-bar-track { display: flex; gap: 2px; height: 14px; }
-.record-bar-seg { flex: 1 1 0; height: 100%; background: var(--model-off); border-radius: 1px; }
+.record-bar-seg { flex: 1 1 0; height: 100%; background: var(--model-off); }
 .record-bar-seg-filled { background: var(--model); }
 .record-bar-meta { color: var(--text-3); font-size: var(--fs-meta); }
 
@@ -652,7 +695,7 @@ td .team { gap: 5px; flex-wrap: wrap; }
 .arena-kit-sample-label { font-family: var(--font-num); font-size: 11px; color: var(--text-3); }
 .arena-kit-viewport { display: flex; flex-direction: column; gap: var(--s-2); }
 .arena-kit-viewport-frame {
-  border: 1px solid var(--line-strong); background: var(--surface-1); overflow: auto; padding: var(--s-3); border-radius: var(--radius);
+  border: 1px solid var(--line-strong); background: var(--surface-1); overflow: auto; padding: var(--s-3);
 }
 
 /* -------------------------------------------------------------------------
@@ -673,9 +716,11 @@ td .team { gap: 5px; flex-wrap: wrap; }
 .nav-search svg { width: 20px; height: 20px; }
 
 /* --- Motion hooks ----------------------------------------------------------- */
-.nav-underline { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--model-fill); pointer-events: none; }
-.nav .nav-tab-active { box-shadow: none; }
-.nav-overflow-panel .nav-tab-active { box-shadow: inset 2px 0 0 var(--model-fill); }
+/* Active tab shape: a slanted parallelogram (surface fill + 3px red underline). The outer span is the motion
+   layoutId element (it only translates/scales); the inner span carries the skew. */
+.nav-underline { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.nav-underline > i { display: block; width: 100%; height: 100%; background: var(--surface-2); box-shadow: inset 0 -3px 0 var(--model-fill); transform: skewX(var(--slant)); }
+.nav-overflow-panel .nav-tab-active { background: var(--surface-2); box-shadow: inset 0 -3px 0 var(--model-fill); }
 .nav-search { position: relative; }
 .scroll-progress { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--model-fill); transform-origin: 0 50%; pointer-events: none; }
 .route-fade { display: flex; flex-direction: column; gap: var(--s-5); min-width: 0; }

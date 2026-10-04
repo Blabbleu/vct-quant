@@ -16,9 +16,11 @@
 .results-filter-btn {
   display: inline-flex; align-items: center; justify-content: center; min-height: var(--hit); padding: 0 var(--s-3);
   font-family: var(--font-display); font-weight: 700; font-size: var(--fs-label); text-transform: uppercase;
-  letter-spacing: var(--track-label); color: var(--text-2); background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); cursor: pointer;
+  letter-spacing: var(--track-label); color: var(--text-2); background: var(--surface-2); border: 1px solid var(--line); cursor: pointer;
+  transform: skewX(var(--slant));
   transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
 }
+.results-filter-btn > span { display: inline-block; transform: skewX(calc(var(--slant) * -1)); }
 .results-filter-btn:hover { background: var(--surface-3); border-color: var(--line-strong); }
 .results-filter-btn.on { background: var(--model-fill); border-color: var(--model-fill); color: var(--on-model); }
 

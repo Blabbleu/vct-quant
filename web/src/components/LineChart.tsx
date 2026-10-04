@@ -5,7 +5,7 @@ import type { MovementPoint } from "../lib/types";
  * style: every line is stepped (each forecast holds until the next is
  * logged), hairline --surface-2 grid with a dashed 50% mid-line, a dashed
  * --result START marker at the first point, end markers shaped like the
- * series (model = square, market = triangle), mono axis labels
+ * series (model = slanted square, market = triangle), mono axis labels
  * (<=3 per axis) and no legend box -- the lines are labelled directly at
  * their ends. Colours come from the shared .chart / .line / .pt rules in
  * styles.css; only the START marker and end labels need explicit fills
@@ -56,10 +56,10 @@ export default function LineChart({ points }: { points: MovementPoint[] }) {
       {marketPath && <path d={marketPath.d} className="line mkt" />}
       {modelPath && <path d={modelPath.d} className="line elo" />}
 
-      {/* End markers, shaped like the series: model = square, market = triangle. */}
+      {/* End markers, shaped like the series: model = slanted square, market = triangle. */}
       {modelPath && (
         <rect x={modelPath.endX - 4} y={modelPath.endY - 4} width={8} height={8}
-          className="pt elo" />
+          className="pt elo" transform={`rotate(-14 ${modelPath.endX} ${modelPath.endY})`} />
       )}
       {marketPath && (
         <polygon

@@ -18,8 +18,8 @@ const MORE = [
 ];
 
 /**
- * The red 2px underline under the active top-bar tab is one shared element (layoutId) that
- * slides between tabs on navigation. The overflow menu marks its active row with a CSS rule.
+ * The active top-bar tab's slanted fill + red underline is one shared element (layoutId) that
+ * slides between tabs on navigation (the outer span only translates/scales; the inner <i> carries the skew). The overflow menu marks its active row with a CSS rule.
  */
 function NavTab({ to, label, className = "", underline = true }: { to: string; label: string; className?: string; underline?: boolean }) {
   return (
@@ -27,7 +27,7 @@ function NavTab({ to, label, className = "", underline = true }: { to: string; l
       {({ isActive }) => (
         <>
           <span>{label}</span>
-          {isActive && underline && <m.span layoutId="nav-underline" className="nav-underline" transition={{ duration: 0.24, ease: EASE_OUT }} />}
+          {isActive && underline && <m.span layoutId="nav-underline" className="nav-underline" aria-hidden="true" transition={{ duration: 0.24, ease: EASE_OUT }}><i /></m.span>}
         </>
       )}
     </NavLink>

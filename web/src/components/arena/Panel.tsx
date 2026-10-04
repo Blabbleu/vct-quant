@@ -2,9 +2,9 @@ import type { ReactNode } from "react";
 import { m, useCanHover, D_FAST } from "../../lib/motion";
 
 /**
- * Bordered panel: two nested layers, a --line frame with 1-2px of padding around
- * a surface, both 4px-rounded (the cut-corner shapes are retired). `brackets` is
- * kept for call-site compatibility; the corner marks are hidden by CSS.
+ * Bordered cut-corner panel: two nested clipped layers, a --line frame with 1-2px of
+ * padding around a surface, both clipped the same way so the border reads as a hairline
+ * even on the cut corners. `brackets` adds the four 12px --model corner L-shapes.
  * `lift` raises the panel 2px on hover (pointer devices) and presses it in on tap;
  * only transform animates, the border/fill change is CSS.
  */
