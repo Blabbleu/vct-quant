@@ -26,3 +26,16 @@ export const liquid = (spread: number | null, volume: number | null) =>
   spread != null && spread <= 0.1 && (volume ?? 0) >= 1000;
 
 export const logLoss = (p: number, won: boolean) => -Math.log(Math.min(Math.max(won ? p : 1 - p, 1e-9), 1));
+
+/** Kick-off for prose, e.g. "Oct 8, 2026, 9:00 AM UTC". */
+export function utc(iso: string | null): string {
+  if (!iso) return "an unknown time";
+  const withZone = /[Zz]|[+-]\d\d:\d\d$/.test(iso) ? iso : `${iso}Z`;
+  return `${new Date(withZone).toLocaleString(undefined, { timeZone: "UTC", dateStyle: "medium", timeStyle: "short" })} UTC`;
+}
+
+/** Compact kick-off, e.g. "Oct 08, 09:00 UTC". */
+export function utcShort(iso: string | null): string {
+  if (!iso) return "Time TBD";
+  return `${new Date(iso).toLocaleString("en-US", { timeZone: "UTC", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })} UTC`;
+}

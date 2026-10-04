@@ -10,7 +10,9 @@ import GapChip from "../components/arena/GapChip";
 import { LoadingBlocks, ErrorPanel } from "../components/arena/States";
 import { useChampionsStatus } from "../lib/api";
 import { LOW_DATA_MATCHES } from "../lib/constants";
+import { utc, utcShort } from "../lib/format";
 import type { ChampionsGroup, ChampionsPlayoffMatch, ChampionsPlayoffs, ChampionsQualificationTeam } from "../lib/types";
+import Bracket3DSection from "../components/bracket3d/Bracket3DSection";
 import "./Champions.css";
 
 const ORDER = ["opening_1", "opening_2", "winners", "elimination", "decider"] as const;
@@ -18,16 +20,6 @@ const LABELS = ["Opening 1", "Opening 2", "Winner's", "Elimination", "Decider"];
 
 type TeamMeta = { tag: string | null; logo: string | null };
 
-function utc(iso: string | null): string {
-  if (!iso) return "an unknown time";
-  const withZone = /[Zz]|[+-]\d\d:\d\d$/.test(iso) ? iso : `${iso}Z`;
-  return `${new Date(withZone).toLocaleString(undefined, { timeZone: "UTC", dateStyle: "medium", timeStyle: "short" })} UTC`;
-}
-
-function utcShort(iso: string | null): string {
-  if (!iso) return "Time TBD";
-  return `${new Date(iso).toLocaleString("en-US", { timeZone: "UTC", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })} UTC`;
-}
 const pct1 = (p: number) => (p * 100).toFixed(1);
 
 /** One verified Upper Quarterfinal: kick-off, both sides with model %, and the market read (or none). */
@@ -303,6 +295,7 @@ export default function Champions() {
         <a href="https://www.vlr.gg/event/2766/valorant-champions-2026" target="_blank" rel="noopener noreferrer">Check live schedule &#8599;</a>
       </p>
 
+      {playoffs && <Bracket3DSection playoffs={playoffs} />}
       {playoffs && <PlayoffsSection playoffs={playoffs} />}
 
       {playoffs && (
