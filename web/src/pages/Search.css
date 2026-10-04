@@ -20,7 +20,7 @@
 .search-status { min-height: var(--hit); display: flex; align-items: center; }
 .search-results { display: flex; flex-direction: column; gap: var(--s-5); min-width: 0; }
 .search-section { display: flex; flex-direction: column; gap: var(--s-2); min-width: 0; }
-.search-list { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.search-list { display: flex; flex-direction: column; border-top: 1px solid var(--line); position: relative; }
 .search-row {
   display: flex; align-items: center; gap: var(--s-3); min-height: 56px; padding: var(--s-2) var(--s-1);
   border-bottom: 1px solid var(--line); min-width: 0; color: var(--text);
@@ -44,3 +44,5 @@ a.search-row:hover { background: var(--surface-2); text-decoration: none; }
   .search-event .search-secondary { display: none; }
   .search-primary { font-size: 14px; }
 }
+
+.search-row-wrap { min-width: 0; }

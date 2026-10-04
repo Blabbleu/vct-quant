@@ -1,17 +1,25 @@
 import type { ReactNode } from "react";
+import { m, useCanHover, D_FAST } from "../../lib/motion";
 
 /**
  * Bordered panel: two nested layers, a --line frame with 1-2px of padding around
  * a surface, both 4px-rounded (the cut-corner shapes are retired). `brackets` is
  * kept for call-site compatibility; the corner marks are hidden by CSS.
+ * `lift` raises the panel 2px on hover (pointer devices) and presses it in on tap;
+ * only transform animates, the border/fill change is CSS.
  */
-export default function Panel({ cut, frame = "line", brackets = false, className, children }: {
-  cut: "l" | "m"; frame?: "line" | "result" | "none"; brackets?: boolean; className?: string; children: ReactNode;
+export default function Panel({ cut, frame = "line", brackets = false, lift = false, className, children }: {
+  cut: "l" | "m"; frame?: "line" | "result" | "none"; brackets?: boolean; lift?: boolean; className?: string; children: ReactNode;
 }) {
   const cutClass = cut === "l" ? "cut-l" : "cut-m";
   const frameClass = frame === "result" ? "frame-result" : frame === "none" ? "frame-none" : "";
+  const canHover = useCanHover();
   return (
-    <div className={`panel-arena-wrap${className ? ` ${className}` : ""}`}>
+    <m.div
+      className={`panel-arena-wrap${className ? ` ${className}` : ""}`}
+      whileHover={lift && canHover ? { y: -2, transition: { duration: D_FAST } } : undefined}
+      whileTap={lift ? { scale: 0.985, transition: { duration: 0.1 } } : undefined}
+    >
       <div className={`arena-frame ${frameClass} ${cutClass}`}>
         <div className={`arena-surface ${cutClass}`}>{children}</div>
       </div>
@@ -23,6 +31,6 @@ export default function Panel({ cut, frame = "line", brackets = false, className
           <span className="panel-bracket panel-bracket-br" aria-hidden="true" />
         </>
       )}
-    </div>
+    </m.div>
   );
 }

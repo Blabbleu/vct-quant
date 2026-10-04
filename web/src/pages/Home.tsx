@@ -7,6 +7,7 @@ import RecordBar from "../components/arena/RecordBar";
 import { LoadingBlocks, ErrorPanel, EmptyState } from "../components/arena/States";
 import { COPY } from "../lib/constants";
 import { recordView } from "../lib/record";
+import { PageFade, Words, Stagger, StaggerItem, Reveal } from "../lib/motion";
 import "./Home.css";
 
 const QUICK_LINKS = [
@@ -31,10 +32,11 @@ export default function Home() {
   const record = recordView(results);
 
   return (
-    <div className="home-page">
+    <PageFade className="home-page">
       <header className="page-head">
         {nextEvent && <div className="home-event num">{nextEvent}{nextStage ? ` \u00B7 ${nextStage}` : ""}</div>}
-        <h1>Who wins the next VCT match?</h1>
+        <Words text="Who wins the next VCT match?" />
+        <span className="home-sweep" aria-hidden="true" />
         <p className="lede">
           Win chances for every upcoming Tier 1 match, next to what the betting market thinks, and an honest
           record of how the model has done.
@@ -50,13 +52,14 @@ export default function Home() {
               line={data.fixtures[0]?.event ? `Next known event: ${data.fixtures[0].event}.` : "No event is scheduled yet."}
             />
           ) : (
-            <div className="home-next-list">
-              {next.map(f => <FixtureCard key={f.match_id} f={f} />)}
-            </div>
+            <Stagger className="home-next-list">
+              {next.map(f => <StaggerItem key={f.match_id} className="stagger-cell"><FixtureCard f={f} /></StaggerItem>)}
+            </Stagger>
           )}
         </div>
 
         <div className="arena-grid-aside home-aside">
+          <Reveal>
           <Panel cut="m" frame="line">
             <div className="pad home-record">
               <SectionHead title="Record" />
@@ -74,17 +77,20 @@ export default function Home() {
               )}
             </div>
           </Panel>
+          </Reveal>
 
-          <div className="home-links">
+          <Stagger className="home-links">
             {QUICK_LINKS.map(l => (
-              <Link key={l.to} to={l.to} className="panel home-link cut-m">
-                <span className="home-link-title">{l.title}</span>
-                <span className="muted small">{l.line}</span>
-              </Link>
+              <StaggerItem key={l.to} lift>
+                <Link to={l.to} className="panel home-link cut-m">
+                  <span className="home-link-title">{l.title}</span>
+                  <span className="muted small">{l.line}</span>
+                </Link>
+              </StaggerItem>
             ))}
-          </div>
+          </Stagger>
         </div>
       </div>
-    </div>
+    </PageFade>
   );
 }

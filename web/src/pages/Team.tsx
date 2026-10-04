@@ -9,6 +9,7 @@ import { EmptyState } from "../components/arena/States";
 import { Failure, Loading } from "../components/ui";
 import { useTeamProfile } from "../lib/api";
 import { num, pct, when } from "../lib/format";
+import { PageFade } from "../lib/motion";
 import "./Team.css";
 
 function Opponent({ id, name }: { id: number | null; name: string }) {
@@ -27,7 +28,7 @@ export default function Team() {
   const { summary } = data.logged_results;
 
   return (
-    <>
+    <PageFade className="page-fade">
       <Link to="/matches" className="profile-back">← All matches</Link>
       <header className="profile-head">
         <LogoSlot src={data.logo} name={data.name} tag={data.tag} size={56} />
@@ -144,6 +145,6 @@ export default function Team() {
           </Panel>
         </div>
       </div>
-    </>
+    </PageFade>
   );
 }

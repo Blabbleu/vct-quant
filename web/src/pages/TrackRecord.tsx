@@ -11,6 +11,7 @@ import StatCell from "../components/arena/StatCell";
 import { Chip } from "../components/arena/Chip";
 import Panel from "../components/arena/Panel";
 import { LoadingBlocks, ErrorPanel } from "../components/arena/States";
+import { PageFade } from "../lib/motion";
 import "./TrackRecord.css";
 
 const SHADOW_NAMES: Record<string, string> = {
@@ -24,7 +25,7 @@ export default function TrackRecord() {
   const { live, backtest, ledger } = data;
 
   return (
-    <div className="record-page">
+    <PageFade className="record-page">
       <header className="record-head">
         <h1 className="record-title">Track record</h1>
         <p className="record-lede">Every forecast is saved before the match starts and graded after. Log loss rewards being confidently right and punishes being confidently wrong; a coin flip scores 0.693, lower is better.</p>
@@ -128,6 +129,6 @@ export default function TrackRecord() {
           </div>
         </div>
       </Panel>
-    </div>
+    </PageFade>
   );
 }

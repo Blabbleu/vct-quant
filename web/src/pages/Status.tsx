@@ -6,6 +6,7 @@ import StatCell from "../components/arena/StatCell";
 import Panel from "../components/arena/Panel";
 import { Chip } from "../components/arena/Chip";
 import { LoadingBlocks, ErrorPanel } from "../components/arena/States";
+import { PageFade } from "../lib/motion";
 import "./Status.css";
 
 const utc = (iso: string | null) => iso == null ? "\u2013" : new Date(iso).toLocaleString(undefined, {
@@ -96,7 +97,7 @@ export default function Status() {
   const counts = Object.entries(md.last_24h).map(([k, v]) => `${v} ${k}`).join(" \u00b7 ") || "none";
 
   return (
-    <div className="status-page">
+    <PageFade className="status-page">
       <header className="status-head">
         <h1 className="status-title">Data status</h1>
         <p className="status-lede">How fresh the data behind the forecasts is. Fixtures and results refresh from vlr.gg every two hours; market prices are fetched in the same run. Read from local files only: opening this page never calls vlr.gg or Polymarket.</p>
@@ -152,6 +153,6 @@ export default function Status() {
       </Panel>
 
       <p className="muted small">Page generated {utc(visibleData.generated_at)}.</p>
-    </div>
+    </PageFade>
   );
 }

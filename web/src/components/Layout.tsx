@@ -1,6 +1,7 @@
-import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate, useOutlet } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { getTheme, toggleTheme, type Theme } from "../lib/theme";
+import { AnimatePresence, D_FAST, EASE_OUT, RouteFade, ScrollProgress, m, useDesktop, useInitial } from "../lib/motion";
 
 /** Visible on phone: the rest live in the overflow menu. */
 const PRIMARY = [
@@ -16,10 +17,19 @@ const MORE = [
   { to: "/status", label: "Status" },
 ];
 
-function NavTab({ to, label, className = "" }: { to: string; label: string; className?: string }) {
+/**
+ * The red 2px underline under the active top-bar tab is one shared element (layoutId) that
+ * slides between tabs on navigation. The overflow menu marks its active row with a CSS rule.
+ */
+function NavTab({ to, label, className = "", underline = true }: { to: string; label: string; className?: string; underline?: boolean }) {
   return (
     <NavLink to={to} className={({ isActive }) => `nav-tab${isActive ? " nav-tab-active" : ""}${className ? ` ${className}` : ""}`}>
-      <span>{label}</span>
+      {({ isActive }) => (
+        <>
+          <span>{label}</span>
+          {isActive && underline && <m.span layoutId="nav-underline" className="nav-underline" transition={{ duration: 0.24, ease: EASE_OUT }} />}
+        </>
+      )}
     </NavLink>
   );
 }
@@ -30,6 +40,9 @@ export default function Layout() {
   const [theme, setThemeState] = useState<Theme>(() => getTheme());
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const outlet = useOutlet();
+  const desktop = useDesktop();
+  const menuInit = useInitial("closed");
 
   useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
   useEffect(() => { setOpen(false); }, [pathname]);
@@ -98,19 +111,32 @@ export default function Layout() {
               aria-label="More navigation" onClick={() => setOpen(o => !o)}>
               <span aria-hidden="true">&#8942;</span>
             </button>
-            {open && (
-              <div className="nav-overflow-panel" role="menu">
-                <NavTab to="/results" label="Results" className="nav-narrow-only" />
-                {MORE.map(n => <NavTab key={n.to} to={n.to} label={n.label} />)}
-                <button type="button" className="nav-tab" role="menuitem" onClick={toggleTheme}>
-                  <span>{themeLabel}</span>
-                </button>
-              </div>
-            )}
+            <AnimatePresence>
+              {open && (
+                <m.div
+                  key="menu" className="nav-overflow-panel" role="menu"
+                  initial={menuInit === "closed" ? { opacity: 0, y: -6 } : false}
+                  animate={{ opacity: 1, y: 0, transition: { duration: D_FAST, ease: EASE_OUT } }}
+                  exit={{ opacity: 0, y: -6, transition: { duration: 0.12 } }}
+                  style={{ transformOrigin: "top right" }}
+                >
+                  <NavTab to="/results" label="Results" className="nav-narrow-only" underline={false} />
+                  {MORE.map(n => <NavTab key={n.to} to={n.to} label={n.label} underline={false} />)}
+                  <button type="button" className="nav-tab" role="menuitem" onClick={toggleTheme}>
+                    <span>{themeLabel}</span>
+                  </button>
+                </m.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
+        {desktop && <ScrollProgress />}
       </header>
-      <main className="wrap"><Outlet /></main>
+      <main className="wrap">
+        <AnimatePresence mode="wait" initial={false}>
+          <RouteFade key={pathname}>{outlet}</RouteFade>
+        </AnimatePresence>
+      </main>
       <footer className="foot">
         Forecasts are model estimates, not betting advice. Data: vlr.gg, Polymarket.
       </footer>

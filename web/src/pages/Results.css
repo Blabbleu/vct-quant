@@ -6,8 +6,8 @@
 
 .results-head { display: flex; flex-direction: column; gap: var(--s-2); }
 .results-title {
-  font-family: var(--font-display); font-weight: 700; text-transform: uppercase;
-  font-size: var(--fs-display); line-height: var(--lh-tight); letter-spacing: .01em; margin: 0;
+  font-family: var(--font-display); font-weight: 700;
+  font-size: clamp(28px, 4vw, 46px); line-height: 1.1; letter-spacing: -.01em; margin: 0;
 }
 .results-lede { color: var(--text-2); max-width: 64ch; }
 

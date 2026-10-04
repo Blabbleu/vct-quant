@@ -9,6 +9,7 @@ import { Chip } from "../components/arena/Chip";
 import Panel from "../components/arena/Panel";
 import SectionHead from "../components/arena/SectionHead";
 import { LOW_DATA_MATCHES } from "../lib/constants";
+import { PageFade, Reveal, CountUp } from "../lib/motion";
 import "./Rankings.css";
 
 export default function Rankings() {
@@ -22,7 +23,7 @@ export default function Rankings() {
   const p = ta && tb ? eloWinProbability(ta.elo, tb.elo) : 0.5;
 
   return (
-    <>
+    <PageFade className="page-fade">
       <header className="rankings-head">
         <h1 className="rankings-title">Rankings</h1>
         <p className="rankings-lede">
@@ -38,10 +39,10 @@ export default function Rankings() {
             <div className="rankings-row rankings-row-head">
               <span>#</span><span>Team</span><span className="right">Rating</span><span className="right">Matches</span>
             </div>
-            {rows.map(r => {
+            {rows.map((r, idx) => {
               const lowData = r.matches < LOW_DATA_MATCHES;
               return (
-                <div className="rankings-row" key={r.team}>
+                <Reveal className="rankings-row" key={r.team} index={Math.min(idx, 12)}>
                   <span className="rankings-i num">{r.rank}</span>
                   <span className="rankings-team">
                     <LogoSlot src={r.logo} name={r.team} tag={r.tag} size={20} />
@@ -53,7 +54,7 @@ export default function Rankings() {
                   </span>
                   <span className="rankings-rating num">{r.elo.toFixed(0)}</span>
                   <span className="rankings-matches num">{r.matches}</span>
-                </div>
+                </Reveal>
               );
             })}
           </div>
@@ -87,7 +88,7 @@ export default function Rankings() {
                     </div>
                     <span className="rankings-h2h-side right">
                       <LogoSlot src={tb.logo} name={tb.team} tag={tb.tag} size={34} />
-                      <span className={`rankings-h2h-pct num${p < 0.5 ? " favoured" : ""}`}>{(100 - p * 100).toFixed(1)}</span>
+                      <span className={`rankings-h2h-pct num${p < 0.5 ? " favoured" : ""}`}><CountUp value={100 - p * 100} /></span>
                       <TeamLabel name={tb.team} tag={tb.tag} mode="tag" />
                     </span>
                   </div>
@@ -101,6 +102,6 @@ export default function Rankings() {
           </Panel>
         </div>
       </div>
-    </>
+    </PageFade>
   );
 }

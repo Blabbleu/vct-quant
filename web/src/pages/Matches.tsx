@@ -3,6 +3,7 @@ import { useSnapshot } from "../lib/api";
 import FixtureCard from "../components/FixtureCard";
 import { LoadingBlocks, ErrorPanel, EmptyState } from "../components/arena/States";
 import { COPY } from "../lib/constants";
+import { PageFade, Stagger, StaggerItem } from "../lib/motion";
 import "./Matches.css";
 
 const dayFmt = new Intl.DateTimeFormat(undefined, { weekday: "long", month: "long", day: "numeric" });
@@ -29,7 +30,7 @@ export default function Matches() {
   }
 
   return (
-    <div className="matches-page">
+    <PageFade className="matches-page">
       <header className="page-head">
         <h1>Matches</h1>
         <p className="lede">
@@ -62,12 +63,12 @@ export default function Matches() {
         [...byDay].map(([day, list]) => (
           <section key={day} className="matches-day">
             <h2 className="matches-day-head">{day}</h2>
-            <div className="arena-board matches-board">
-              {list.map(f => <FixtureCard key={f.match_id} f={f} />)}
-            </div>
+            <Stagger className="arena-board matches-board" key={`${event}-${day}`}>
+              {list.map(f => <StaggerItem key={f.match_id} className="stagger-cell"><FixtureCard f={f} /></StaggerItem>)}
+            </Stagger>
           </section>
         ))
       )}
-    </div>
+    </PageFade>
   );
 }

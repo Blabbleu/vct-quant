@@ -7,6 +7,7 @@ import AgentIcon from "../components/arena/AgentIcon";
 import PlayerPhoto from "../components/arena/PlayerPhoto";
 import { Failure, Loading } from "../components/ui";
 import { usePlayerProfile } from "../lib/api";
+import { PageFade } from "../lib/motion";
 import "./Player.css";
 
 function dateOnly(iso: string) {
@@ -23,7 +24,7 @@ export default function Player() {
   if (!data) return <Failure error="Player ID not found in recorded history." />;
 
   return (
-    <>
+    <PageFade className="page-fade">
       <Link to="/matches" className="profile-back">← All matches</Link>
       <header className="profile-head">
         <PlayerPhoto src={data.photo} handle={data.handle} size={64} />
@@ -106,6 +107,6 @@ export default function Player() {
           </Panel>
         </div>
       </div>
-    </>
+    </PageFade>
   );
 }

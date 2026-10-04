@@ -7,6 +7,7 @@ import PipBar from "./PipBar";
 import GapChip from "./GapChip";
 import { Chip, CountdownChip } from "./Chip";
 import Panel from "./Panel";
+import { CountUp } from "../../lib/motion";
 import "./MatchRow.css";
 
 const time24 = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", hour12: false });
@@ -32,7 +33,7 @@ export default function MatchRow({ f }: { f: Fixture }) {
     : lowDataB ? { tag: (f.tag_b ?? f.team_b).toUpperCase(), n: f.matches_b } : null;
 
   return (
-    <Panel cut="l" frame="line" className="match-row-panel">
+    <Panel cut="l" frame="line" lift className="match-row-panel">
       <Link to={`/match/${f.match_id}`} className="match-row-link">
         <div className="match-row-top">
           <span className="match-row-time-wrap">
@@ -49,11 +50,11 @@ export default function MatchRow({ f }: { f: Fixture }) {
             {lowDataA && <Chip variant="ghost">LOW DATA</Chip>}
           </div>
           <span className={`num match-row-pct${favA ? " match-row-pct-fav" : " match-row-pct-dim"}`}>
-            {pct1(f.p_a)}
+            <CountUp value={f.p_a * 100} />
           </span>
           <span className="vs">vs</span>
           <span className={`num match-row-pct${!favA ? " match-row-pct-fav" : " match-row-pct-dim"}`}>
-            {pct1(1 - f.p_a)}
+            <CountUp value={(1 - f.p_a) * 100} />
           </span>
           <div className="match-row-side match-row-side-right">
             {lowDataB && <Chip variant="ghost">LOW DATA</Chip>}

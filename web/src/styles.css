@@ -260,7 +260,7 @@ select:hover { border-color: var(--line-strong); }
 }
 
 /* Tabs. The active one is red with a 2px underline. */
-.nav { display: flex; align-items: center; gap: var(--s-1); flex: 1 1 auto; min-width: 0; overflow: hidden; }
+.nav { display: flex; align-items: center; gap: var(--s-1); flex: 1 1 auto; min-width: 0; overflow: hidden; position: relative; }
 .nav-tab {
   display: inline-flex; align-items: center; justify-content: center; min-height: var(--hit);
   padding: 0 var(--s-2); font-family: var(--font-display); font-weight: 600; font-size: 13px;
@@ -671,3 +671,31 @@ td .team { gap: 5px; flex-wrap: wrap; }
   .pipbar-track { height: 14px; }
 }
 .nav-search svg { width: 20px; height: 20px; }
+
+/* --- Motion hooks ----------------------------------------------------------- */
+.nav-underline { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--model-fill); pointer-events: none; }
+.nav .nav-tab-active { box-shadow: none; }
+.nav-overflow-panel .nav-tab-active { box-shadow: inset 2px 0 0 var(--model-fill); }
+.nav-search { position: relative; }
+.scroll-progress { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--model-fill); transform-origin: 0 50%; pointer-events: none; }
+.route-fade { display: flex; flex-direction: column; gap: var(--s-5); min-width: 0; }
+@media (max-width: 560px) { .route-fade { gap: var(--s-4); } }
+.word-clip { display: inline-block; overflow: hidden; vertical-align: top; padding-bottom: .08em; margin-bottom: -.08em; }
+.word { display: inline-block; }
+/* Loading skeleton: a single red-tinted sheen sweeps across the placeholder lines (transform only). */
+.loading-line { position: relative; overflow: hidden; }
+.loading-line::after, .loading-card::after {
+  content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--model-fill) 18%, transparent), transparent);
+  animation: shimmer 1.4s var(--ease) infinite;
+}
+.loading-card { position: relative; overflow: hidden; }
+.loading-card::after { animation-delay: .2s; }
+@keyframes shimmer { to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) { .loading-line::after, .loading-card::after { animation: none; display: none; } }
+
+/* Safety net: if the lazy animation engine never loads, nothing may stay hidden. */
+.motion-off [style*="opacity: 0"], .motion-off [style*="opacity:0"] { opacity: 1 !important; transform: none !important; }
+.page-fade { display: flex; flex-direction: column; gap: var(--s-5); min-width: 0; }
+@media (max-width: 560px) { .page-fade { gap: var(--s-4); } }
+.stagger-cell { min-width: 0; height: 100%; }

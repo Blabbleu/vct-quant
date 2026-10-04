@@ -1,10 +1,12 @@
-import { StrictMode } from "react";
+import { StrictMode, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import "@fontsource-variable/inter/wght.css";
 import "./styles.css";
 import "./lib/theme";
 import Layout from "./components/Layout";
+import { MotionProvider } from "./lib/motion";
+import { LoadingBlocks } from "./components/arena/States";
 import Home from "./pages/Home";
 import Matches from "./pages/Matches";
 import Results from "./pages/Results";
@@ -16,13 +18,14 @@ import Edge from "./pages/Edge";
 import TrackRecord from "./pages/TrackRecord";
 import About from "./pages/About";
 import Status from "./pages/Status";
-import Champions from "./pages/Champions";
+const Champions = lazy(() => import("./pages/Champions"));
 import NotFound from "./pages/NotFound";
 import ArenaKit from "./pages/ArenaKit";
 import Search from "./pages/Search";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
+    <MotionProvider>
     <BrowserRouter>
       <Routes>
         <Route element={<Layout />}>
@@ -32,7 +35,7 @@ createRoot(document.getElementById("root")!).render(
           <Route path="match/:id" element={<MatchCenter />} />
           <Route path="team/:id" element={<Team />} />
           <Route path="player/:id" element={<Player />} />
-          <Route path="champions/2766" element={<Champions />} />
+          <Route path="champions/2766" element={<Suspense fallback={<LoadingBlocks label="Loading Champions\u2026" />}><Champions /></Suspense>} />
           <Route path="rankings" element={<Rankings />} />
           <Route path="edge" element={<Edge />} />
           <Route path="track-record" element={<TrackRecord />} />
@@ -44,5 +47,6 @@ createRoot(document.getElementById("root")!).render(
         </Route>
       </Routes>
     </BrowserRouter>
+    </MotionProvider>
   </StrictMode>,
 );

@@ -5,12 +5,35 @@ import PlayerPhoto from "../components/arena/PlayerPhoto";
 import SectionHead from "../components/arena/SectionHead";
 import { EmptyState } from "../components/arena/States";
 import { Chip } from "../components/arena/Chip";
+import { AnimatePresence, PageFade, m, EASE_OUT, D_FAST, useInitial } from "../lib/motion";
 import "./Search.css";
 
 type SearchTeam = { id: number; name: string; tag: string | null; tier: 1 | 2; logo: string | null };
 type SearchPlayer = { id: number; handle: string; real_name: string | null; team_id: number | null; team_name: string | null; photo: string | null };
 type SearchEvent = { id: number; name: string; tier: 1 | 2 };
 type SearchResults = { teams: SearchTeam[]; players: SearchPlayer[]; events: SearchEvent[] };
+
+/**
+ * A result row: fades/rises in, fades out when it leaves, and glides (layout, transform only)
+ * when rows above it come and go. Rows with `to` are links; event rows are plain.
+ */
+function SearchRow({ to, index, className = "", children }: { to?: string; index: number; className?: string; children: React.ReactNode }) {
+  const init = useInitial("hidden");
+  const cls = `search-row${className ? ` ${className}` : ""}`;
+  return (
+    <m.div
+      layout="position"
+      initial={init}
+      animate="show"
+      exit={{ opacity: 0, transition: { duration: D_FAST } }}
+      variants={{ hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0 } }}
+      transition={{ duration: 0.2, ease: EASE_OUT, delay: Math.min(index, 8) * 0.025 }}
+      className="search-row-wrap"
+    >
+      {to ? <Link className={cls} to={to}>{children}</Link> : <div className={cls}>{children}</div>}
+    </m.div>
+  );
+}
 
 const EMPTY: SearchResults = { teams: [], players: [], events: [] };
 
@@ -108,7 +131,7 @@ export default function Search() {
   }
 
   return (
-    <div className="search-page">
+    <PageFade className="search-page">
       <header className="page-head">
         <h1>Search</h1>
         <p className="lede">Find Tier 1 and Tier 2 teams, players, and events by name, tag, or vlr.gg ID.</p>
@@ -149,25 +172,25 @@ export default function Search() {
           {results.teams.length > 0 && (
             <section className="search-section">
               <SectionHead title="Teams" right={<span className="num muted small">{results.teams.length}</span>} />
-              <div className="search-list">
-                {results.teams.map(team => (
-                  <Link className="search-row" to={`/team/${team.id}`} key={team.id}>
+              <div className="search-list"><AnimatePresence initial={false} mode="popLayout">
+                {results.teams.map((team, i) => (
+                  <SearchRow key={`t${team.id}`} index={i} to={`/team/${team.id}`}>
                     <LogoSlot src={team.logo} name={team.name} tag={team.tag} size={34} />
                     <span className="search-primary">{team.name}</span>
                     {team.tag && <span className="search-secondary num">{team.tag}</span>}
                     <Chip variant="ghost">TIER {team.tier}</Chip>
                     <span className="search-row-arrow" aria-hidden="true">→</span>
-                  </Link>
+                  </SearchRow>
                 ))}
-              </div>
+              </AnimatePresence></div>
             </section>
           )}
           {results.players.length > 0 && (
             <section className="search-section">
               <SectionHead title="Players" right={<span className="num muted small">{results.players.length}</span>} />
-              <div className="search-list">
-                {results.players.map(player => (
-                  <Link className="search-row" to={`/player/${player.id}`} key={player.id}>
+              <div className="search-list"><AnimatePresence initial={false} mode="popLayout">
+                {results.players.map((player, i) => (
+                  <SearchRow key={`p${player.id}`} index={i} to={`/player/${player.id}`}>
                     <PlayerPhoto src={player.photo} handle={player.handle} size={34} />
                     <span className="search-player-name">
                       <span className="search-primary">{player.handle}</span>
@@ -177,28 +200,28 @@ export default function Search() {
                       ? <span className="search-team"><LogoSlot name={player.team_name ?? "Team"} size={20} /><span>{player.team_name}</span></span>
                       : <span className="search-secondary">Team not recorded</span>}
                     <span className="search-row-arrow" aria-hidden="true">→</span>
-                  </Link>
+                  </SearchRow>
                 ))}
-              </div>
+              </AnimatePresence></div>
             </section>
           )}
           {results.events.length > 0 && (
             <section className="search-section">
               <SectionHead title="Events" right={<span className="num muted small">{results.events.length}</span>} />
-              <div className="search-list">
-                {results.events.map(event => (
-                  <div className="search-row search-event" key={event.id}>
+              <div className="search-list"><AnimatePresence initial={false} mode="popLayout">
+                {results.events.map((event, i) => (
+                  <SearchRow key={`e${event.id}`} index={i} className="search-event">
                     <span className="search-event-mark num">EV</span>
                     <span className="search-primary">{event.name}</span>
                     <Chip variant="ghost">TIER {event.tier}</Chip>
                     <span className="search-secondary num">VLR.GG #{event.id}</span>
-                  </div>
+                  </SearchRow>
                 ))}
-              </div>
+              </AnimatePresence></div>
             </section>
           )}
         </div>
       )}
-    </div>
+    </PageFade>
   );
 }

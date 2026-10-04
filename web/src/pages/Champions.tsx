@@ -7,7 +7,9 @@ import { Chip } from "../components/arena/Chip";
 import Panel from "../components/arena/Panel";
 import SectionHead from "../components/arena/SectionHead";
 import GapChip from "../components/arena/GapChip";
+import Bracket from "../components/Bracket";
 import { LoadingBlocks, ErrorPanel } from "../components/arena/States";
+import { Reveal, Stagger, StaggerItem, PageFade, CountUp } from "../lib/motion";
 import { useChampionsStatus } from "../lib/api";
 import { LOW_DATA_MATCHES } from "../lib/constants";
 import { utc, utcShort } from "../lib/format";
@@ -18,8 +20,6 @@ const ORDER = ["opening_1", "opening_2", "winners", "elimination", "decider"] as
 const LABELS = ["Opening 1", "Opening 2", "Winner's", "Elimination", "Decider"];
 
 type TeamMeta = { tag: string | null; logo: string | null };
-
-const pct1 = (p: number) => (p * 100).toFixed(1);
 
 /** One verified Upper Quarterfinal: kick-off, both sides with model %, and the market read (or none). */
 function PlayoffMatch({ m }: { m: ChampionsPlayoffMatch }) {
@@ -36,11 +36,11 @@ function PlayoffMatch({ m }: { m: ChampionsPlayoffMatch }) {
   );
   const pct = (s: typeof a, fav: boolean) => (
     <span className={`num champ-po-pct${fav ? " champ-po-pct-fav" : " champ-po-pct-dim"}`}>
-      {s.p_win != null ? pct1(s.p_win) : "--.-"}
+      {s.p_win != null ? <CountUp value={s.p_win * 100} /> : "--.-"}
     </span>
   );
   return (
-    <Panel cut="l" frame="line" className="champ-po-card">
+    <Panel cut="l" frame="line" lift className="champ-po-card">
       <div className="champ-po-in">
         <div className="champ-po-top">
           <span className="num champ-po-time">{utcShort(m.start)}</span>
@@ -73,29 +73,13 @@ function PlayoffsSection({ playoffs }: { playoffs: ChampionsPlayoffs }) {
       <SectionHead title="Upper Quarterfinals" right={<Chip variant="ghost">DRAWN &middot; ROUTING TBD</Chip>} />
       <p className="champ-sub">
         The four opening matchups, as published on Riot's bracket and corroborated on VLR (observed {utc(playoffs.observed_at)}).
-        Win % is the primary Elo forecast for each series; market shows only where a Polymarket price exists.
+        Market shows only where a Polymarket price exists.
       </p>
-      <div className="champ-po-grid">
+      <Stagger className="champ-po-grid">
         {[...playoffs.opening]
           .sort((x, y) => (x.start ?? "9").localeCompare(y.start ?? "9") || x.match_id - y.match_id)
-          .map(m => <PlayoffMatch key={m.match_id} m={m} />)}
-      </div>
-      {playoffs.schedule.length > 0 && (
-        <Panel cut="m" frame="line" className="champ-po-sched">
-          <div className="champ-po-sched-in">
-            <div className="champ-results-head">Later rounds &middot; teams TBD</div>
-            <ul className="champ-po-sched-list">
-              {playoffs.schedule.map(r => (
-                <li key={r.match_id}>
-                  <span className="champ-po-sched-stage">{r.stage}</span>
-                  <span className="num champ-po-sched-when">{utcShort(r.start)}{r.best_of ? ` \u00B7 Bo${r.best_of}` : ""}</span>
-                  <span className="champ-ph-line num">[ TBD ]</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </Panel>
-      )}
+          .map(m => <StaggerItem key={m.match_id}><PlayoffMatch m={m} /></StaggerItem>)}
+      </Stagger>
     </section>
   );
 }
@@ -120,7 +104,7 @@ function TeamRow({ id, group, q, meta }: {
       </div>
       {q ? (
         <div className="champ-team-pct num" title={`1st seed chance ${(q.p_first * 100).toFixed(1)}%`}>
-          {(q.p_qualify * 100).toFixed(1)}
+          <CountUp value={q.p_qualify * 100} />
         </div>
       ) : <div className="champ-team-pct num champ-ph">--.-</div>}
       <div className="champ-team-bar">
@@ -277,7 +261,7 @@ export default function Champions() {
   const groupsDone = letters.every(l => data.groups[l].qualifiers.length === 2 && data.groups[l].unverified_match_ids.length === 0);
 
   return (
-    <div className="champions-page">
+    <PageFade className="champions-page">
       <header className="champ-head">
         <h1 className="champ-title">{playoffs ? "Playoffs" : "Group stage"}</h1>
         <p className="champ-lede">
@@ -294,6 +278,7 @@ export default function Champions() {
         <a href="https://www.vlr.gg/event/2766/valorant-champions-2026" target="_blank" rel="noopener noreferrer">Check live schedule &#8599;</a>
       </p>
 
+      {playoffs && <Bracket playoffs={playoffs} />}
       {playoffs && <PlayoffsSection playoffs={playoffs} />}
 
       {playoffs && (
@@ -303,8 +288,10 @@ export default function Champions() {
         />
       )}
       <div className="champ-grid">
-        {letters.map(letter => (
-          <GroupPanel key={letter} letter={letter} group={data.groups[letter]} featured={!playoffs && letter === featuredLetter} teamMeta={teamMeta} />
+        {letters.map((letter, i) => (
+          <Reveal key={letter} index={i % 2} className="champ-grid-cell">
+            <GroupPanel letter={letter} group={data.groups[letter]} featured={!playoffs && letter === featuredLetter} teamMeta={teamMeta} />
+          </Reveal>
         ))}
       </div>
 
@@ -318,6 +305,6 @@ export default function Champions() {
         {playoffs && <p>Only the four opening pairings and the published schedule are verified. Upper/lower-bracket routing and grand-final rules are not, so no title odds are shown. Group match results may lag the source.</p>}
         <p>Group odds replay every remaining group series with the same win probability the fixture board shows for that pairing, holding ratings fixed until the group ends (real ratings move after each result). &ldquo;1st seed&rdquo; means winning the winners' match. Descriptive only: not a separate model and not betting advice.</p>
       </section>
-    </div>
+    </PageFade>
   );
 }

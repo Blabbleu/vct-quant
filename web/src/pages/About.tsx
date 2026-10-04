@@ -1,6 +1,7 @@
 import { Chip } from "../components/arena/Chip";
 import Panel from "../components/arena/Panel";
 import { BIG_GAP_POINTS, COPY, LOW_DATA_MATCHES } from "../lib/constants";
+import { PageFade } from "../lib/motion";
 import "./About.css";
 
 /**
@@ -10,7 +11,7 @@ import "./About.css";
  */
 export default function About() {
   return (
-    <div className="about-page">
+    <PageFade className="about-page">
       <header className="about-head">
         <h1 className="about-title">How it works</h1>
       </header>
@@ -72,6 +73,6 @@ export default function About() {
           </Panel>
         </aside>
       </div>
-    </div>
+    </PageFade>
   );
 }

@@ -29,3 +29,11 @@
 }
 .home-link:hover { text-decoration: none; border-color: var(--line-strong); background: var(--surface-3); }
 .home-link-title { font-family: var(--font-display); font-weight: 700; }
+
+/* Red accent sweep under the headline: a thin rule that draws in once (transform only). */
+.home-sweep {
+  display: block; width: 72px; height: 3px; background: var(--model-fill); transform-origin: 0 50%;
+  animation: home-sweep .6s var(--ease) .15s both;
+}
+@keyframes home-sweep { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) { .home-sweep { animation: none; } }

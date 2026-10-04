@@ -10,6 +10,7 @@ import StatCell from "../components/arena/StatCell";
 import { LoadingBlocks, ErrorPanel } from "../components/arena/States";
 import { COPY } from "../lib/constants";
 import type { PaperEntry } from "../lib/types";
+import { PageFade, Stagger, StaggerItem } from "../lib/motion";
 import "./Edge.css";
 
 const signed = (value: number) => `${value > 0 ? "+" : ""}${value.toFixed(2)}`;
@@ -63,7 +64,7 @@ export default function Edge() {
   const live = data.live;
 
   return (
-    <div className="edge-page">
+    <PageFade className="edge-page">
       <header className="edge-head">
         <h1 className="edge-title">Edge board</h1>
         <p className="edge-lede">Where the model disagrees with the betting market. A gap is not a tip: the market is often right, and on thin markets the price is noise. This page exists to test the model, not to place bets.</p>
@@ -74,9 +75,9 @@ export default function Edge() {
         <div className="edge-main">
           <SectionHead title="Biggest disagreements" right={<span className="muted small">{gaps.length} priced</span>} />
           {gaps.length === 0 && <p className="muted">No priced upcoming matches.</p>}
-          <div className="edge-list">
+          <Stagger className="edge-list">
             {gaps.map(({ f, side, logo, tag, modelP }) => (
-              <Link to={`/match/${f.match_id}`} className="edge-item cut-m" key={f.match_id}>
+              <StaggerItem key={f.match_id} lift><Link to={`/match/${f.match_id}`} className="edge-item cut-m">
                 <LogoSlot src={logo} name={side} tag={tag} size={34} />
                 <div className="edge-item-mid">
                   <TeamLabel name={side} tag={tag} mode="auto" />
@@ -92,9 +93,9 @@ export default function Edge() {
                   <GapChip model={f.p_a} market={f.market} spread={f.spread}
                     favouredLabel={`${f.p_a >= 0.5 ? (f.tag_a ?? f.team_a) : (f.tag_b ?? f.team_b)} FAVOURED`} />
                 </div>
-              </Link>
+              </Link></StaggerItem>
             ))}
-          </div>
+          </Stagger>
 
           {unpriced.length > 0 && (
             <>
@@ -166,6 +167,6 @@ export default function Edge() {
             )}
         </aside>
       </div>
-    </div>
+    </PageFade>
   );
 }

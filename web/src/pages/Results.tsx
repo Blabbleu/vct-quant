@@ -9,19 +9,21 @@ import { Chip } from "../components/arena/Chip";
 import { EmptyState } from "../components/arena/States";
 import { Failure, Loading } from "../components/ui";
 import { COPY } from "../lib/constants";
+import { AnimatePresence, PageFade, Reveal } from "../lib/motion";
 import "./Results.css";
 
 const TIER_LABEL: Record<string, string> = { "1": "Tier 1", "2": "Tier 2", "3": "Game Changers" };
 const day = (iso: string) => new Date(iso).toLocaleDateString(undefined,
   { timeZone: "UTC", weekday: "short", month: "short", day: "numeric" });
 
-function ResultRowView({ r }: { r: ResultRow }) {
+function ResultRowView({ r, index }: { r: ResultRow; index: number }) {
   const res = r.result;
   const ok = res.status === "verified";
   const winnerP = ok ? (res.winner === "a" ? r.p_a : 1 - r.p_a) : null;
   const winnerMarket = ok && r.market_a != null ? (res.winner === "a" ? r.market_a : 1 - r.market_a) : null;
   const upset = r.favourite_won === false;
   return (
+    <Reveal index={index} presence className="results-row-wrap">
     <Link to={`/match/${r.match_id}`} className="results-row">
       <div className="results-row-meta">
         <span className="results-row-date num">{day(r.scheduled_at)} UTC</span>
@@ -52,6 +54,7 @@ function ResultRowView({ r }: { r: ResultRow }) {
         <div className="results-row-unverified">Result not verified ({res.reason}); not scored.</div>
       )}
     </Link>
+    </Reveal>
   );
 }
 
@@ -64,7 +67,7 @@ export default function Results() {
   const shown = tier === "all" ? data.rows : data.rows.filter(r => String(r.tier) === tier);
 
   return (
-    <>
+    <PageFade className="page-fade">
       <header className="results-head">
         <h1 className="results-title">Results</h1>
         <p className="results-lede">
@@ -106,8 +109,8 @@ export default function Results() {
           action={tier !== "all" ? <button type="button" className="btn btn-secondary" onClick={() => setTier("all")}>Show all Tier 1</button> : undefined}
         />
       ) : (
-        <div className="results-list">{shown.map(r => <ResultRowView key={r.match_id} r={r} />)}</div>
+        <div className="results-list"><AnimatePresence initial={false}>{shown.map((r, i) => <ResultRowView key={r.match_id} r={r} index={Math.min(i, 8)} />)}</AnimatePresence></div>
       )}
-    </>
+    </PageFade>
   );
 }

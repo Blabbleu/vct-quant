@@ -86,7 +86,7 @@
   .champ-team-pct { font-size: var(--fs-num-l); }
 }
 
-/* Playoffs: four verified opening matchups, then the TBD schedule. */
+/* Playoffs: the four verified opening matchups (the bracket above carries later rounds). */
 .champ-playoffs { display: flex; flex-direction: column; gap: var(--s-3); }
 .champ-sub { color: var(--text-2); font-size: var(--fs-meta); max-width: 72ch; margin: 0; }
 .champ-po-grid { display: grid; grid-template-columns: 1fr; gap: var(--s-3); }
@@ -105,15 +105,6 @@
 .champ-po-pct-dim { color: var(--text-3); }
 .champ-po-bottom { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2) var(--s-3); flex-wrap: wrap; }
 .champ-po-bottom a { color: var(--text-2); }
-.champ-po-sched-in { display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-3) var(--s-4); }
-.champ-po-sched-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.champ-po-sched-list li {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--s-3); align-items: baseline;
-  padding: var(--s-1) 0; border-bottom: 1px solid var(--line);
-}
-.champ-po-sched-list li:last-child { border-bottom: 0; }
-.champ-po-sched-stage { font-family: var(--font-display); font-weight: 700; text-transform: uppercase; letter-spacing: var(--track-label); font-size: var(--fs-label); }
-.champ-po-sched-when { font-size: var(--fs-meta); color: var(--text-2); white-space: nowrap; }
 
 @media (min-width: 768px) {
   .champ-po-grid { grid-template-columns: repeat(2, 1fr); }
@@ -121,6 +112,7 @@
 @media (max-width: 420px) {
   .champ-po-pct { font-size: var(--fs-num-m); }
   .champ-po-top .small { display: none; }
-  .champ-po-sched-list li { grid-template-columns: minmax(0, 1fr) auto; }
-  .champ-po-sched-list li .champ-ph-line { display: none; }
 }
+.champ-grid-cell { min-width: 0; }
+.champ-playoffs { min-width: 0; }
+.champ-bracket { display: flex; flex-direction: column; gap: var(--s-3); }

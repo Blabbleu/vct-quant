@@ -16,6 +16,7 @@ import SectionHead from "../components/arena/SectionHead";
 import StatCell from "../components/arena/StatCell";
 import Banner, { type BannerKind } from "../components/arena/Banner";
 import { Failure, Loading } from "../components/ui";
+import { PageFade } from "../lib/motion";
 import "./MatchCenter.css";
 
 const dayFmt = (iso: string) => new Date(iso).toLocaleDateString(undefined,
@@ -70,7 +71,7 @@ export default function MatchCenter() {
   ].filter((x): x is { name: string; n: number } => x != null);
 
   return (
-    <>
+    <PageFade className="page-fade">
       <Link to="/matches" className="back">&larr; All matches</Link>
       <header className="page-head">
         <h1>{teamA} <span className="vs">vs</span> {teamB}</h1>
@@ -235,6 +236,6 @@ export default function MatchCenter() {
       )}
 
       {f && <p className="small"><a href={f.url} target="_blank" rel="noreferrer">Match page on vlr.gg &#8599;</a></p>}
-    </>
+    </PageFade>
   );
 }
