@@ -1,7 +1,9 @@
 /* Search (/search): grouped, exact-ID links with compact rows at phone widths. */
 .search-page { display: flex; flex-direction: column; gap: var(--s-5); min-width: 0; }
+.search-panel-page { gap: var(--s-5); }
+.search-body { min-width: 0; }
 .search-form { display: flex; flex-direction: column; gap: var(--s-2); }
-.search-form > label {
+.search-form label {
   font-family: var(--font-display); font-size: var(--fs-meta); font-weight: 700;
   letter-spacing: .015em; color: var(--text-3);
 }

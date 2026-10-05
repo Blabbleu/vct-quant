@@ -1,6 +1,8 @@
-import { Link, NavLink, useLocation, useNavigate, useOutlet } from "react-router-dom";
+import { NavLink, useLocation, useOutlet } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { getTheme, toggleTheme, type Theme } from "../lib/theme";
+import SearchOverlay, { useSearchOverlay } from "./SearchOverlay";
+import { isSearchShortcut } from "../lib/searchModel";
 import { AnimatePresence, D_FAST, EASE_OUT, RouteFade, ScrollProgress, m, useDesktop, useInitial } from "../lib/motion";
 
 /** Visible on phone: the rest live in the overflow menu. */
@@ -39,7 +41,7 @@ export default function Layout() {
   const [open, setOpen] = useState(false);
   const [theme, setThemeState] = useState<Theme>(() => getTheme());
   const menuRef = useRef<HTMLDivElement>(null);
-  const navigate = useNavigate();
+  const search = useSearchOverlay();
   const outlet = useOutlet();
   const desktop = useDesktop();
   const menuInit = useInitial("closed");
@@ -60,20 +62,21 @@ export default function Layout() {
     };
   }, []);
 
-  // "/" jumps to search from anywhere (not while typing in a field).
+  // "/" (not while typing) and Ctrl/Cmd+K open the search overlay; on /search they focus the page's own field.
+  const { openOverlay } = search;
   useEffect(() => {
-    function onSlash(e: KeyboardEvent) {
-      if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
+    function onKey(e: KeyboardEvent) {
       const el = e.target as HTMLElement | null;
-      if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+      const hit = isSearchShortcut(e, el);
+      if (!hit) return;
       e.preventDefault();
       const field = document.getElementById("entity-search");
-      if (field) field.focus();
-      else navigate("/search", { state: { focus: true } });
+      if (pathname === "/search" && field) field.focus();
+      else openOverlay();
     }
-    document.addEventListener("keydown", onSlash);
-    return () => document.removeEventListener("keydown", onSlash);
-  }, [navigate]);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [openOverlay, pathname]);
 
   useEffect(() => {
     const onChange = (e: Event) => setThemeState((e as CustomEvent<Theme>).detail);
@@ -100,12 +103,16 @@ export default function Layout() {
               </button>
             </div>
           </nav>
-          <Link to="/search" className={`nav-search${pathname === "/search" ? " nav-search-active" : ""}`}
-            aria-label="Search (press /)" title="Search (/)">
+          <button type="button" className={`nav-search${search.open || pathname === "/search" ? " nav-search-active" : ""}`}
+            aria-label="Search (press / or Ctrl+K)" title="Search (/)" aria-haspopup="dialog" aria-expanded={search.open}
+            onClick={() => {
+              const field = document.getElementById("entity-search");
+              if (pathname === "/search" && field) field.focus(); else search.openOverlay();
+            }}>
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="square" aria-hidden="true">
               <circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 21 21" />
             </svg>
-          </Link>
+          </button>
           <div className="nav-overflow" ref={menuRef}>
             <button type="button" className="nav-overflow-btn" aria-haspopup="menu" aria-expanded={open}
               aria-label="More navigation" onClick={() => setOpen(o => !o)}>
@@ -140,6 +147,7 @@ export default function Layout() {
       <footer className="foot">
         Forecasts are model estimates, not betting advice. Data: vlr.gg, Polymarket.
       </footer>
+      <SearchOverlay open={search.open} onClose={search.close} returnTo={search.returnTo} />
     </>
   );
 }
