@@ -18,6 +18,7 @@ const path = require("node:path");
 const { execFile } = require("node:child_process");
 const crypto = require("node:crypto");
 const zlib = require("node:zlib");
+const { createLimiter, createStamper, createSwrCache, createWarmer } = require("./api-cache");
 
 const ROOT = __dirname;
 const PORT = Number(process.env.PORT || 8000);
@@ -137,114 +138,73 @@ function createBoundedInFlight(compute, concurrency = 4, maxQueued = 32) {
   };
 }
 
-function computeMatch(matchId) {
-  return new Promise((resolve, reject) => {
-    execFile(PYTHON, ["-m", "vct_quant.match_center", matchId],
+// Every python-backed endpoint goes through here: one place for the timeout,
+// the JSON parse, and a global cap on simultaneous interpreters (pandas+duckdb
+// is ~200 MB each; the box has 3 cores). `run` is injectable for tests.
+const PYTHON_PROCESSES = Number(process.env.VCT_PYTHON_PROCESSES || 3);
+const limitPython = createLimiter(PYTHON_PROCESSES);
+
+function pythonJson(moduleName, args, label, run = execFile) {
+  return limitPython(() => new Promise((resolve, reject) => {
+    run(PYTHON, ["-m", `vct_quant.${moduleName}`, ...args],
       { cwd: ROOT, maxBuffer: 8 << 20, timeout: 30000 }, (err, stdout, stderr) => {
-        if (err) return reject(new Error(stderr.trim() || err.message));
+        if (err) return reject(new Error(String(stderr || "").trim() || err.message));
         try {
           resolve(JSON.parse(stdout));
         } catch (parseError) {
-          reject(new Error(`bad JSON from match center: ${parseError.message}`));
+          reject(new Error(`bad JSON from ${label}: ${parseError.message}`));
         }
       });
-  });
+  }));
 }
 
-function computeTeam(teamId) {
-  return new Promise((resolve, reject) => {
-    execFile(PYTHON, ["-m", "vct_quant.team_profile", teamId],
-      { cwd: ROOT, maxBuffer: 8 << 20, timeout: 30000 }, (err, stdout, stderr) => {
-        if (err) return reject(new Error(stderr.trim() || err.message));
-        try {
-          resolve(JSON.parse(stdout));
-        } catch (parseError) {
-          reject(new Error(`bad JSON from team profile: ${parseError.message}`));
-        }
-      });
-  });
+const computeMatchInFlight = createBoundedInFlight(id => pythonJson("match_center", [id], "match center"), 2, 16);
+const computeTeamInFlight = createBoundedInFlight(id => pythonJson("team_profile", [id], "team profile"), 2, 16);
+const computePlayerInFlight = createBoundedInFlight(id => pythonJson("player_profile", [id], "player profile"), 2, 16);
+
+// Inputs the python modules read. The cache is keyed on these files (mtime and
+// size), so `vct update` / the matchday refresh invalidates it and nothing else
+// does; the TTLs below are only a ceiling for the few outputs that also depend
+// on the clock (upcoming vs played, ages). The DuckDB write-ahead log is part
+// of the stamp because uncheckpointed writes change results without touching
+// the main file.
+const DATA_INPUTS = [
+  DB, `${DB}.wal`,
+  path.join(ROOT, "data", "processed", "prediction_log.parquet"),
+  path.join(ROOT, "data", "processed", "upcoming_tier1.parquet"),
+  path.join(ROOT, "data", "processed", "team_logos.json"),
+  path.join(ROOT, "data", "processed", "player_photos.json"),
+  path.join(ROOT, "config", "brackets", "champions_2026.json"),
+];
+const OPS_INPUTS = [
+  ...DATA_INPUTS,
+  process.env.VCT_MATCHDAY_LOG || path.join(ROOT, "data", "interim", "matchday.log"),
+  path.join(ROOT, "data", "raw", "vlrgg"),
+  path.join(ROOT, "data", "raw", "polymarket"),
+];
+const readDataStamp = createStamper(DATA_INPUTS, { memoMs: 500 });
+const readOpsStamp = createStamper(OPS_INPUTS, { memoMs: 500 });
+
+const MINUTE = 60 * 1000;
+function logCacheError(name) {
+  return (key, error) => console.error(`[cache:${name}] refresh ${key} failed: ${error.message}`);
+}
+function makeCache(name, compute, ttlMs, { max = 200, maxStaleMs = 30 * MINUTE, readStamp = readDataStamp } = {}) {
+  return createSwrCache({ compute, readStamp, ttlMs, maxStaleMs, max, onError: logCacheError(name) });
 }
 
-function computePlayer(playerId) {
-  return new Promise((resolve, reject) => {
-    execFile(PYTHON, ["-m", "vct_quant.player_profile", playerId],
-      { cwd: ROOT, maxBuffer: 8 << 20, timeout: 30000 }, (err, stdout, stderr) => {
-        if (err) return reject(new Error(stderr.trim() || err.message));
-        try {
-          resolve(JSON.parse(stdout));
-        } catch (parseError) {
-          reject(new Error(`bad JSON from player profile: ${parseError.message}`));
-        }
-      });
-  });
-}
-
-const computeMatchInFlight = createBoundedInFlight(computeMatch, 2, 16);
-const computeTeamInFlight = createBoundedInFlight(computeTeam, 2, 16);
-const computePlayerInFlight = createBoundedInFlight(computePlayer, 2, 16);
-
-function computeChampions() {
-  return new Promise((resolve, reject) => {
-    execFile(PYTHON, ["-m", "vct_quant.champions_status"],
-      { cwd: ROOT, maxBuffer: 8 << 20, timeout: 30000 }, (err, stdout, stderr) => {
-        if (err) return reject(new Error(stderr.trim() || err.message));
-        try {
-          resolve(JSON.parse(stdout));
-        } catch (parseError) {
-          reject(new Error(`bad JSON from Champions status: ${parseError.message}`));
-        }
-      });
-  });
-}
-
-function computeResults() {
-  return new Promise((resolve, reject) => {
-    execFile(PYTHON, ["-m", "vct_quant.results_list"],
-      { cwd: ROOT, maxBuffer: 8 << 20, timeout: 30000 }, (err, stdout, stderr) => {
-        if (err) return reject(new Error(stderr.trim() || err.message));
-        try {
-          resolve(JSON.parse(stdout));
-        } catch (parseError) {
-          reject(new Error(`bad JSON from results list: ${parseError.message}`));
-        }
-      });
-  });
-}
-
-function computePaperLedger() {
-  return new Promise((resolve, reject) => {
-    execFile(PYTHON, ["-m", "vct_quant.paper_ledger"],
-      { cwd: ROOT, maxBuffer: 8 << 20, timeout: 30000 }, (err, stdout, stderr) => {
-        if (err) return reject(new Error(stderr.trim() || err.message));
-        try {
-          resolve(JSON.parse(stdout));
-        } catch (parseError) {
-          reject(new Error(`bad JSON from paper ledger: ${parseError.message}`));
-        }
-      });
-  });
-}
-
-function computeOps() {
-  return new Promise((resolve, reject) => {
-    execFile(PYTHON, ["-m", "vct_quant.ops_status"],
-      { cwd: ROOT, maxBuffer: 8 << 20, timeout: 30000 }, (err, stdout, stderr) => {
-        if (err) return reject(new Error(stderr.trim() || err.message));
-        try {
-          resolve(JSON.parse(stdout));
-        } catch (parseError) {
-          reject(new Error(`bad JSON from ops status: ${parseError.message}`));
-        }
-      });
-  });
-}
-
-// Share simultaneous reads without caching completed values. This avoids
-// duplicate Python processes while preserving freshness on later requests.
-const computeChampionsInFlight = createInFlight(computeChampions);
-const computePaperLedgerInFlight = createInFlight(computePaperLedger);
-const computeResultsInFlight = createInFlight(computeResults);
-const computeOpsInFlight = createInFlight(computeOps);
+const API_CACHES = {
+  match: makeCache("match", computeMatchInFlight, 10 * MINUTE),
+  team: makeCache("team", computeTeamInFlight, 10 * MINUTE),
+  player: makeCache("player", computePlayerInFlight, 10 * MINUTE),
+  champions: makeCache("champions", () => pythonJson("champions_status", [], "Champions status"), 5 * MINUTE, { max: 1 }),
+  paperLedger: makeCache("paper-ledger", () => pythonJson("paper_ledger", [], "paper ledger"), 5 * MINUTE, { max: 1 }),
+  results: makeCache("results", () => pythonJson("results_list", [], "results list"), 5 * MINUTE, { max: 1 }),
+  // Ops is about freshness (matchday log age, newest raw snapshot): short TTL
+  // and a tight staleness cap, but still cached so the page never waits.
+  ops: makeCache("ops", () => pythonJson("ops_status", [], "ops status"), 30 * 1000,
+    { max: 1, maxStaleMs: 2 * MINUTE, readStamp: readOpsStamp }),
+};
 
 let cachedSearchIndex = { stamp: null, payload: null };
 async function readSearchIndex() {
@@ -419,6 +379,83 @@ async function serveApp(res, pathname) {
   }
 }
 
+// ---- warm-up ---------------------------------------------------------------
+// Recompute the expensive entries in the background so the first visitor after a
+// restart or a matchday refresh is served from memory. Low concurrency (leaves
+// slots for real requests), never awaited by a request, and never throws.
+const WARM_CONCURRENCY = 2;
+const WARM_TEAM_LIMIT = 40;
+const TEAM_FROM_LOGO = /^\/logos\/([1-9][0-9]*)\./;
+
+function warmTeamIds(data, championsPayload) {
+  const ids = new Set();
+  const add = value => {
+    const id = Number(value);
+    if (Number.isSafeInteger(id) && id > 0) ids.add(id);
+  };
+  const fromLogo = logo => TEAM_FROM_LOGO.exec(String(logo ?? ""))?.[1];
+  for (const fixture of data?.fixtures ?? []) { add(fromLogo(fixture.logo_a)); add(fromLogo(fixture.logo_b)); }
+  for (const row of (data?.rankings ?? []).slice(0, 20)) add(fromLogo(row.logo));
+  for (const group of Object.values(championsPayload?.groups ?? {})) {
+    for (const id of Object.keys(group.entrants ?? {})) add(id);
+  }
+  return [...ids].slice(0, WARM_TEAM_LIMIT);
+}
+
+async function runPool(items, worker, concurrency = WARM_CONCURRENCY) {
+  const queue = [...items];
+  await Promise.all(Array.from({ length: Math.min(concurrency, queue.length) }, async () => {
+    while (queue.length) {
+      const item = queue.shift();
+      try { await worker(item); } catch { /* logged by the cache; keep warming the rest */ }
+    }
+  }));
+}
+
+async function warmCaches() {
+  const [data, championsEntry] = await Promise.all([
+    snapshot().catch(() => null),
+    API_CACHES.champions.refresh("all").catch(() => null),
+    API_CACHES.results.refresh("all").catch(() => null),
+    API_CACHES.paperLedger.refresh("all").catch(() => null),
+  ]);
+  await readSearchIndex().catch(() => {});
+  const teamIds = warmTeamIds(data, championsEntry?.value);
+  await runPool(teamIds, id => API_CACHES.team.refresh(String(id)));
+  const matchIds = (data?.fixtures ?? []).slice(0, 12).map(f => String(f.match_id));
+  await runPool(matchIds, id => API_CACHES.match.refresh(id));
+  await API_CACHES.ops.refresh("all").catch(() => {});
+}
+
+const warmer = createWarmer({
+  stamp: readDataStamp,
+  warm: warmCaches,
+  intervalMs: Number(process.env.VCT_WARM_INTERVAL_MS || 10000),
+  log: message => console.log(`[cache] ${message}`),
+});
+
+const REVALIDATE = { cacheControl: "no-cache", etag: true };
+
+// Serve one cached python-backed payload: ETag + `no-cache` so the browser
+// revalidates every time and gets a 304 until the data changes. `x-cache`
+// reports hit | stale | miss for debugging and the tests.
+async function sendCached(res, url, cache, key, { missing, failure, busy, waitForFresh = false }) {
+  try {
+    const { value, state } = await cache.get(key, { waitForFresh });
+    res.setHeader("x-cache", state);
+    return value === null
+      ? send(res, 404, JSON.stringify({ error: missing }))
+      : send(res, 200, JSON.stringify(value), undefined, REVALIDATE);
+  } catch (err) {
+    if (err.code === "OVERLOADED") {
+      res.setHeader("retry-after", "1");
+      return send(res, 503, JSON.stringify({ error: busy }));
+    }
+    console.error(`[500] ${url.pathname}: ${err.message}`);
+    return send(res, 500, JSON.stringify({ error: failure }));
+  }
+}
+
 const server = http.createServer(async (req, res) => {
   let url;
   try {
@@ -433,92 +470,34 @@ const server = http.createServer(async (req, res) => {
   const route = ROUTES[url.pathname];
   if (route) {
     try {
-      return send(res, 200, JSON.stringify(route(await snapshot())));
+      const body = JSON.stringify(route(await snapshot()));
+      return url.pathname === "/api/health" ? send(res, 200, body) : send(res, 200, body, undefined, REVALIDATE);
     } catch (err) {
       console.error(`[500] ${url.pathname}: ${err.message}`);
       return send(res, 500, JSON.stringify(modelFailurePayload()));
     }
   }
-  const match = /^\/api\/match\/([1-9][0-9]*)$/.exec(url.pathname);
-  if (match && Number.isSafeInteger(Number(match[1]))) {
-    try {
-      const result = await computeMatchInFlight(match[1]);
-      return result === null
-        ? send(res, 404, JSON.stringify({ error: "match not found in prediction log" }))
-        : send(res, 200, JSON.stringify(result));
-    } catch (err) {
-      if (err.code === "OVERLOADED") {
-        res.setHeader("retry-after", "1");
-        return send(res, 503, JSON.stringify({ error: "match lookups are busy; retry shortly" }));
-      }
-      console.error(`[500] ${url.pathname}: ${err.message}`);
-      return send(res, 500, JSON.stringify({ error: "the match layer failed" }));
-    }
+  const dynamic = [
+    [/^\/api\/match\/([1-9][0-9]*)$/, API_CACHES.match, "match", "match not found in prediction log", "the match layer failed"],
+    [/^\/api\/team\/([1-9][0-9]*)$/, API_CACHES.team, "team", "team not found in Tier-1 history or cached fixtures", "the team layer failed"],
+    [/^\/api\/player\/([1-9][0-9]*)$/, API_CACHES.player, "player", "player ID not found", "the player layer failed"],
+  ];
+  for (const [pattern, cache, label, missing, failure] of dynamic) {
+    const hit = pattern.exec(url.pathname);
+    if (!hit || !Number.isSafeInteger(Number(hit[1]))) continue;
+    return sendCached(res, url, cache, hit[1], { missing, failure, busy: `${label} lookups are busy; retry shortly` });
   }
-  const team = /^\/api\/team\/([1-9][0-9]*)$/.exec(url.pathname);
-  if (team && Number.isSafeInteger(Number(team[1]))) {
-    try {
-      const result = await computeTeamInFlight(team[1]);
-      return result === null
-        ? send(res, 404, JSON.stringify({ error: "team not found in Tier-1 history or cached fixtures" }))
-        : send(res, 200, JSON.stringify(result));
-    } catch (err) {
-      if (err.code === "OVERLOADED") {
-        res.setHeader("retry-after", "1");
-        return send(res, 503, JSON.stringify({ error: "team lookups are busy; retry shortly" }));
-      }
-      console.error(`[500] ${url.pathname}: ${err.message}`);
-      return send(res, 500, JSON.stringify({ error: "the team layer failed" }));
-    }
-  }
-  const player = /^\/api\/player\/([1-9][0-9]*)$/.exec(url.pathname);
-  if (player && Number.isSafeInteger(Number(player[1]))) {
-    try {
-      const result = await computePlayerInFlight(player[1]);
-      return result === null
-        ? send(res, 404, JSON.stringify({ error: "player ID not found" }))
-        : send(res, 200, JSON.stringify(result));
-    } catch (err) {
-      if (err.code === "OVERLOADED") {
-        res.setHeader("retry-after", "1");
-        return send(res, 503, JSON.stringify({ error: "player lookups are busy; retry shortly" }));
-      }
-      console.error(`[500] ${url.pathname}: ${err.message}`);
-      return send(res, 500, JSON.stringify({ error: "the player layer failed" }));
-    }
-  }
-  if (url.pathname === "/api/champions/2766") {
-    try {
-      return send(res, 200, JSON.stringify(await computeChampionsInFlight("champions")));
-    } catch (err) {
-      console.error(`[500] ${url.pathname}: ${err.message}`);
-      return send(res, 500, JSON.stringify({ error: "the Champions layer failed" }));
-    }
-  }
-  if (url.pathname === "/api/paper-ledger") {
-    try {
-      return send(res, 200, JSON.stringify(await computePaperLedgerInFlight("paper-ledger")));
-    } catch (err) {
-      console.error(`[500] ${url.pathname}: ${err.message}`);
-      return send(res, 500, JSON.stringify({ error: "the paper ledger failed" }));
-    }
-  }
-  if (url.pathname === "/api/results") {
-    try {
-      return send(res, 200, JSON.stringify(await computeResultsInFlight("results")));
-    } catch (err) {
-      console.error(`[500] ${url.pathname}: ${err.message}`);
-      return send(res, 500, JSON.stringify({ error: "the results list failed" }));
-    }
-  }
-  if (url.pathname === "/api/ops") {
-    // Uncached on purpose: freshness is the point, and it reads only local files.
-    try {
-      return send(res, 200, JSON.stringify(await computeOpsInFlight("ops")));
-    } catch (err) {
-      console.error(`[500] ${url.pathname}: ${err.message}`);
-      return send(res, 500, JSON.stringify({ error: "the ops status failed" }));
-    }
+  const singletons = {
+    "/api/champions/2766": [API_CACHES.champions, "the Champions layer failed"],
+    "/api/paper-ledger": [API_CACHES.paperLedger, "the paper ledger failed"],
+    "/api/results": [API_CACHES.results, "the results list failed"],
+    "/api/ops": [API_CACHES.ops, "the ops status failed", true],
+  };
+  if (Object.hasOwn(singletons, url.pathname)) {
+    // Ops never serves a body older than its TTL: freshness is its whole point and
+    // the lookup is cheap (~0.5 s), so a stale entry makes the request wait for a new one.
+    const [cache, failure, waitForFresh] = singletons[url.pathname];
+    return sendCached(res, url, cache, "all", { failure, waitForFresh: waitForFresh === true });
   }
   if (url.pathname === "/api/search") {
     try {
@@ -613,7 +592,8 @@ if (require.main === module) {
   server.listen(PORT, HOST, () => {
     console.log(`desk backend on http://${HOST}:${PORT}`);
     console.log(`  routes: ${Object.keys(ROUTES).join(" ")}`);
+    if (process.env.VCT_WARM !== "0") warmer.start().catch(() => {});
   });
 }
 
-module.exports = { server, snapshot, ROUTES, computeSnapshot, createSnapshotter, createInFlight, createBoundedInFlight, searchIndex, modelFailurePayload };
+module.exports = { server, snapshot, API_CACHES, warmer, warmTeamIds, pythonJson, DATA_INPUTS, ROUTES, computeSnapshot, createSnapshotter, createInFlight, createBoundedInFlight, searchIndex, modelFailurePayload };

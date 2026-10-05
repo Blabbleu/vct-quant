@@ -44,6 +44,19 @@ interpreter, `PORT`/`HOST` to move it. `npm run check` boots it and hits every r
 **The cache keys on data, not code** -- editing `dashboard.py` needs a server
 restart, while `vct update` is picked up by the page's refresh button.
 
+The slow python-backed endpoints (`/api/results`, `/api/champions/2766`,
+`/api/paper-ledger`, `/api/team/:id`, `/api/player/:id`, `/api/match/:id`,
+`/api/ops`) are cached in-process by `api-cache.js`: stale-while-revalidate keyed on
+the mtime+size of the DuckDB file (and its `.wal`), `prediction_log.parquet`,
+`upcoming_tier1.parquet`, `team_logos.json`, `player_photos.json` and the bracket spec,
+with a TTL ceiling (5 min results/champions/ledger, 10 min per-id profiles, 30 s ops),
+200-entry LRU for per-id keys, at most 3 concurrent python processes
+(`VCT_PYTHON_PROCESSES`), and a background warm-up at start and after the inputs change
+(`VCT_WARM=0` disables it). Responses carry `ETag` + `Cache-Control: no-cache` and an
+`x-cache: hit|stale|miss` header. A python module that starts reading a new input file
+must add it to `DATA_INPUTS` in `server.js`. The web app mirrors this with a client SWR
+cache (`web/src/lib/swr.ts`, `api.ts`) plus hover/touch/idle prefetch (`prefetch.ts`).
+
 `frontend/index.html` is the **frontend**: React 18 + Babel from cdnjs, no build
 step. It runs in two modes from one file -- served by `server.js` it fetches
 `/api/snapshot` and shows a live chip and a refresh button; baked by

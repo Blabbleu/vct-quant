@@ -155,37 +155,53 @@ def history_keys(teams: pd.DataFrame | None, team_a_key: str, team_b_key: str) -
     return (keys[1], keys[2]) if straight else (keys[2], keys[1])
 
 
-def load_history_keys(match_id: int, team_a_key: str, team_b_key: str) -> tuple[str, str]:
-    """Read this match's canonical team rows and apply ``history_keys``."""
-    with db.connect(read_only=True) as con:
-        teams = con.execute("""
-            SELECT team_number, team_id, team_name FROM match_team
-            WHERE match_id = ? ORDER BY team_number
-        """, [match_id]).df()
+_QUERY_TEAMS = """
+    SELECT team_number, team_id, team_name FROM match_team
+    WHERE match_id = ? ORDER BY team_number
+"""
+
+
+def load_history_keys(match_id: int, team_a_key: str, team_b_key: str,
+                      con=None) -> tuple[str, str]:
+    """Read this match's canonical team rows and apply ``history_keys``.
+
+    Pass an open read-only ``con`` to reuse one connection across many matches
+    (opening a DuckDB file costs ~40 ms); otherwise one is opened per call.
+    """
+    if con is None:
+        with db.connect(read_only=True) as own:
+            return load_history_keys(match_id, team_a_key, team_b_key, own)
+    teams = con.execute(_QUERY_TEAMS, [match_id]).df()
     return history_keys(teams, team_a_key, team_b_key)
 
 
 def load_result(match_id: int, team_a_key: str, team_b_key: str,
-                p_team_a: float | None = None) -> dict | None:
-    """Read canonical rows for one match from the (read-only) DB."""
-    with db.connect(read_only=True) as con:
-        meta = con.execute("""
-            SELECT match_id, status, completed_at, scheduled_at, best_of, vlr_url, last_seen_at
-            FROM match WHERE match_id = ?
-        """, [match_id]).df()
-        if meta.empty:
-            return None
-        teams = con.execute("""
-            SELECT team_number, team_id, team_name, series_score, is_winner
-            FROM match_team WHERE match_id = ? ORDER BY team_number
-        """, [match_id]).df()
-        maps = con.execute("""
-            SELECT mm.map_number, mm.map_name,
-                   max(CASE WHEN s.team_number = 1 THEN s.total_rounds END) AS rounds_1,
-                   max(CASE WHEN s.team_number = 2 THEN s.total_rounds END) AS rounds_2
-            FROM match_map mm LEFT JOIN match_map_team_score s USING (match_map_id)
-            WHERE mm.match_id = ? GROUP BY mm.map_number, mm.map_name ORDER BY mm.map_number
-        """, [match_id]).df()
+                p_team_a: float | None = None, con=None) -> dict | None:
+    """Read canonical rows for one match from the (read-only) DB.
+
+    ``con`` optionally reuses an open read-only connection (see
+    ``load_history_keys``); results are identical either way.
+    """
+    if con is None:
+        with db.connect(read_only=True) as own:
+            return load_result(match_id, team_a_key, team_b_key, p_team_a, own)
+    meta = con.execute("""
+        SELECT match_id, status, completed_at, scheduled_at, best_of, vlr_url, last_seen_at
+        FROM match WHERE match_id = ?
+    """, [match_id]).df()
+    if meta.empty:
+        return None
+    teams = con.execute("""
+        SELECT team_number, team_id, team_name, series_score, is_winner
+        FROM match_team WHERE match_id = ? ORDER BY team_number
+    """, [match_id]).df()
+    maps = con.execute("""
+        SELECT mm.map_number, mm.map_name,
+               max(CASE WHEN s.team_number = 1 THEN s.total_rounds END) AS rounds_1,
+               max(CASE WHEN s.team_number = 2 THEN s.total_rounds END) AS rounds_2
+        FROM match_map mm LEFT JOIN match_map_team_score s USING (match_map_id)
+        WHERE mm.match_id = ? GROUP BY mm.map_number, mm.map_name ORDER BY mm.map_number
+    """, [match_id]).df()
     record = meta.iloc[0].to_dict()
     teams["is_winner"] = teams.is_winner.astype(object).where(teams.is_winner.notna(), None)
     return result_detail(record, teams, maps, team_a_key, team_b_key, p_team_a)

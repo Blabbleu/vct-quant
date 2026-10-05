@@ -153,22 +153,28 @@ def team_logged_results(rows: list[dict], team_id: int, limit: int | None = 20) 
 
 def build_results() -> dict:
     """Every finished logged fixture with logos, tags and upgraded team IDs."""
+    from functools import partial
+
+    from . import db
     from .logos import load_logos, load_tags
     from .match_result import load_history_keys, load_result
 
     path = PROCESSED_DIR / "prediction_log.parquet"
     log = pd.read_parquet(path) if path.exists() else pd.DataFrame()
-    out = finished_results(log, load_result)
     logos, tags = load_logos(), load_tags()
-    for row in out["rows"]:
-        # A name key logged before team-ID resolution is upgraded only to the
-        # numeric ID of the same canonical side (same rule as the Match Center).
-        history = load_history_keys(row["match_id"], row["team_a_key"], row["team_b_key"])
-        for side, resolved in zip(("a", "b"), history):
-            key = row[f"team_{side}_key"]
-            row[f"logo_{side}"] = logos.get(key) or logos.get(resolved)
-            row[f"tag_{side}"] = tags.get(key) or tags.get(resolved)
-            row[f"team_{side}_id"] = int(resolved) if resolved.isdigit() else None
+    # One read-only connection for every per-match lookup: opening the DuckDB
+    # file costs ~40 ms and this used to do it twice per finished fixture.
+    with db.connect(read_only=True) as con:
+        out = finished_results(log, partial(load_result, con=con))
+        for row in out["rows"]:
+            # A name key logged before team-ID resolution is upgraded only to the
+            # numeric ID of the same canonical side (same rule as the Match Center).
+            history = load_history_keys(row["match_id"], row["team_a_key"], row["team_b_key"], con)
+            for side, resolved in zip(("a", "b"), history):
+                key = row[f"team_{side}_key"]
+                row[f"logo_{side}"] = logos.get(key) or logos.get(resolved)
+                row[f"tag_{side}"] = tags.get(key) or tags.get(resolved)
+                row[f"team_{side}_id"] = int(resolved) if resolved.isdigit() else None
     out["note"] = ("Last forecast logged before kickoff next to the verified canonical result. "
                    "Descriptive tally, not a significance test; unverified results are not scored.")
     return out
