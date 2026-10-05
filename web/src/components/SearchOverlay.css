@@ -17,6 +17,9 @@
 
 .search-panel { display: flex; flex-direction: column; gap: var(--s-4); min-width: 0; }
 .search-panel-overlay .search-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+/* Reserve the scrollbar's gutter plus a little air so the right-aligned group counts and row arrows never sit under it. */
+.search-panel-overlay .search-body { scrollbar-gutter: stable; padding-right: var(--s-2); }
+.search-panel-overlay .section-head-right { padding-right: var(--s-1); }
 .search-panel-overlay .search-input-wrap input { font-size: 17px; }
 .search-form-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); min-height: var(--hit); }
 .so-close {
