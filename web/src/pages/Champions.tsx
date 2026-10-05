@@ -10,7 +10,7 @@ import GapChip from "../components/arena/GapChip";
 import Bracket from "../components/Bracket";
 import { LoadingBlocks, ErrorPanel } from "../components/arena/States";
 import { Reveal, Stagger, StaggerItem, PageFade, CountUp } from "../lib/motion";
-import { useChampionsStatus } from "../lib/api";
+import { URLS, loadCached, store, useChampionsStatus } from "../lib/api";
 import { LOW_DATA_MATCHES } from "../lib/constants";
 import { utc, utcShort } from "../lib/format";
 import type { ChampionsGroup, ChampionsPlayoffMatch, ChampionsPlayoffs, ChampionsQualificationTeam } from "../lib/types";
@@ -220,21 +220,34 @@ function GroupPanel({ letter, group, featured, teamMeta }: {
   );
 }
 
+function entrantIds(data: { groups: Record<string, { entrants: Record<string, string> }> }): number[] {
+  const ids = new Set<number>();
+  for (const g of Object.values(data.groups)) for (const id of Object.keys(g.entrants)) ids.add(Number(id));
+  return [...ids];
+}
+
+/** Logos and tags for every entrant, read synchronously from teams already in the client cache. */
+function cachedTeamMeta(ids: number[]): Record<number, TeamMeta> {
+  const out: Record<number, TeamMeta> = {};
+  for (const id of ids) {
+    const team = store.get<{ tag: string | null; logo: string | null }>(URLS.team(id)).data;
+    if (team) out[id] = { tag: team.tag ?? null, logo: team.logo ?? null };
+  }
+  return out;
+}
+
 export default function Champions() {
   const { data, error, loading } = useChampionsStatus();
-  const [teamMeta, setTeamMeta] = useState<Record<number, TeamMeta>>({});
+  const [teamMeta, setTeamMeta] = useState<Record<number, TeamMeta>>(() => (data ? cachedTeamMeta(entrantIds(data)) : {}));
 
   useEffect(() => {
     if (!data) return;
-    const ids = new Set<number>();
-    for (const g of Object.values(data.groups)) {
-      for (const id of Object.keys(g.entrants)) ids.add(Number(id));
-    }
-    const missing = [...ids].filter(id => !(id in teamMeta));
+    const missing = entrantIds(data).filter(id => !(id in teamMeta));
     if (missing.length === 0) return;
     let alive = true;
+    // Team profiles come through the shared cache, so the Team page reuses them (and they are prefetched).
     Promise.all(missing.map(id =>
-      fetch(`/api/team/${id}`).then(r => r.ok ? r.json() : null).then(t => [id, t] as const).catch(() => [id, null] as const),
+      loadCached<{ tag?: string | null; logo?: string | null }>(URLS.team(id)).then(t => [id, t] as const),
     )).then(results => {
       if (!alive) return;
       setTeamMeta(prev => {
