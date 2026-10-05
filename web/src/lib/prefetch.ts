@@ -25,7 +25,9 @@ function saveData(): boolean {
   return conn?.saveData === true;
 }
 
-function warmPath(pathname: string) {
+/** Warm what the page at `pathname` will need (no-op for unknown paths and under Save-Data). */
+export function warmPath(pathname: string) {
+  if (saveData()) return;
   const plan = planForPath(pathname);
   if (!plan) return;
   for (const url of plan.urls) void prefetch(url);

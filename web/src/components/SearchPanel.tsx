@@ -8,6 +8,7 @@ import { Chip } from "./arena/Chip";
 import { AnimatePresence, m, EASE_OUT, D_FAST, useInitial } from "../lib/motion";
 import { linkTargets, moveActive } from "../lib/searchModel";
 import { useSearch } from "../lib/useSearch";
+import { warmPath } from "../lib/prefetch";
 import "../pages/Search.css";
 
 /**
@@ -66,6 +67,14 @@ export default function SearchPanel({ query, onQueryChange, autoFocus = false, r
 
   useEffect(() => { if (autoFocus) field.current?.focus(); }, [autoFocus, field]);
   useEffect(() => { setActive(0); }, [results]);
+
+  // The highlighted result is what Enter opens: warm its profile (same cache the page reads) so the open is instant.
+  const activeHref = activeTarget?.href;
+  useEffect(() => {
+    if (!activeHref) return;
+    const timer = window.setTimeout(() => warmPath(activeHref), 80);
+    return () => window.clearTimeout(timer);
+  }, [activeHref]);
 
   // Keep the active row visible inside the scrolling results list.
   useEffect(() => {
