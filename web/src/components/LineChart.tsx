@@ -1,4 +1,5 @@
 import type { MovementPoint } from "../lib/types";
+import { spreadLabels } from "../lib/matchView";
 
 /**
  * Model vs market over time for team A. Hand-written SVG, spec "Chart"
@@ -11,8 +12,8 @@ import type { MovementPoint } from "../lib/types";
  * styles.css; only the START marker and end labels need explicit fills
  * since those aren't covered by the shared elo/mkt class pair.
  */
-export default function LineChart({ points }: { points: MovementPoint[] }) {
-  const W = 640, H = 240, L = 34, R = 12, T = 14, B = 26;
+export default function LineChart({ points, teamLabel = "team A" }: { points: MovementPoint[]; teamLabel?: string }) {
+  const W = 640, H = 256, L = 40, R = 64, T = 30, B = 32;
   const ts = points.map(p => new Date(p.observed_at).getTime());
   const t0 = Math.min(...ts), t1 = Math.max(...ts);
   const xEnd = W - R;
@@ -42,16 +43,18 @@ export default function LineChart({ points }: { points: MovementPoint[] }) {
   const startX = x(ts[0]);
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="chart" role="img" aria-label="Chance of team A winning, over time">
+    <div className="chart-box">
+    <svg viewBox={`0 0 ${W} ${H}`} className="chart" role="img" aria-label={`Chance of ${teamLabel} winning, over time`}>
       {[0, 0.5, 1].map(g => (
         <g key={g}>
           <line x1={L} x2={xEnd} y1={y(g)} y2={y(g)} className={g === 0.5 ? "grid mid" : "grid"} />
           <text x={L - 6} y={y(g) + 4} className="axis" textAnchor="end">{g * 100}%</text>
         </g>
       ))}
-      {/* Dashed --result START marker at the first logged point. */}
-      <line x1={startX} x2={startX} y1={T} y2={H - B} className="dashed" style={{ stroke: "var(--result)" }} />
-      <text x={startX} y={T - 4} className="axis" textAnchor="middle" style={{ fill: "var(--result)" }}>START</text>
+      {/* Dashed --result START marker at the first logged point. The label sits above the plot, to the right of the
+          marker, so it can never meet the y-axis labels. */}
+      <line x1={startX} x2={startX} y1={T - 6} y2={H - B} className="dashed" style={{ stroke: "var(--result)" }} />
+      <text x={startX + 5} y={T - 12} className="axis" textAnchor="start" style={{ fill: "var(--result)" }}>START</text>
 
       {marketPath && <path d={marketPath.d} className="line mkt" />}
       {modelPath && <path d={modelPath.d} className="line elo" />}
@@ -68,31 +71,19 @@ export default function LineChart({ points }: { points: MovementPoint[] }) {
         />
       )}
 
-      {/* Label the ends directly instead of a legend box. Push apart when the
-          two lines converge near the end so the labels don't overlap. */}
-      {modelPath && marketPath && (() => {
-        const minGap = 16;
-        let modelLabelY = modelPath.endY - 8;
-        let marketLabelY = marketPath.endY + 16;
-        const gap = Math.abs(marketLabelY - modelLabelY);
-        if (gap < minGap) {
-          const shift = (minGap - gap) / 2;
-          if (modelPath.endY <= marketPath.endY) { modelLabelY -= shift; marketLabelY += shift; }
-          else { modelLabelY += shift; marketLabelY -= shift; }
-        }
-        return (
-          <>
-            <text x={modelPath.endX - 8} y={modelLabelY} className="axis" textAnchor="end" style={{ fill: "var(--model)" }}>MODEL</text>
-            <text x={marketPath.endX - 8} y={marketLabelY} className="axis" textAnchor="end" style={{ fill: "var(--market)" }}>MARKET</text>
-          </>
-        );
+      {/* Label the ends directly, in the right margin beside each end marker; spread so labels never overlap. */}
+      {(() => {
+        const items = [
+          modelPath && { text: "MODEL", fill: "var(--model)", y: modelPath.endY + 4, x: modelPath.endX + 12 },
+          marketPath && { text: "MARKET", fill: "var(--market)", y: marketPath.endY + 4, x: marketPath.endX + 12 },
+        ].filter((v): v is { text: string; fill: string; y: number; x: number } => !!v);
+        const ys = spreadLabels(items.map(i => i.y), 15, T + 4, H - B - 2);
+        return items.map((it, k) => <text key={it.text} x={it.x} y={ys[k]} className="axis" textAnchor="start" style={{ fill: it.fill }}>{it.text}</text>);
       })()}
-      {modelPath && !marketPath && (
-        <text x={modelPath.endX - 8} y={modelPath.endY - 8} className="axis" textAnchor="end" style={{ fill: "var(--model)" }}>MODEL</text>
-      )}
 
-      <text x={L} y={H - 8} className="axis">{fmt(t0)}</text>
-      <text x={xEnd} y={H - 8} className="axis" textAnchor="end">{fmt(t1)}</text>
+      <text x={L} y={H - 10} className="axis">{fmt(t0)}</text>
+      <text x={xEnd} y={H - 10} className="axis" textAnchor="end">{fmt(t1)}</text>
     </svg>
+    </div>
   );
 }

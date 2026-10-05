@@ -4,27 +4,15 @@ import "./MapStrip.css";
 /**
  * Map-by-map strip for a finished series: one cut-corner cell per map with
  * the map name and each side's round score, the winner's rounds in
- * --result. When round scores are not in the feed yet (`maps.length === 0`)
- * renders the spec's placeholder state: bracketed [MAP] cells in --text-ph
- * for as many maps as were actually played.
+ * --result. When round scores are not stored (`maps.length === 0`) it renders nothing.
  */
 export default function MapStrip({
-  maps, mapsPlayed, teamA, teamB,
+  maps, teamA, teamB,
 }: {
-  maps: ResultMap[]; mapsPlayed: number; teamA: string; teamB: string;
+  maps: ResultMap[]; teamA: string; teamB: string;
 }) {
-  if (maps.length === 0) {
-    return (
-      <div className="mapstrip">
-        {Array.from({ length: Math.max(1, mapsPlayed) }, (_, i) => (
-          <div className="mapstrip-cell mapstrip-cell-placeholder cut-m" key={i}>
-            <span className="mapstrip-map num">[MAP]</span>
-            <span className="mapstrip-score num">[SCORE]</span>
-          </div>
-        ))}
-      </div>
-    );
-  }
+  // No stored round scores: render nothing (the honest note lives in ResultPanel) rather than placeholder cells.
+  if (maps.length === 0) return null;
   return (
     <div className="mapstrip" role="img" aria-label={`Map scores, ${teamA} vs ${teamB}`}>
       {maps.map(m => {

@@ -9,7 +9,10 @@
 .page-head-countdown { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
 
 /* --- Hero panel: pre-match odds head-to-head, or the finished ResultPanel -- */
-.match-hero { margin-top: var(--s-1); }
+.match-hero { margin-top: 0; }
+.match-hero-wrap { display: flex; flex-direction: column; gap: var(--space-head); min-width: 0; }
+.match-hero-wrap > .banner-arena { align-self: flex-start; }
+.chart-caption { margin-top: 0; }
 .match-hero-in { display: flex; flex-direction: column; gap: var(--s-3); }
 
 .match-hero-teams {
@@ -33,7 +36,7 @@
 
 /* --- Recent form (aside) --------------------------------------------------- */
 .match-form-team + .match-form-team { margin-top: var(--s-3); padding-top: var(--s-3); border-top: 1px solid var(--line); }
-.match-form-team-name { font-family: var(--font-display); font-weight: 700; text-transform: uppercase; font-size: 13px; margin-bottom: var(--s-1); }
+.match-form-team-name { font-family: var(--font-display); font-weight: 700; text-transform: uppercase; font-size: 13px; margin-bottom: var(--s-2); }
 .match-form-rows { display: flex; flex-direction: column; gap: var(--s-1); }
 .match-form-row { display: flex; align-items: center; gap: var(--s-2); min-height: 28px; }
 .match-form-opp { flex: 1 1 auto; min-width: 0; font-size: 13px; color: var(--text-2); }
@@ -42,6 +45,7 @@
 .match-maps-board { display: flex; flex-direction: column; }
 
 /* --- Head to head ----------------------------------------------------------- */
+.h2h { display: flex; flex-direction: column; gap: var(--space-head); }
 .h2h-tally { display: flex; gap: var(--s-4); }
 .h2h-tally-side { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 0; }
 .h2h-tally-name { font-size: 13px; color: var(--text-2); }
@@ -52,7 +56,8 @@
 .h2h-row-winner { font-weight: 700; min-width: 0; }
 
 /* --- Series score section --------------------------------------------------- */
-.series-score { display: flex; flex-direction: column; gap: var(--s-2); }
+.series-score { display: flex; flex-direction: column; gap: var(--space-head); }
+.match-result { display: flex; flex-direction: column; gap: var(--space-head); }
 
 /* --- Desktop: hero teams get more room, stat cells stay compact ------------ */
 @media (min-width: 1200px) {

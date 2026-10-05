@@ -21,6 +21,9 @@
   /* space, shape, motion */
   --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px;
   --gutter: 12px; --hit: 44px;
+  /* Vertical rhythm. Applied by the layout primitives (.route-fade/.page-fade, section, .arena-grid-*, .pad),
+     not page by page: between sections / between panels in a rail / heading-to-body. */
+  --space-section: 28px; --space-panel: 16px; --space-head: 12px; --space-tight: 8px;
   --cut-l: 14px; --cut-m: 8px; --cut-s: 6px;
   --slant: -14deg;
   --radius: 0px;
@@ -30,7 +33,7 @@
      Kept separate from --gutter (the spec's fixed 12px phone gutter used for
      panel gaps) so page/nav edge padding can grow on wider screens without
      touching that token's meaning. */
-  --container-pad: var(--gutter);
+  --container-pad: 16px;
 
   /* colour: dark (default) */
   color-scheme: dark;
@@ -79,7 +82,7 @@
 }
 
 @media (min-width: 768px) {
-  :root { --container-pad: 24px; --fs-display: 30px; --fs-h1: 24px; }
+  :root { --container-pad: 24px; --fs-display: 30px; --fs-h1: 24px; --space-section: 36px; --space-panel: 20px; }
 }
 @media (min-width: 1200px) {
   :root { --container-pad: 32px; --fs-display: 34px; --fs-h1: 28px; }
@@ -99,15 +102,17 @@
   max-width: var(--content-max); margin: 0 auto; padding-left: var(--container-pad); padding-right: var(--container-pad);
 }
 
-.arena-grid { display: grid; grid-template-columns: 1fr; gap: var(--s-4); align-items: start; }
+.arena-grid { display: grid; grid-template-columns: 1fr; gap: var(--space-section) var(--space-panel); align-items: start; }
 @media (min-width: 768px) {
   .arena-grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (min-width: 1200px) {
-  .arena-grid { grid-template-columns: repeat(12, 1fr); gap: var(--s-5); }
+  .arena-grid { grid-template-columns: repeat(12, 1fr); gap: var(--space-section) var(--s-5); }
 }
-.arena-grid-main { grid-column: 1 / -1; min-width: 0; }
-.arena-grid-aside { grid-column: 1 / -1; min-width: 0; }
+.arena-grid-main { grid-column: 1 / -1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-head); }
+.arena-grid-aside { grid-column: 1 / -1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-panel); }
+/* Sections inside the main column are separated by the section gap; everything else by the heading/body gap. */
+.arena-grid-main > section + *, .arena-grid-main > * + section { margin-top: calc(var(--space-section) - var(--space-head)); }
 @media (min-width: 1200px) {
   .arena-grid-main { grid-column: span 8; }
   .arena-grid-aside { grid-column: span 4; }
@@ -337,7 +342,7 @@ select:hover { border-color: var(--line-strong); }
   background: none; border: 1px solid var(--line-strong); color: var(--text); font-size: 20px; line-height: 1; cursor: pointer;
 }
 .nav-overflow-panel {
-  position: absolute; right: var(--gutter); top: 100%; margin-top: var(--s-1);
+  position: absolute; right: var(--container-pad); top: 100%; margin-top: var(--s-1);
   background: var(--surface-1); border: 1px solid var(--line); display: flex; flex-direction: column;
   min-width: 200px; z-index: 20;
 }
@@ -348,7 +353,7 @@ select:hover { border-color: var(--line-strong); }
   .nav-overflow { display: none; }
 }
 
-.wrap { max-width: var(--content-max); margin: 0 auto; padding: var(--s-5) var(--container-pad) var(--s-6); display: flex; flex-direction: column; gap: var(--s-5); }
+.wrap { max-width: var(--content-max); margin: 0 auto; padding: var(--space-section) var(--container-pad) var(--s-6); display: flex; flex-direction: column; gap: var(--space-section); }
 .foot { max-width: var(--content-max); margin: 0 auto; padding: 0 var(--container-pad) var(--s-5); color: var(--text-3); font-family: var(--font-num); font-size: var(--fs-meta); }
 
 /* Primitives */
@@ -359,10 +364,10 @@ select:hover { border-color: var(--line-strong); }
 .small { font-size: 13px; }
 .right { text-align: right; }
 .center { text-align: center; }
-.pad { padding: var(--s-4); }
+.pad { padding: var(--s-4); display: flex; flex-direction: column; gap: var(--space-head); min-width: 0; }
 .ellipsis { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vs { font-family: var(--font-num); font-size: .55em; color: var(--text-3); text-transform: uppercase; vertical-align: .25em; margin: 0 .3em; font-weight: 600; }
-section { display: flex; flex-direction: column; gap: var(--s-3); }
+section { display: flex; flex-direction: column; gap: var(--space-head); }
 .head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); flex-wrap: wrap; }
 .back { font-size: 14px; font-weight: 700; min-height: var(--hit); display: inline-flex; align-items: center; }
 .panel { background: var(--surface-1); border: 1px solid var(--line); overflow: hidden; display: flex; flex-direction: column; gap: var(--s-3); }
@@ -425,6 +430,8 @@ section { display: flex; flex-direction: column; gap: var(--s-3); }
 .split-bar i.b { background: var(--model-off); }
 .kv { display: grid; grid-template-columns: 1fr auto; gap: 0 var(--s-3); align-items: baseline; padding: var(--s-1) 0; }
 .kv > .muted { grid-column: 1 / -1; }
+.chart-box { padding: var(--s-3) var(--s-3) var(--s-2); border: 1px solid var(--line); background: var(--surface-1); }
+.chart-box .chart { display: block; width: 100%; height: auto; overflow: visible; }
 .chart .grid { stroke: var(--surface-2); stroke-width: 1; }
 .chart .grid.mid { stroke: var(--line); stroke-opacity: .8; stroke-dasharray: 4 4; }
 .chart .dashed { stroke-dasharray: 4 4; }
@@ -482,8 +489,8 @@ section { display: flex; flex-direction: column; gap: var(--s-3); }
 .prose p { color: var(--text-2); }
 
 @media (max-width: 560px) {
-  .topbar-in { gap: var(--s-2); padding: var(--s-1) var(--gutter); }
-  .wrap { padding: var(--s-4) var(--gutter) var(--s-5); gap: var(--s-4); }
+  .topbar-in { gap: var(--s-2); padding: var(--s-1) var(--container-pad); }
+  .wrap { padding: var(--s-4) var(--container-pad) var(--s-5); gap: var(--space-section); }
   .cards { grid-template-columns: 1fr; }
   .rank { grid-template-columns: 20px minmax(0, 1fr) 70px; }
   .rank .bar-wrap { display: none; }
@@ -727,8 +734,7 @@ td .team { gap: 5px; flex-wrap: wrap; }
 .nav-overflow-panel .nav-tab-active { background: var(--surface-2); box-shadow: inset 0 -3px 0 var(--model-fill); }
 .nav-search { position: relative; }
 .scroll-progress { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--model-fill); transform-origin: 0 50%; pointer-events: none; }
-.route-fade { display: flex; flex-direction: column; gap: var(--s-5); min-width: 0; }
-@media (max-width: 560px) { .route-fade { gap: var(--s-4); } }
+.route-fade { display: flex; flex-direction: column; gap: var(--space-section); min-width: 0; }
 .word-clip { display: inline-block; overflow: hidden; vertical-align: top; padding-bottom: .08em; margin-bottom: -.08em; }
 .word { display: inline-block; }
 /* Loading skeleton: a single red-tinted sheen sweeps across the placeholder lines (transform only). */
@@ -745,6 +751,5 @@ td .team { gap: 5px; flex-wrap: wrap; }
 
 /* Safety net: if the lazy animation engine never loads, nothing may stay hidden. */
 .motion-off [style*="opacity: 0"], .motion-off [style*="opacity:0"] { opacity: 1 !important; transform: none !important; }
-.page-fade { display: flex; flex-direction: column; gap: var(--s-5); min-width: 0; }
-@media (max-width: 560px) { .page-fade { gap: var(--s-4); } }
+.page-fade { display: flex; flex-direction: column; gap: var(--space-section); min-width: 0; }
 .stagger-cell { min-width: 0; height: 100%; }

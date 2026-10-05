@@ -17,6 +17,7 @@ import StatCell from "../components/arena/StatCell";
 import Banner, { type BannerKind } from "../components/arena/Banner";
 import { Failure, Loading } from "../components/ui";
 import { PageFade } from "../lib/motion";
+import { favouriteSide, sideView } from "../lib/matchView";
 import "./MatchCenter.css";
 
 const dayFmt = (iso: string) => new Date(iso).toLocaleDateString(undefined,
@@ -57,10 +58,12 @@ export default function MatchCenter() {
   const bannerKind: BannerKind = finished ? "complete" : startPassed ? "live" : "upcoming";
   const bannerText = finished ? "MATCH COMPLETE" : startPassed ? "LIVE" : `KICK-OFF ${when(start)}`;
 
-  const favourite: "a" | "b" = p >= 0.5 ? "a" : "b";
+  const favourite = favouriteSide(p);
+  const fav = sideView(p, market, favourite);   // model, market and gap, all on the favourite's side
   const hit = verified && result!.winner ? favourite === result!.winner : null;
   const favTeam = favourite === "a" ? teamA : teamB;
-  const favPct = favourite === "a" ? p : 1 - p;
+  const favPct = fav.model;
+  const favTag = favourite === "a" ? (tagA ?? teamA) : (tagB ?? teamB);
   const winnerTeam = verified && result!.winner === "a" ? teamA : verified && result!.winner === "b" ? teamB : null;
   const winnerMarketPct = verified && market != null && result!.winner
     ? (result!.winner === "a" ? market : 1 - market) : null;
@@ -87,6 +90,7 @@ export default function MatchCenter() {
 
       <div className="arena-grid">
         <div className="arena-grid-main">
+          <div className="match-hero-wrap">
           <Banner kind={bannerKind} text={bannerText} />
 
           <Panel cut="l" frame="line" brackets className="match-hero">
@@ -134,12 +138,13 @@ export default function MatchCenter() {
               )}
 
               <div className="match-hero-stats">
-                <StatCell label="Model" value={pct(favPct, 1)} tone="model" />
-                <StatCell label="Market" value={market == null ? "\u2013" : pct(favourite === "a" ? market : 1 - market, 1)} tone={trusted ? "market" : undefined} />
+                <StatCell label={`Model \u00B7 ${favTag}`} value={pct(favPct, 1)} tone="model" />
+                <StatCell label={`Market \u00B7 ${favTag}`} value={fav.market == null ? "\u2013" : pct(fav.market, 1)} tone={trusted ? "market" : undefined} />
                 <StatCell label="Call" value={hit == null ? "\u2014" : hit ? "HIT" : "MISS"} tone={hit == null ? undefined : "result"} />
               </div>
               <div className="match-hero-gap">
-                <GapChip model={p} market={market} spread={spread} favouredLabel={`${favourite === "a" ? (tagA ?? teamA) : (tagB ?? teamB)} FAVOURED`} />
+                <GapChip model={fav.model} market={fav.market} spread={spread} favouredLabel={`${favTag} FAVOURED`} />
+                <span className="muted small">gap on {favTag}</span>
                 {hit === false && <Chip variant="market">UPSET</Chip>}
               </div>
               {hit === false && winnerTeam && winnerMarketPct != null && (
@@ -148,6 +153,7 @@ export default function MatchCenter() {
               <p className="muted small">{COPY.marketBasis}</p>
             </div>
           </Panel>
+          </div>
 
           {f?.scores && f.best_of && (
             <section>
@@ -161,8 +167,8 @@ export default function MatchCenter() {
           {m && m.points.length > 0 && (
             <section>
               <SectionHead title="How the odds moved" right={<span className="muted small">{m.points.length} refreshes</span>} />
-              <LineChart points={m.points} />
-              <p className="muted small">Chance of {teamA} winning. Dots are refreshes of our forecast log, not a live price feed.</p>
+              <LineChart points={m.points} teamLabel={teamA} />
+              <p className="muted small chart-caption">Chance of {teamA} winning (lines read from {teamA}&rsquo;s side, so the favourite&rsquo;s numbers above are 100% minus these). Dots are refreshes of our forecast log, not a live price feed.</p>
               <details>
                 <summary>All {m.points.length} snapshots</summary>
                 <div className="scroll"><table>

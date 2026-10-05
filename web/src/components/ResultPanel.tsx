@@ -35,7 +35,6 @@ export default function ResultPanel({
   }
 
   const winner = r.winner === "a" ? "a" : "b";
-  const mapsPlayed = (r.maps_a ?? 0) + (r.maps_b ?? 0);
 
   return (
     <div className="match-result">
@@ -44,7 +43,7 @@ export default function ResultPanel({
         teamB={teamB} tagB={tagB} logoB={logoB}
         mapsA={r.maps_a ?? 0} mapsB={r.maps_b ?? 0} winner={winner}
       />
-      <MapStrip maps={r.maps} mapsPlayed={mapsPlayed} teamA={teamA} teamB={teamB} />
+      <MapStrip maps={r.maps} teamA={teamA} teamB={teamB} />
       {!r.maps_complete && r.maps.length === 0 && (
         <p className="muted small">Map scores not stored for this match yet; the series score above is from the result listing.</p>
       )}
