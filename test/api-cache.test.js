@@ -62,6 +62,34 @@ async function checkPythonRunnerIsNotRespawned() {
   console.log("  python runner spawns once for repeated reads; errors and bad JSON reject");
 }
 
+async function checkPythonAbortRetriedOnce() {
+  const abort = "terminate called without an active exception";
+  let calls = 0;
+  const flaky = (c, a, o, cb) => {
+    calls += 1;
+    if (calls === 1) return setImmediate(() => cb(Object.assign(new Error("Command failed"), { code: null, signal: "SIGABRT" }), "", abort));
+    setImmediate(() => cb(null, JSON.stringify({ ok: true }), ""));
+  };
+  assert.deepEqual(await pythonJson("champions_status", [], "Champions status", flaky), { ok: true });
+  assert.equal(calls, 2, "an abort is retried once and the retry's body is returned");
+
+  calls = 0;
+  const alwaysAborts = (c, a, o, cb) => { calls += 1; setImmediate(() => cb(new Error("Command failed"), "", abort)); };
+  await assert.rejects(pythonJson("champions_status", [], "Champions status", alwaysAborts), /terminate called/);
+  assert.equal(calls, 2, "a persistent abort is attempted exactly twice, then rejects");
+
+  calls = 0;
+  const plainFailure = (c, a, o, cb) => { calls += 1; setImmediate(() => cb(new Error("Command failed"), "", "ValueError: bad id")); };
+  await assert.rejects(pythonJson("team_profile", ["1"], "team profile", plainFailure), /ValueError/);
+  assert.equal(calls, 1, "ordinary python errors are not retried");
+
+  calls = 0;
+  const badJson = (c, a, o, cb) => { calls += 1; setImmediate(() => cb(null, "nope", "")); };
+  await assert.rejects(pythonJson("x", [], "thing", badJson), /bad JSON/);
+  assert.equal(calls, 1, "bad JSON is not retried");
+  console.log("  python aborts (terminate/SIGABRT) are retried once; other failures are not");
+}
+
 async function checkInvalidationOnInputChange() {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "vct-cache-"));
   try {
@@ -288,6 +316,7 @@ async function checkHttpCaching() {
 async function main() {
   await checkHitDoesNotRecompute();
   await checkPythonRunnerIsNotRespawned();
+  await checkPythonAbortRetriedOnce();
   await checkInvalidationOnInputChange();
   await checkTtlCeiling();
   await checkCoalescing();

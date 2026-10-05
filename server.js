@@ -144,18 +144,33 @@ function createBoundedInFlight(compute, concurrency = 4, maxQueued = 32) {
 const PYTHON_PROCESSES = Number(process.env.VCT_PYTHON_PROCESSES || 3);
 const limitPython = createLimiter(PYTHON_PROCESSES);
 
+// A C++ abort inside the interpreter (DuckDB/pandas under process or memory
+// pressure: "terminate called without an active exception", SIGABRT) is
+// transient, so those, and only those, get one retry inside the same slot.
+const ABORT_PATTERN = /terminate called|\bAborted\b|core dumped|\bSIGABRT\b/i;
+function isPythonAbort(err, stderr) {
+  return err.signal === "SIGABRT" || ABORT_PATTERN.test(String(stderr || ""));
+}
+
 function pythonJson(moduleName, args, label, run = execFile) {
-  return limitPython(() => new Promise((resolve, reject) => {
+  const attempt = (retriesLeft) => new Promise((resolve, reject) => {
     run(PYTHON, ["-m", `vct_quant.${moduleName}`, ...args],
       { cwd: ROOT, maxBuffer: 8 << 20, timeout: 30000 }, (err, stdout, stderr) => {
-        if (err) return reject(new Error(String(stderr || "").trim() || err.message));
+        if (err) {
+          if (retriesLeft > 0 && isPythonAbort(err, stderr)) {
+            console.error(`[python] ${label} aborted (${String(stderr || "").trim() || err.signal}); retrying once`);
+            return resolve(attempt(retriesLeft - 1));
+          }
+          return reject(new Error(String(stderr || "").trim() || err.message));
+        }
         try {
           resolve(JSON.parse(stdout));
         } catch (parseError) {
           reject(new Error(`bad JSON from ${label}: ${parseError.message}`));
         }
       });
-  }));
+  });
+  return limitPython(() => attempt(1));
 }
 
 const computeMatchInFlight = createBoundedInFlight(id => pythonJson("match_center", [id], "match center"), 2, 16);
