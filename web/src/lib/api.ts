@@ -1,62 +1,72 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import type { Movement, Snapshot, TeamProfile, PlayerProfile, ChampionsStatus, PaperLedger, ResultsList, OpsStatus } from "./types";
+import { createStore, type State } from "./swr";
+import { URLS } from "./urls";
 
-type State<T> = { data: T | null; error: string | null; loading: boolean };
+export type { State };
+export { URLS };
 
-async function getJson<T>(url: string): Promise<T | null> {
+async function getJson(url: string): Promise<unknown | null> {
   const resp = await fetch(url);
   if (resp.status === 404) return null;
   if (!resp.ok) throw new Error(`${url} answered ${resp.status}`);
-  return resp.json() as Promise<T>;
+  return resp.json();
 }
 
-// One snapshot request per page load, shared by every page that asks.
-let snapshotPromise: Promise<Snapshot | null> | null = null;
-export function refreshSnapshot() { snapshotPromise = null; }
+/**
+ * One cache for the whole app, keyed by URL. Pages render cached data at once on
+ * every revisit and revalidate in the background; the server answers
+ * `Cache-Control: no-cache` + ETag, so a revalidation is a 304 when nothing changed.
+ */
+export const store = createStore({ fetcher: getJson, freshMs: 20_000 });
 
-function useFetch<T>(key: string, load: () => Promise<T | null>): State<T> {
-  const [state, setState] = useState<State<T>>({ data: null, error: null, loading: true });
+if (typeof document !== "undefined") {
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") store.revalidateActive();
+  });
+}
+
+/** Warm the cache for a URL (no-op when fresh, shared with any request in flight). */
+export function prefetch(url: string) { return store.prefetch(url); }
+
+/** Read through the cache outside React (cached copy if fresh, else one shared request). Resolves null on 404 or error. */
+export async function loadCached<T>(url: string): Promise<T | null> {
+  await store.load(url).catch(() => {});
+  return store.get<T>(url).data;
+}
+
+/** The next snapshot read refetches (kept for callers that want a hard refresh). */
+export function refreshSnapshot() { store.invalidate(URLS.snapshot); }
+
+const IDLE: State<never> = { data: null, error: null, loading: false, refreshing: false };
+
+/**
+ * @param url    null disables the hook (nothing fetched, `loading` false).
+ * @param nonce  bump to force a refetch even when the cached copy is fresh.
+ * @param maxAge how old a cached copy may be before mounting revalidates it.
+ */
+export function useCached<T>(url: string | null, nonce = 0, maxAge?: number): State<T> {
+  const subscribe = useCallback((listener: () => void) => (url ? store.subscribe(url, listener) : () => {}), [url]);
+  const read = useCallback(() => (url ? store.get<T>(url) : (IDLE as State<T>)), [url]);
+  const state = useSyncExternalStore(subscribe, read, read);
   useEffect(() => {
-    let alive = true;
-    setState(s => ({ ...s, loading: true }));
-    load().then(
-      data => alive && setState({ data, error: null, loading: false }),
-      (err: Error) => alive && setState({ data: null, error: err.message, loading: false }),
-    );
-    return () => { alive = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
+    if (url) void store.load(url, { force: nonce > 0, maxAge });
+  }, [url, nonce, maxAge]);
   return state;
 }
 
-export function useSnapshot(nonce = 0): State<Snapshot> {
-  return useFetch(`snapshot:${nonce}`, () => (snapshotPromise ??= getJson<Snapshot>("/api/snapshot")));
-}
-
-export function useMovement(id: number): State<Movement> {
-  return useFetch(`match:${id}`, () => getJson<Movement>(`/api/match/${id}`));
-}
-
-export function useTeamProfile(id: number): State<TeamProfile> {
-  return useFetch(`team:${id}`, () => getJson<TeamProfile>(`/api/team/${id}`));
-}
-
-export function usePlayerProfile(id: number): State<PlayerProfile> {
-  return useFetch(`player:${id}`, () => getJson<PlayerProfile>(`/api/player/${id}`));
-}
-
-export function usePaperLedger(): State<PaperLedger> {
-  return useFetch("paper-ledger", () => getJson<PaperLedger>("/api/paper-ledger"));
-}
-
-export function useResults(): State<ResultsList> {
-  return useFetch("results", () => getJson<ResultsList>("/api/results"));
-}
-
+export function useSnapshot(nonce = 0): State<Snapshot> { return useCached<Snapshot>(URLS.snapshot, nonce); }
+export function useMovement(id: number): State<Movement> { return useCached<Movement>(URLS.match(id)); }
+export function useTeamProfile(id: number): State<TeamProfile> { return useCached<TeamProfile>(URLS.team(id)); }
+export function usePlayerProfile(id: number): State<PlayerProfile> { return useCached<PlayerProfile>(URLS.player(id)); }
+export function usePaperLedger(): State<PaperLedger> { return useCached<PaperLedger>(URLS.paperLedger); }
+export function useResults(): State<ResultsList> { return useCached<ResultsList>(URLS.results); }
+export function useChampionsStatus(): State<ChampionsStatus> { return useCached<ChampionsStatus>(URLS.champions); }
+/**
+ * Ops is about freshness: the last copy shows at once, but every visit revalidates it, and
+ * `loading` stays true during that check (the Status page shows "Checking..." and stamps the time).
+ */
 export function useOps(nonce = 0): State<OpsStatus> {
-  return useFetch(`ops:${nonce}`, () => getJson<OpsStatus>("/api/ops"));
-}
-
-export function useChampionsStatus(): State<ChampionsStatus> {
-  return useFetch("champions:2766", () => getJson<ChampionsStatus>("/api/champions/2766"));
+  const state = useCached<OpsStatus>(URLS.ops, nonce, 0);
+  return useMemo(() => (state.refreshing && !state.loading ? { ...state, loading: true } : state), [state]);
 }
