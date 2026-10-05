@@ -4,7 +4,7 @@ import LogoSlot from "./arena/LogoSlot";
 import { Chip } from "./arena/Chip";
 import SectionHead from "./arena/SectionHead";
 import { m, useInitial, CountUp, EASE_OUT, D_BASE } from "../lib/motion";
-import { buildBracketGraph, feedLabel, type BracketNode, type RoundKey } from "../lib/bracketGraph";
+import { buildBracketGraph, dropTargets, feedLabel, progressionEdges, type BracketNode, type RoundKey } from "../lib/bracketGraph";
 import type { ChampionsPlayoffs, ChampionsPlayoffSide } from "../lib/types";
 import "./Bracket.css";
 
@@ -71,24 +71,38 @@ function roundSub(nodes: BracketNode[]): string {
   return parts.join(" \u00B7 ");
 }
 
-interface EdgeGeom { id: string; d: string; from: number; to: number; col: number; take: "winner" | "loser" }
+/** One drawn connector piece. `link` runs from a source box to the join column; `trunk` is the single
+ *  shared stub from the join column into the target box (so merged feeders never double-draw it). */
+interface Seg { id: string; d: string; col: number; ids: string[] }
 
-function edgePath(fromCode: string, toCode: string, take: "winner" | "loser"): string {
-  const s = SLOTS[fromCode], t = SLOTS[toCode];
-  const x1 = colX(s.col) + COL_W, y1 = s.cy;
-  if (take === "loser") {
-    // Drop lane: leave the source, run down the gap, then enter the target from above.
-    const xg = x1 + 7;
-    const ty = t.cy - NODE_H / 2;
-    const xc = colX(t.col) + COL_W / 2;
-    return `M${x1},${y1} H${xg} V${ty - 12} H${xc} V${ty}`;
+/** Join column: the middle of the gap in front of the target box. */
+const joinX = (targetCol: number) => colX(targetCol) - COL_GAP / 2;
+
+/**
+ * Orthogonal elbows for progression edges only: horizontal out of the source's right edge at its vertical
+ * centre, vertical to the target's centre line inside the gap, horizontal into the target. Same-row hops
+ * (LR1->LR2, LR3->LF) are a single straight line.
+ */
+function buildSegs(edges: { id: string; from: string; to: string }[]): Seg[] {
+  const byTarget = new Map<string, { id: string; from: string }[]>();
+  for (const e of edges) byTarget.set(e.to, [...(byTarget.get(e.to) ?? []), e]);
+  const segs: Seg[] = [];
+  for (const [to, ins] of byTarget) {
+    const t = SLOTS[to];
+    const x2 = colX(t.col), xm = joinX(t.col);
+    const elbow = ins.some(e => SLOTS[e.from].cy !== t.cy);
+    for (const e of ins) {
+      const s = SLOTS[e.from];
+      const x1 = colX(s.col) + COL_W;
+      const d = !elbow ? `M${x1},${s.cy} H${x2}` : s.cy === t.cy ? `M${x1},${s.cy} H${xm}` : `M${x1},${s.cy} H${xm} V${t.cy}`;
+      segs.push({ id: e.id, d, col: s.col, ids: [e.id] });
+    }
+    if (elbow) segs.push({ id: `trunk-${to}`, d: `M${xm},${t.cy} H${x2}`, col: Math.max(...ins.map(e => SLOTS[e.from].col)), ids: ins.map(e => e.id) });
   }
-  const x2 = colX(t.col);
-  const xm = t.col > s.col + 1 ? x2 - 12 : x1 + 19;
-  return `M${x1},${y1} H${xm} V${t.cy} H${x2}`;
+  return segs;
 }
 
-/** Everything downstream of a node (its winner and loser paths), as node ids and edge ids. */
+/** Everything downstream of a node along winner (progression) edges, as node ids and edge ids. */
 function downstream(start: number, edges: { id: string; from: number; to: number }[]) {
   const nodes = new Set<number>([start]);
   const hot = new Set<string>();
@@ -128,9 +142,10 @@ function SideRow({ s, fav, tied }: { s: ChampionsPlayoffSide; fav: boolean; tied
   );
 }
 
-function Node({ n, slot, hot, inPath, onHot }: {
-  n: BracketNode; slot: Slot; hot: boolean; inPath: boolean; onHot: (id: number | null) => void;
+function Node({ n, slot, hot, inPath, dropFrom, onHot }: {
+  n: BracketNode; slot: Slot; hot: boolean; inPath: boolean; dropFrom: number | null; onHot: (id: number | null) => void;
 }) {
+  const isDrop = dropFrom != null && n.feeds.some(f => f.take === "loser" && f.from === dropFrom);
   const verified = n.verified && n.match;
   const sides = verified ? n.match!.sides : null;
   const pA = sides?.[0].p_win ?? null, pB = sides?.[1].p_win ?? null;
@@ -140,7 +155,7 @@ function Node({ n, slot, hot, inPath, onHot }: {
   const favP = favA ? pA : favB ? pB : null;
   return (
     <m.div
-      className={`bracket-node${verified ? " bracket-node-verified" : " bracket-node-tbd"}${hot ? " is-hot" : ""}${inPath ? " in-path" : ""}`}
+      className={`bracket-node${verified ? " bracket-node-verified" : " bracket-node-tbd"}${hot ? " is-hot" : ""}${inPath ? " in-path" : ""}${isDrop ? " is-drop" : ""}`}
       style={{ left: `${colX(slot.col) / 10}%`, top: slot.cy - NODE_H / 2, width: `${COL_W / 10}%`, height: NODE_H }}
       custom={slot.col}
       variants={nodeVariants}
@@ -166,7 +181,7 @@ function Node({ n, slot, hot, inPath, onHot }: {
         </>
       ) : (
         n.feeds.map(f => (
-          <div className="bracket-side bracket-side-tbd" key={`${f.take}-${f.from}`}>
+          <div className={`bracket-side bracket-side-tbd${f.take === "loser" ? " bracket-side-drop" : ""}${f.take === "loser" && f.from === dropFrom ? " is-drop" : ""}`} key={`${f.take}-${f.from}`}>
             <span className="bracket-tbd-dot" aria-hidden="true" />
             <span className="bracket-tbd-label">{feedLabel(f)}</span>
           </div>
@@ -202,15 +217,17 @@ export default function Bracket({ playoffs }: { playoffs: ChampionsPlayoffs }) {
   }, []);
 
   const placed = graph.nodes.filter(n => SLOTS[n.code]);
-  const edges = useMemo<EdgeGeom[]>(() => graph.edges
-    .map(e => {
-      const from = graph.byId.get(e.from), to = graph.byId.get(e.to);
-      if (!from || !to || !SLOTS[from.code] || !SLOTS[to.code]) return null;
-      return { id: e.id, d: edgePath(from.code, to.code, e.take), from: e.from, to: e.to, col: SLOTS[from.code].col, take: e.take };
-    })
-    .filter((e): e is EdgeGeom => e !== null), [graph]);
+  // Only winner (progression) edges are drawn; loser drop-ins are shown as labels in the lower slots.
+  const prog = useMemo(() => progressionEdges(graph.edges).filter(e => {
+    const f = graph.byId.get(e.from), t = graph.byId.get(e.to);
+    return f && t && SLOTS[f.code] && SLOTS[t.code];
+  }), [graph]);
+  const segs = useMemo(() => buildSegs(prog.map(e => ({ id: e.id, from: graph.byId.get(e.from)!.code, to: graph.byId.get(e.to)!.code }))), [prog, graph]);
+  const confirmed = useMemo(() => new Set(prog.filter(e => e.confirmed).map(e => e.id)), [prog]);
 
-  const path = useMemo(() => (hotId != null ? downstream(hotId, edges) : null), [hotId, edges]);
+  const path = useMemo(() => (hotId != null ? downstream(hotId, prog) : null), [hotId, prog]);
+  // Lower slot(s) the hovered match's loser drops into: highlighted by label/frame, no line.
+  const dropFrom = hotId != null && dropTargets(graph, hotId).length > 0 ? hotId : null;
   const rounds = (r: RoundKey) => placed.filter(n => n.round === r);
   const heads = ROUND_HEADS.filter(h => rounds(h.round).length > 0);
 
@@ -218,7 +235,7 @@ export default function Bracket({ playoffs }: { playoffs: ChampionsPlayoffs }) {
     <section className="champ-bracket" aria-label="Playoff bracket">
       <SectionHead title="Playoff bracket" right={<Chip variant="ghost">ROUTING UNCONFIRMED</Chip>} />
       <p className="champ-sub">
-        Upper bracket on top, lower bracket below, Grand Final at the right. The four opening pairings are official; every
+        Upper bracket on top, lower bracket below, Grand Final at the right. Losers drop into the labelled lower slots; hover a match to light up its path. The four opening pairings are official; every
         later slot stays TBD until the API lists its teams. Win % is the primary Elo forecast for the series.
       </p>
 
@@ -250,10 +267,10 @@ export default function Bracket({ playoffs }: { playoffs: ChampionsPlayoffs }) {
 
             <svg className="bracket-edges" viewBox={`0 0 1000 ${HEIGHT}`} preserveAspectRatio="none" aria-hidden="true" focusable="false">
               <defs>
-                {edges.map(e => (
+                {segs.map(e => (
                   <mask key={e.id} id={`${uid}-${e.id}`} maskUnits="userSpaceOnUse" x="0" y="0" width="1000" height={HEIGHT}>
                     <m.path
-                      d={e.d} fill="none" stroke="#fff" strokeWidth={6} vectorEffect="non-scaling-stroke"
+                      d={e.d} fill="none" stroke="#fff" strokeWidth={8} vectorEffect="non-scaling-stroke"
                       custom={e.col}
                       variants={{
                         hidden: { pathLength: 0 },
@@ -263,13 +280,14 @@ export default function Bracket({ playoffs }: { playoffs: ChampionsPlayoffs }) {
                   </mask>
                 ))}
               </defs>
-              {edges.map(e => (
+              {segs.map(e => (
                 <path
                   key={e.id}
                   d={e.d}
                   mask={`url(#${uid}-${e.id})`}
                   vectorEffect="non-scaling-stroke"
-                  className={`bracket-edge bracket-edge-${e.take}${path?.edges.has(e.id) ? " is-hot" : ""}`}
+                  data-edge={e.id}
+                  className={`bracket-edge${e.ids.every(i => confirmed.has(i)) ? "" : " bracket-edge-proj"}${e.ids.some(i => path?.edges.has(i)) ? " is-hot" : ""}`}
                 />
               ))}
             </svg>
@@ -277,7 +295,7 @@ export default function Bracket({ playoffs }: { playoffs: ChampionsPlayoffs }) {
             {placed.map(n => (
               <Node
                 key={n.id} n={n} slot={SLOTS[n.code]}
-                hot={hotId === n.id} inPath={path?.nodes.has(n.id) ?? false}
+                hot={hotId === n.id} inPath={path?.nodes.has(n.id) ?? false} dropFrom={dropFrom}
                 onHot={setHotId}
               />
             ))}
@@ -289,8 +307,8 @@ export default function Bracket({ playoffs }: { playoffs: ChampionsPlayoffs }) {
       </div>
 
       <div className="bracket-legend">
-        <span className="bracket-legend-item"><svg viewBox="0 0 28 6" width="28" height="6" aria-hidden="true"><path d="M0 3H28" className="bracket-edge bracket-edge-winner" /></svg>Winner advances</span>
-        <span className="bracket-legend-item"><svg viewBox="0 0 28 6" width="28" height="6" aria-hidden="true"><path d="M0 3H28" className="bracket-edge bracket-edge-loser" /></svg>Loser drops</span>
+        <span className="bracket-legend-item"><svg viewBox="0 0 28 6" width="28" height="6" aria-hidden="true"><path d="M0 3H28" className="bracket-edge bracket-edge-proj" /></svg>Winner advances (projected)</span>
+        <span className="bracket-legend-item"><span className="bracket-legend-drop" aria-hidden="true" />Loser drop-in: labelled in the lower slot</span>
         <span className="bracket-legend-note">Projected route &mdash; not officially confirmed. Times in UTC.</span>
       </div>
     </section>

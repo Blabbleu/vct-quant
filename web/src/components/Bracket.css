@@ -26,10 +26,11 @@
 .bracket-head-sub { font-size: 11px; color: var(--text-3); white-space: nowrap; }
 
 .bracket-edges { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
-.bracket-edge { fill: none; stroke: var(--line-strong); stroke-width: 1.5; stroke-dasharray: 5 4; stroke-linejoin: round; transition: stroke var(--dur) var(--ease); }
-.bracket-edge-loser { stroke: var(--text-ph); stroke-dasharray: 2 4; stroke-width: 1.25; }
-.bracket-edge.is-hot { stroke: var(--model); stroke-width: 2; }
-.has-hot .bracket-edge:not(.is-hot) { opacity: .35; }
+/* Connectors: one 2px orthogonal stroke weight everywhere; integer row centres keep it pixel-crisp. */
+.bracket-edge { fill: none; stroke: var(--line-strong); stroke-width: 2; stroke-linejoin: miter; stroke-linecap: butt; transition: stroke var(--dur) var(--ease); }
+.bracket-edge-proj { stroke-dasharray: 6 4; }
+.bracket-edge.is-hot { stroke: var(--model); }
+.has-hot .bracket-edge:not(.is-hot) { opacity: .3; }
 
 .bracket-node {
   --bn-line: var(--line); --bn-fill: var(--surface-2);
@@ -48,7 +49,8 @@
 .bracket-node-tbd { --bn-fill: var(--surface-1); --bn-line: var(--line-strong); }
 .bracket-node.is-hot { --bn-line: var(--model); --bn-fill: var(--surface-3); }
 .bracket-node.in-path:not(.is-hot) { --bn-line: var(--line-strong); }
-.has-hot .bracket-node:not(.in-path) { opacity: .45; }
+.bracket-node.is-drop { --bn-line: var(--model); --bn-fill: var(--surface-3); }
+.has-hot .bracket-node:not(.in-path):not(.is-drop) { opacity: .45; }
 .bracket-node-meta { display: flex; justify-content: space-between; gap: 6px; font-size: 10px; line-height: 12px; color: var(--text-3); white-space: nowrap; }
 .bracket-code { font-weight: 700; letter-spacing: .04em; }
 
@@ -60,6 +62,9 @@
 .bracket-side-fav { color: var(--text); border-left-color: var(--model-fill); }
 .bracket-side-fav .bracket-side-pct { color: var(--model); }
 .bracket-side-tbd { color: var(--text-3); font-size: 11px; height: 20px; gap: 6px; border-left: 0; padding-left: 0; margin-left: 0; }
+.bracket-side-drop .bracket-tbd-label { font-style: italic; }
+.bracket-side-drop.is-drop .bracket-tbd-label { color: var(--model); font-weight: 700; }
+.bracket-side-drop.is-drop .bracket-tbd-dot { border-color: var(--model); background: var(--model); }
 .bracket-tbd-dot { width: 6px; height: 6px; transform: skewX(var(--slant)); border: 1px solid var(--text-ph); flex: none; }
 .bracket-tbd-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-3); }
 
@@ -78,6 +83,7 @@
 .bracket-legend { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-4); font-size: var(--fs-meta); color: var(--text-3); }
 .bracket-legend-item { display: inline-flex; align-items: center; gap: 8px; }
 .bracket-legend-item svg { width: 28px; height: 6px; }
+.bracket-legend-drop { width: 6px; height: 6px; transform: skewX(var(--slant)); border: 1px solid var(--text-ph); flex: none; }
 .bracket-legend-note { color: var(--text-2); font-weight: 600; }
 
 @media (prefers-reduced-motion: reduce) {

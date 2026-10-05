@@ -88,6 +88,21 @@ export interface BracketGraph {
   flows: FlowSide[];
 }
 
+/** Edges the chart draws as connectors: winner advancement only (within-bracket progression + into the Grand Final). */
+export function progressionEdges(edges: readonly BracketEdge[]): BracketEdge[] {
+  return edges.filter(e => e.take === "winner");
+}
+
+/** Loser drop-in edges. Never drawn as lines; shown as slot labels ("Loser UQF1") plus a hover highlight. */
+export function dropInEdges(edges: readonly BracketEdge[]): BracketEdge[] {
+  return edges.filter(e => e.take === "loser");
+}
+
+/** Edges along which the loser of `nodeId` drops into the lower bracket. */
+export function dropTargets(graph: Pick<BracketGraph, "edges">, nodeId: number): BracketEdge[] {
+  return dropInEdges(graph.edges).filter(e => e.from === nodeId);
+}
+
 /** Human label for an unresolved slot feeding a node, e.g. "Winner UQF1". */
 export function feedLabel(feed: Feed): string {
   const t = BRACKET_TOPOLOGY[feed.from];

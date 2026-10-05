@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildBracketGraph } from "../src/lib/bracketGraph.ts";
+import { buildBracketGraph, progressionEdges, dropInEdges, dropTargets } from "../src/lib/bracketGraph.ts";
 
 const names = ["100 Thieves", "G2", "Vitality", "Nongshim", "NRG", "T1", "PRX", "LOUD"];
 const opening = Array.from({ length: 4 }, (_, i) => ({
@@ -66,4 +66,19 @@ test("reports slots absent from the known topology instead of inventing nodes", 
   const graph = buildBracketGraph({ opening, schedule: [...schedule, { match_id: 999999, stage: "New round", start: null, best_of: 3 }] });
   assert.deepEqual(graph.unmapped, [999999]);
   assert.equal(graph.nodes.some((node) => node.id === 999999), false);
+});
+
+test("splits progression edges (drawn) from loser drop-ins (labels only)", () => {
+  const graph = buildBracketGraph(payload);
+  const prog = progressionEdges(graph.edges), drops = dropInEdges(graph.edges);
+  assert.equal(prog.length + drops.length, graph.edges.length);
+  assert.equal(prog.length, 13);
+  assert.equal(drops.length, 7);
+  assert.ok(prog.every((e) => e.take === "winner"));
+  assert.ok(drops.every((e) => e.take === "loser"));
+  // UQF1 loser lands in LR1-1; Upper Final loser lands in the Lower Final; Grand Final and Lower Final drop nobody.
+  assert.deepEqual(dropTargets(graph, 754730).map((e) => e.to), [754738]);
+  assert.deepEqual(dropTargets(graph, 754736).map((e) => e.to), [754743]);
+  assert.deepEqual(dropTargets(graph, 754737), []);
+  assert.deepEqual(dropTargets(graph, 754743), []);
 });
