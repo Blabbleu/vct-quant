@@ -17,7 +17,7 @@ import {
 } from "motion/react";
 import * as m from "motion/react-m";
 import {
-  Suspense, lazy, useEffect, useLayoutEffect, useRef, useState,
+  Fragment, Suspense, lazy, useEffect, useLayoutEffect, useRef, useState,
   type CSSProperties, type ElementType, type ReactNode,
 } from "react";
 
@@ -344,13 +344,18 @@ export function Words({ text, className }: { text: string; className?: string })
       initial={init} animate="show"
       variants={{ hidden: {}, show: { transition: { staggerChildren: 0.055 } } }}
     >
+      {/* The space goes between the inline-block clips, not inside one: trailing whitespace inside an
+          inline-block is dropped, which ran the words together ("WhowinsthenextVCTmatch?"). */}
       {words.map((w, i) => (
-        <span key={i} className="word-clip">
-          <m.span
-            className="word"
-            variants={{ hidden: { opacity: 0, y: "60%" }, show: { opacity: 1, y: 0, transition: { duration: 0.32, ease: EASE_OUT } } }}
-          >{w}</m.span>{i < words.length - 1 ? " " : ""}
-        </span>
+        <Fragment key={i}>
+          <span className="word-clip">
+            <m.span
+              className="word"
+              variants={{ hidden: { opacity: 0, y: "60%" }, show: { opacity: 1, y: 0, transition: { duration: 0.32, ease: EASE_OUT } } }}
+            >{w}</m.span>
+          </span>
+          {i < words.length - 1 ? " " : null}
+        </Fragment>
       ))}
     </m.h1>
   );
