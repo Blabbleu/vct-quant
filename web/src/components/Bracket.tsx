@@ -269,8 +269,12 @@ export default function Bracket({ playoffs }: { playoffs: ChampionsPlayoffs }) {
               <defs>
                 {segs.map(e => (
                   <mask key={e.id} id={`${uid}-${e.id}`} maskUnits="userSpaceOnUse" x="0" y="0" width="1000" height={HEIGHT}>
+                    {/* Reveal mask in plain user units: with non-scaling-stroke the dash that pathLength animates is
+                        measured on the unscaled path but applied to the x-stretched one, so on canvases wider than
+                        1000 px the reveal stopped short (the UF -> GF line ended ~75 px above the Grand Final). The
+                        canvas never goes under 960 px, so 10 units stays wider than the 1-2 px edge it uncovers. */}
                     <m.path
-                      d={e.d} fill="none" stroke="#fff" strokeWidth={8} vectorEffect="non-scaling-stroke"
+                      d={e.d} fill="none" stroke="#fff" strokeWidth={10}
                       custom={e.col}
                       variants={{
                         hidden: { pathLength: 0 },
