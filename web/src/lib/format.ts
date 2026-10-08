@@ -32,6 +32,34 @@ function withUtcZone(iso: string): string {
   return /[Zz]|[+-]\d\d:\d\d$/.test(iso) ? iso : `${iso}Z`;
 }
 
+const bracketDayFmt = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short", day: "numeric" });
+const bracketTimeFmt = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", hour: "2-digit", minute: "2-digit", hour12: false });
+
+function parseUtc(iso: string | null): Date | null {
+  if (!iso) return null;
+  const date = new Date(withUtcZone(iso));
+  return Number.isFinite(date.getTime()) ? date : null;
+}
+
+/** Compact bracket kickoff, matching its UTC legend. */
+export function bracketKickoff(iso: string | null): string {
+  const date = parseUtc(iso);
+  return date ? `${bracketDayFmt.format(date)} · ${bracketTimeFmt.format(date)}` : "Time TBD";
+}
+
+/** Round date range and best-of labels for bracket headings. */
+export function bracketRoundSub(starts: (string | null)[], bestOf: (number | null)[]): string {
+  const days = starts.map(parseUtc).filter((date): date is Date => date != null).sort((a, b) => a.getTime() - b.getTime());
+  const bo = [...new Set(bestOf.filter((b): b is number => b != null))];
+  const parts: string[] = [];
+  if (days.length) {
+    const a = bracketDayFmt.format(days[0]), b = bracketDayFmt.format(days[days.length - 1]);
+    parts.push(a === b ? a : `${a}–${b.replace(/^\w+ /, "")}`);
+  }
+  if (bo.length) parts.push(bo.map(b => `Bo${b}`).join("/"));
+  return parts.join(" · ");
+}
+
 /** Kick-off for prose, e.g. "Oct 8, 2026, 9:00 AM UTC". */
 export function utc(iso: string | null): string {
   if (!iso) return "an unknown time";

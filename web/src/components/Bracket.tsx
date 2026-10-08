@@ -5,6 +5,7 @@ import { Chip } from "./arena/Chip";
 import SectionHead from "./arena/SectionHead";
 import { m, useInitial, CountUp, EASE_OUT, D_BASE } from "../lib/motion";
 import { buildBracketGraph, dropTargets, feedLabel, progressionEdges, type BracketNode, type RoundKey } from "../lib/bracketGraph";
+import { bracketKickoff, bracketRoundSub } from "../lib/format";
 import type { ChampionsPlayoffs, ChampionsPlayoffSide } from "../lib/types";
 import "./Bracket.css";
 
@@ -54,22 +55,6 @@ const HEAD_TEXT: Record<RoundKey, string> = {
 };
 
 /* ------------------------------------------------------------------ helpers */
-
-const dayFmt = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short", day: "numeric" });
-const timeFmt = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", hour: "2-digit", minute: "2-digit", hour12: false });
-const when = (iso: string | null) => (iso ? `${dayFmt.format(new Date(iso))} \u00B7 ${timeFmt.format(new Date(iso))}` : "Time TBD");
-
-function roundSub(nodes: BracketNode[]): string {
-  const days = nodes.filter(n => n.start).map(n => new Date(n.start!).getTime()).sort((a, b) => a - b);
-  const bo = [...new Set(nodes.map(n => n.bestOf).filter((b): b is number => b != null))];
-  const parts: string[] = [];
-  if (days.length) {
-    const a = dayFmt.format(new Date(days[0])), b = dayFmt.format(new Date(days[days.length - 1]));
-    parts.push(a === b ? a : `${a}\u2013${b.replace(/^\w+ /, "")}`);
-  }
-  if (bo.length) parts.push(bo.map(b => `Bo${b}`).join("/"));
-  return parts.join(" \u00B7 ");
-}
 
 /** One drawn connector piece. `link` runs from a source box to the join column; `trunk` is the single
  *  shared stub from the join column into the target box (so merged feeders never double-draw it). */
@@ -167,7 +152,7 @@ function Node({ n, slot, hot, inPath, dropFrom, onHot }: {
     >
       <div className="bracket-node-meta">
         <span className="bracket-code">{n.code}</span>
-        <span className="num">{verified ? when(n.start) : "TBD"}</span>
+        <span className="num">{verified ? bracketKickoff(n.start) : "TBD"}</span>
       </div>
       {sides ? (
         <>
@@ -261,7 +246,7 @@ export default function Bracket({ playoffs }: { playoffs: ChampionsPlayoffs }) {
               return (
                 <div key={h.round} className="bracket-head" style={{ left: `${colX(h.col) / 10}%`, top: h.y, width: `${COL_W / 10}%` }}>
                   <span className="bracket-head-name">{HEAD_TEXT[h.round]}</span>
-                  <span className="bracket-head-sub num">{roundSub(ns)}</span>
+                  <span className="bracket-head-sub num">{bracketRoundSub(ns.map(n => n.start), ns.map(n => n.bestOf))}</span>
                 </div>
               );
             })}
