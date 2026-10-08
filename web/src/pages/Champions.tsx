@@ -22,9 +22,10 @@ const LABELS = ["Opening 1", "Opening 2", "Winner's", "Elimination", "Decider"];
 type TeamMeta = { tag: string | null; logo: string | null };
 
 /** One verified Upper Quarterfinal: kick-off, both sides with model %, and the market read (or none). */
-function PlayoffMatch({ m }: { m: ChampionsPlayoffMatch }) {
+function PlayoffMatch({ m, unverified }: { m: ChampionsPlayoffMatch; unverified: boolean }) {
   const [a, b] = m.sides;
-  const forecast = a.p_win != null && b.p_win != null;
+  const result = !unverified && m.result && m.sides.some(s => s.team_id === m.result!.winner_team_id) && m.result.scores[m.sides.findIndex(s => s.team_id === m.result!.winner_team_id)] > m.result.scores[1 - m.sides.findIndex(s => s.team_id === m.result!.winner_team_id)] ? m.result : null;
+  const forecast = !result && a.p_win != null && b.p_win != null;
   const lowData = (s: typeof a) => s.matches != null && s.matches < LOW_DATA_MATCHES;
   const favTag = forecast ? (a.p_win! >= 0.5 ? (a.tag ?? a.name) : (b.tag ?? b.name)).toUpperCase() : "";
   const sideEl = (s: typeof a, right: boolean) => (
@@ -50,14 +51,14 @@ function PlayoffMatch({ m }: { m: ChampionsPlayoffMatch }) {
         </div>
         <div className="champ-po-teams">
           {sideEl(a, false)}
-          {pct(a, forecast && a.p_win! >= 0.5)}
+          {result ? <span className={`num champ-po-pct${result.winner_team_id === a.team_id ? " champ-po-pct-fav" : " champ-po-pct-dim"}`}>{result.scores[0]}</span> : pct(a, forecast && a.p_win! >= 0.5)}
           <span className="vs">vs</span>
-          {pct(b, forecast && b.p_win! > 0.5)}
+          {result ? <span className={`num champ-po-pct${result.winner_team_id === b.team_id ? " champ-po-pct-fav" : " champ-po-pct-dim"}`}>{result.scores[1]}</span> : pct(b, forecast && b.p_win! > 0.5)}
           {sideEl(b, true)}
         </div>
         {forecast ? <PipBar pA={a.p_win!} market={m.market?.p_a ?? null} lowData={lowData(a) || lowData(b)} blocks={20} /> : null}
         <div className="champ-po-bottom">
-          {forecast
+          {result ? <span className="champ-result-label">Verified result</span> : forecast
             ? <GapChip model={a.p_win!} market={m.market?.p_a ?? null} spread={m.market?.spread ?? null} favouredLabel={`${favTag} FAVOURED`} />
             : <span className="champ-ph-line num">Forecast unavailable</span>}
           {m.url && <a className="small" href={m.url} target="_blank" rel="noopener noreferrer">VLR &#8599;</a>}
@@ -78,7 +79,7 @@ function PlayoffsSection({ playoffs }: { playoffs: ChampionsPlayoffs }) {
       <Stagger className="champ-po-grid">
         {[...playoffs.opening]
           .sort((x, y) => (x.start ?? "9").localeCompare(y.start ?? "9") || x.match_id - y.match_id)
-          .map(m => <StaggerItem key={m.match_id}><PlayoffMatch m={m} /></StaggerItem>)}
+          .map(m => <StaggerItem key={m.match_id}><PlayoffMatch m={m} unverified={(playoffs.unverified_match_ids ?? []).includes(m.match_id)} /></StaggerItem>)}
       </Stagger>
     </section>
   );
@@ -272,6 +273,8 @@ export default function Champions() {
 
   const playoffs = data.playoffs && data.playoffs.opening.length > 0 ? data.playoffs : null;
   const groupsDone = letters.every(l => data.groups[l].qualifiers.length === 2 && data.groups[l].unverified_match_ids.length === 0);
+  const recordedOpening = playoffs?.opening.filter(m => m.result && !(playoffs.unverified_match_ids ?? []).includes(m.match_id)).length ?? 0;
+  const namedLater = playoffs?.schedule.some(s => s.sides?.length === 2) ?? false;
 
   return (
     <PageFade className="champions-page">
@@ -279,7 +282,7 @@ export default function Champions() {
         <h1 className="champ-title">{playoffs ? "Playoffs" : "Group stage"}</h1>
         <p className="champ-lede">
           {playoffs
-            ? "The opening Upper Quarterfinals are drawn, with the primary Elo forecast for each series. Later rounds are not yet verified, so they stay TBD."
+            ? `${recordedOpening ? `${recordedOpening} opening series ${recordedOpening === 1 ? "has" : "have"} recorded results` : "Opening Upper Quarterfinals are drawn"}; named later-round sides are shown when supplied, with Elo forecasts only for unplayed series.`
             : "Recorded best-of-three results, confirmed advancement, and each team's chance to leave its group under the primary Elo forecast."}
         </p>
       </header>
@@ -315,7 +318,7 @@ export default function Champions() {
             <p>The playoff draw is expected after October 4. Seeding and lower-bracket paths are not verified; title odds are unavailable. Group match results may lag the source.</p>
           </>
         )}
-        {playoffs && <p>Only the four opening pairings and the published schedule are verified. Upper/lower-bracket routing and grand-final rules are not, so no title odds are shown. Group match results may lag the source.</p>}
+        {playoffs && <p>{recordedOpening ? `${recordedOpening} opening result${recordedOpening === 1 ? " is" : "s are"} recorded.` : "Opening pairings and the published schedule are available."} {namedLater ? "Named scheduled sides appear in the bracket." : "Later sides appear as TBD until supplied."} Upper/lower-bracket routing and grand-final rules are not confirmed, so title odds remain unavailable. Group match results may lag the source.</p>}
         <p>Group odds replay every remaining group series with the same win probability the fixture board shows for that pairing, holding ratings fixed until the group ends (real ratings move after each result). &ldquo;1st seed&rdquo; means winning the winners' match. Descriptive only: not a separate model and not betting advice.</p>
       </section>
     </PageFade>

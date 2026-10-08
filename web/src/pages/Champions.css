@@ -105,6 +105,7 @@
 .champ-po-pct-dim { color: var(--text-3); }
 .champ-po-bottom { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2) var(--s-3); flex-wrap: wrap; }
 .champ-po-bottom a { color: var(--text-2); }
+.champ-result-label { color: var(--positive); font-size: var(--fs-meta); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 
 @media (min-width: 768px) {
   .champ-po-grid { grid-template-columns: repeat(2, 1fr); }

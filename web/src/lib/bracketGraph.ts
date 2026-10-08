@@ -7,8 +7,7 @@
  * WHAT IS VERIFIED vs ASSUMED
  *   - The four Upper Quarterfinal pairings, their kick-offs and Bo come from the API
  *     (`playoffs.opening`) and are officially verified.
- *   - Every later node's stage / kick-off / Bo comes from `playoffs.schedule`, but the
- *     teams are TBD.
+ *   - Scheduled sides and results are shown when supplied by the API; missing data stays TBD.
  *   - The EDGES below (who feeds whom) follow VLR's bracket layout. They are NOT officially
  *     confirmed (the API says `routing: "unresolved"`), so every edge is `confirmed: false`.
  *     The candidate renderer must style and label them as projections; do not surface any
@@ -52,8 +51,10 @@ export interface BracketNode {
   start: string | null;
   bestOf: number | null;
   url: string | null;
-  /** Teams are officially known (opening pairings only). */
+  /** Two named sides are available from the payload. */
   verified: boolean;
+  sides: [ChampionsPlayoffSide, ChampionsPlayoffSide] | null;
+  result: { winner_team_id: number; scores: [number, number] } | null;
   match: ChampionsPlayoffMatch | null;
   feeds: Feed[];
 }
@@ -109,11 +110,12 @@ export function feedLabel(feed: Feed): string {
   return `${feed.take === "winner" ? "Winner" : "Loser"} ${t ? t.code : feed.from}`;
 }
 
-export function buildBracketGraph(playoffs: Pick<ChampionsPlayoffs, "opening" | "schedule">): BracketGraph {
+export function buildBracketGraph(playoffs: Pick<ChampionsPlayoffs, "opening" | "schedule" | "unverified_match_ids">): BracketGraph {
   const nodes: BracketNode[] = [];
   const byId = new Map<number, BracketNode>();
   const unmapped: number[] = [];
 
+  const unverified = new Set(playoffs.unverified_match_ids ?? []);
   const add = (slot: ChampionsPlayoffSlot | ChampionsPlayoffMatch, match: ChampionsPlayoffMatch | null) => {
     const topo = BRACKET_TOPOLOGY[slot.match_id];
     if (!topo) { unmapped.push(slot.match_id); return; }
@@ -121,7 +123,9 @@ export function buildBracketGraph(playoffs: Pick<ChampionsPlayoffs, "opening" | 
     const node: BracketNode = {
       id: slot.match_id, code: topo.code, round: topo.round, section: topo.section,
       stage: slot.stage, start: slot.start, bestOf: slot.best_of,
-      url: match?.url ?? null, verified: match != null && match.sides.length === 2,
+      url: match?.url ?? null, verified: slot.sides?.length === 2,
+      sides: slot.sides?.length === 2 ? slot.sides : null,
+      result: unverified.has(slot.match_id) ? null : validResult(slot.result, slot.sides),
       match, feeds: topo.feeds,
     };
     byId.set(node.id, node);
@@ -142,10 +146,10 @@ export function buildBracketGraph(playoffs: Pick<ChampionsPlayoffs, "opening" | 
   // weighted by the model's win probability. No flow for a side without a forecast.
   const flows: FlowSide[] = [];
   for (const node of nodes) {
-    if (!node.match) continue;
+    if (!node.sides || node.result) continue;
     const out = edges.find(e => e.from === node.id && e.take === "winner");
     if (!out) continue;
-    const [a, b] = node.match.sides;
+    const [a, b] = node.sides;
     const pa = valid(a.p_win), pb = valid(b.p_win);
     for (const [s, p, other] of [[a, pa, pb], [b, pb, pa]] as const) {
       if (p == null) continue;
@@ -155,6 +159,13 @@ export function buildBracketGraph(playoffs: Pick<ChampionsPlayoffs, "opening" | 
   }
 
   return { nodes, edges, byId, unmapped, flows };
+}
+
+function validResult(result: ChampionsPlayoffSlot["result"], sides: ChampionsPlayoffSlot["sides"]) {
+  if (!result || !sides || result.scores.length !== 2 || !sides.some(s => s.team_id === result.winner_team_id)) return null;
+  if (!result.scores.every(score => Number.isInteger(score) && score >= 0) || result.scores[0] === result.scores[1]) return null;
+  const winnerIndex = sides.findIndex(s => s.team_id === result.winner_team_id);
+  return result.scores[winnerIndex] > result.scores[1 - winnerIndex] ? result : null;
 }
 
 function valid(p: number | null): number | null {

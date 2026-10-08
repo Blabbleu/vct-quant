@@ -61,6 +61,8 @@
 .bracket-side-pct { font-size: 12px; font-weight: 700; color: var(--text-3); }
 .bracket-side-fav { color: var(--text); border-left-color: var(--model-fill); }
 .bracket-side-fav .bracket-side-pct { color: var(--model); }
+.bracket-side-winner { color: var(--text); border-left-color: var(--positive); font-weight: 800; }
+.bracket-side-winner .bracket-side-pct { color: var(--positive); }
 .bracket-side-tbd { color: var(--text-3); font-size: 11px; height: 20px; gap: 6px; border-left: 0; padding-left: 0; margin-left: 0; }
 .bracket-side-drop .bracket-tbd-label { font-style: italic; }
 .bracket-side-drop.is-drop .bracket-tbd-label { color: var(--model); font-weight: 700; }

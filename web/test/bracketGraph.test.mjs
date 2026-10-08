@@ -40,6 +40,44 @@ test("maps the complete 14-match schedule and keeps every inferred edge unconfir
   assert.equal(graph.byId.get(754737).feeds[0].from, 754736);
 });
 
+test("retains named scheduled sides and verified results, with scores in payload side order", () => {
+  const next = structuredClone(schedule);
+  next[0].sides = [
+    { team_id: 101, name: "Alpha", tag: "ALP", logo: null, matches: 5, p_win: 0.7 },
+    { team_id: 102, name: "Beta", tag: "BET", logo: null, matches: 8, p_win: 0.3 },
+  ];
+  next[0].result = { winner_team_id: 102, scores: [1, 2] };
+  const open = structuredClone(opening);
+  open[0].result = { winner_team_id: open[0].sides[0].team_id, scores: [2, 1] };
+  const graph = buildBracketGraph({ opening: open, schedule: next });
+  const usf = graph.byId.get(754734);
+  assert.deepEqual(usf.sides.map(s => s.name), ["Alpha", "Beta"]);
+  assert.deepEqual(usf.result.scores, [1, 2]);
+  assert.equal(usf.result.winner_team_id, 102);
+  assert.deepEqual(graph.byId.get(754730).result.scores, [2, 1]);
+  assert.equal(graph.flows.some(f => f.nodeId === 754734), false, "finished matches have no forecast flows");
+  assert.ok(graph.edges.every(edge => edge.confirmed === false));
+});
+
+test("keeps unnamed, null probability, and explicitly unverified results unresolved", () => {
+  const next = structuredClone(schedule);
+  next[0].sides = [
+    { team_id: 101, name: "Alpha", tag: null, logo: null, matches: null, p_win: null },
+    { team_id: 102, name: "Beta", tag: null, logo: null, matches: null, p_win: null },
+  ];
+  next[0].result = { winner_team_id: 101, scores: [2, 0] };
+  const unverifiedOpening = structuredClone(opening);
+  unverifiedOpening[0].result = { winner_team_id: 1, scores: [2, 0] };
+  const graph = buildBracketGraph({ opening: unverifiedOpening, schedule: next, unverified_match_ids: [754730, 754734] });
+  assert.deepEqual(graph.byId.get(754734).sides.map(s => s.name), ["Alpha", "Beta"]);
+  assert.equal(graph.byId.get(754734).result, null);
+  assert.equal(graph.byId.get(754730).result, null);
+  assert.equal(graph.byId.get(754734).sides[0].p_win, null, "does not invent odds");
+  assert.equal(graph.byId.get(754735).sides, null);
+  assert.equal(graph.byId.get(754735).result, null);
+  assert.ok(graph.edges.every(edge => edge.confirmed === false));
+});
+
 test("does not draw edges through missing source or destination slots", () => {
   const graph = buildBracketGraph({ opening, schedule: schedule.filter((slot) => slot.match_id !== 754734) });
   assert.equal(graph.nodes.length, 13);

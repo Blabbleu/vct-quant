@@ -129,14 +129,13 @@ const barVariants = {
   show: (col: number) => ({ scaleX: 1, transition: { duration: 0.5, ease: EASE_OUT, delay: 0.25 + col * 0.09 } }),
 };
 
-function SideRow({ s, fav, tied }: { s: ChampionsPlayoffSide; fav: boolean; tied: boolean }) {
-  const tag = (s.tag ?? s.name).toUpperCase();
+function SideRow({ s, fav, tied, score, winner }: { s: ChampionsPlayoffSide; fav: boolean; tied: boolean; score: number | null; winner: boolean }) {
   return (
-    <Link to={`/team/${s.team_id}`} className={`bracket-side${fav && !tied ? " bracket-side-fav" : ""}`} title={s.name}>
+    <Link to={`/team/${s.team_id}`} className={`bracket-side${fav && !tied ? " bracket-side-fav" : ""}${winner ? " bracket-side-winner" : ""}`} title={s.name}>
       <LogoSlot src={s.logo} name={s.name} tag={s.tag} size={20} />
-      <span className="bracket-side-tag">{tag}</span>
+      <span className="bracket-side-tag">{s.name}</span>
       <span className="bracket-side-pct num">
-        {s.p_win != null ? <CountUp value={s.p_win * 100} /> : "\u2013"}
+        {score != null ? score : s.p_win != null ? <CountUp value={s.p_win * 100} /> : "\u2013"}
       </span>
     </Link>
   );
@@ -146,9 +145,10 @@ function Node({ n, slot, hot, inPath, dropFrom, onHot }: {
   n: BracketNode; slot: Slot; hot: boolean; inPath: boolean; dropFrom: number | null; onHot: (id: number | null) => void;
 }) {
   const isDrop = dropFrom != null && n.feeds.some(f => f.take === "loser" && f.from === dropFrom);
-  const verified = n.verified && n.match;
-  const sides = verified ? n.match!.sides : null;
-  const pA = sides?.[0].p_win ?? null, pB = sides?.[1].p_win ?? null;
+  const sides = n.sides;
+  const verified = n.verified;
+  const result = n.result;
+  const pA = result ? null : sides?.[0].p_win ?? null, pB = result ? null : sides?.[1].p_win ?? null;
   const tied = pA != null && pB != null && pA === pB;
   const favA = pA != null && pB != null ? pA > pB : false;
   const favB = pA != null && pB != null ? pB > pA : false;
@@ -171,9 +171,9 @@ function Node({ n, slot, hot, inPath, dropFrom, onHot }: {
       </div>
       {sides ? (
         <>
-          <SideRow s={sides[0]} fav={favA} tied={tied} />
-          <SideRow s={sides[1]} fav={favB} tied={tied} />
-          {favP != null && (
+          <SideRow s={sides[0]} fav={favA} tied={tied} score={result?.scores[0] ?? null} winner={result?.winner_team_id === sides[0].team_id} />
+          <SideRow s={sides[1]} fav={favB} tied={tied} score={result?.scores[1] ?? null} winner={result?.winner_team_id === sides[1].team_id} />
+          {!result && favP != null && (
             <span className="bracket-fav-track" aria-hidden="true">
               <m.span className="bracket-fav-fill" style={{ width: `${favP * 100}%`, originX: 0 }} custom={slot.col} variants={barVariants} />
             </span>
@@ -230,13 +230,14 @@ export default function Bracket({ playoffs }: { playoffs: ChampionsPlayoffs }) {
   const dropFrom = hotId != null && dropTargets(graph, hotId).length > 0 ? hotId : null;
   const rounds = (r: RoundKey) => placed.filter(n => n.round === r);
   const heads = ROUND_HEADS.filter(h => rounds(h.round).length > 0);
+  const recorded = placed.filter(n => n.round === "UQF" && n.result).length;
+  const namedLater = placed.some(n => n.round !== "UQF" && n.sides);
 
   return (
     <section className="champ-bracket" aria-label="Playoff bracket">
       <SectionHead title="Playoff bracket" right={<Chip variant="ghost">ROUTING UNCONFIRMED</Chip>} />
       <p className="champ-sub">
-        Upper bracket on top, lower bracket below, Grand Final at the right. Losers drop into the labelled lower slots; hover a match to light up its path. The four opening pairings are official; every
-        later slot stays TBD until the API lists its teams. Win % is the primary Elo forecast for the series.
+        Upper bracket on top, lower bracket below, Grand Final at the right. Losers drop into the labelled lower slots; hover a match to light up its path. {recorded ? `${recorded} opening result${recorded === 1 ? " is" : "s are"} recorded.` : "Opening pairings are published."} {namedLater ? "Named later-round sides are shown where supplied." : "Later-round sides remain TBD until supplied."} Named unplayed sides may show primary Elo win probabilities; routing remains projected.
       </p>
 
       <div className={`bracket-frame${overflowing ? " is-scrollable" : ""}${atEnd ? " at-end" : ""}`}>
