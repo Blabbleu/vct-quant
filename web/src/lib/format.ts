@@ -13,6 +13,7 @@ export const when = (iso: string) => dtf.format(new Date(iso));
 
 export function relative(iso: string, now = Date.now()): string {
   const mins = Math.round((new Date(iso).getTime() - now) / 60000);
+  if (mins === 0) return "now";
   const abs = Math.abs(mins);
   const text = abs < 60 ? `${abs}m` : abs < 48 * 60 ? `${Math.round(abs / 60)}h` : `${Math.round(abs / 1440)}d`;
   return mins >= 0 ? `in ${text}` : `${text} ago`;
@@ -27,15 +28,22 @@ export const liquid = (spread: number | null, volume: number | null) =>
 
 export const logLoss = (p: number, won: boolean) => -Math.log(Math.min(Math.max(won ? p : 1 - p, 1e-9), 1));
 
+function withUtcZone(iso: string): string {
+  return /[Zz]|[+-]\d\d:\d\d$/.test(iso) ? iso : `${iso}Z`;
+}
+
 /** Kick-off for prose, e.g. "Oct 8, 2026, 9:00 AM UTC". */
 export function utc(iso: string | null): string {
   if (!iso) return "an unknown time";
-  const withZone = /[Zz]|[+-]\d\d:\d\d$/.test(iso) ? iso : `${iso}Z`;
+  const withZone = withUtcZone(iso);
+  if (!Number.isFinite(new Date(withZone).getTime())) return "an unknown time";
   return `${new Date(withZone).toLocaleString(undefined, { timeZone: "UTC", dateStyle: "medium", timeStyle: "short" })} UTC`;
 }
 
 /** Compact kick-off, e.g. "Oct 08, 09:00 UTC". */
 export function utcShort(iso: string | null): string {
   if (!iso) return "Time TBD";
-  return `${new Date(iso).toLocaleString("en-US", { timeZone: "UTC", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })} UTC`;
+  const withZone = withUtcZone(iso);
+  if (!Number.isFinite(new Date(withZone).getTime())) return "Time TBD";
+  return `${new Date(withZone).toLocaleString("en-US", { timeZone: "UTC", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })} UTC`;
 }
