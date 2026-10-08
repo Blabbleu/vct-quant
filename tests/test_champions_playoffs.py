@@ -1,7 +1,9 @@
 """Playoff block on the Champions payload: verified pairings joined to fixtures."""
 import copy
+import duckdb
+import pandas as pd
 
-from vct_quant.champions_status import attach_playoffs
+from vct_quant.champions_status import attach_playoffs, playoff_results
 from vct_quant.event_bracket import load_bracket_spec
 
 
@@ -105,3 +107,111 @@ def test_attach_playoffs_does_not_mutate_spec_or_invent_without_verified_pairing
     bare = copy.deepcopy(spec)
     bare["verified_opening_pairings"] = []
     assert "playoffs" not in attach_playoffs(status(), bare, all_fixtures(), schedule())
+
+
+def playoff_db(rows):
+    db = duckdb.connect(":memory:")
+    db.execute("CREATE TABLE match (match_id BIGINT, event_id BIGINT, event_series VARCHAR, status VARCHAR, last_seen_at TIMESTAMP)")
+    db.execute("CREATE TABLE match_team (match_id BIGINT, team_number INT, team_id BIGINT, team_name VARCHAR, series_score INT, is_winner BOOLEAN)")
+    for mid, event, stage, scores, ids, flags in rows:
+        db.execute("INSERT INTO match VALUES (?, ?, ?, 'completed', NULL)", [mid, event, stage])
+        for n in range(2):
+            db.execute("INSERT INTO match_team VALUES (?, ?, ?, ?, ?, ?)", [mid, n + 1, ids[n], f"Team {ids[n]}", scores[n], flags[n]])
+    return db
+
+
+def row(mid, stage="Upper Quarterfinals", scores=(2, 0), ids=(11058, 120), flags=(True, False), event=2766):
+    return mid, event, stage, list(scores), list(ids), list(flags)
+
+
+def test_playoff_results_and_opening_result_follow_pinned_side_order():
+    spec = load_bracket_spec(2766)
+    db = playoff_db([row(754730, ids=(11058, 120), scores=(2, 0))])
+    results = playoff_results(db, spec)
+    assert results[754730] == {"team_ids": [11058, 120], "scores": [2, 0]}
+    out = attach_playoffs(status(), spec, all_fixtures(), schedule(), results)
+    first = out["playoffs"]["opening"][0]
+    assert [s["team_id"] for s in first["sides"]] == [120, 11058]
+    assert first["result"] == {"winner_team_id": 11058, "scores": [0, 2]}
+    db.close()
+
+
+@__import__("pytest").mark.parametrize("bad", [
+    row(754730, scores=(1, 1), flags=(False, False)),
+    row(754730, stage="Lower Round 1"),
+    row(754730, event=999),
+    row(754730, flags=(False, False)),
+])
+def test_playoff_results_reject_bad_rows_and_list_them(bad):
+    spec = load_bracket_spec(2766)
+    db = playoff_db([bad])
+    results = playoff_results(db, spec)
+    assert 754730 not in results and results.unverified == [754730]
+    block = attach_playoffs(status(), spec, all_fixtures(), [], results)["playoffs"]
+    assert block["opening"][0]["result"] is None
+    assert block["unverified_match_ids"] == [754730]
+    db.close()
+
+
+def test_bo5_decisive_score_validation():
+    spec = load_bracket_spec(2766)
+    db = playoff_db([row(754743, "Lower Final", (3, 2), (10, 20), (True, False)),
+                     row(754737, "Grand Final", (2, 1), (30, 40), (True, False))])
+    results = playoff_results(db, spec)
+    assert results[754743]["scores"] == [3, 2]
+    assert 754737 not in results and results.unverified == [754737]
+    db.close()
+
+
+def test_later_slot_sides_join_fixture_in_both_orientations_and_completed_result():
+    spec = load_bracket_spec(2766)
+    for reversed_fixture in (False, True):
+        slot_fixture = fixture(754734, *(('Team Vitality', 'G2 Esports') if reversed_fixture else ('G2 Esports', 'Team Vitality')), .62)
+        slot = {"match_id": 754734, "start": "2026-10-10T00:00:00+00:00", "best_of": 3,
+                "teams": ["G2 Esports", "Team Vitality"], "team_ids": [11058, 2050]}
+        db = playoff_db([row(754734, "Upper Semifinals", (2, 1), (2050, 11058), (True, False)),
+                         row(754735, "Upper Semifinals", (2, 0), (3050, 4050), (True, False))])
+        results = playoff_results(db, spec)
+        out = attach_playoffs(status(), spec, [slot_fixture], [slot], results)["playoffs"]
+        later = next(item for item in out["schedule"] if item["match_id"] == 754734)
+        assert [s["team_id"] for s in later["sides"]] == [11058, 2050]
+        assert [s["name"] for s in later["sides"]] == ["Team 11058", "Team 2050"]
+        assert [s["logo"] for s in later["sides"]] == [f"/logos/{slot_fixture['team_b' if reversed_fixture else 'team_a']}.png",
+                                                            f"/logos/{slot_fixture['team_a' if reversed_fixture else 'team_b']}.png"]
+        assert [s["tag"] for s in later["sides"]] == [slot_fixture["tag_b" if reversed_fixture else "tag_a"],
+                                                          slot_fixture["tag_a" if reversed_fixture else "tag_b"]]
+        assert [s["matches"] for s in later["sides"]] == ([12, 100] if reversed_fixture else [100, 12])
+        assert [s["p_win"] for s in later["sides"]] == ([.38, .62] if reversed_fixture else [.62, .38])
+        assert later["result"] == {"winner_team_id": 2050, "scores": [1, 2]}
+        completed_only = next(item for item in out["schedule"] if item["match_id"] == 754735)
+        assert [side["team_id"] for side in completed_only["sides"]] == [3050, 4050]
+        assert [side["name"] for side in completed_only["sides"]] == ["Team 3050", "Team 4050"]
+        assert completed_only["result"] == {"winner_team_id": 3050, "scores": [2, 0]}
+        db.close()
+
+
+def test_named_schedule_sides_and_tbd_sides_with_results():
+    spec = load_bracket_spec(2766)
+    entries = [{"match_id": 754738, "start": None, "best_of": 3, "teams": ["NRG", "T1"], "team_ids": [1034, 14]}]
+    block = attach_playoffs(status(), spec, [fixture(754738, "NRG", "T1", .7)], entries, {})["playoffs"]
+    row_known = next(r for r in block["schedule"] if r["match_id"] == 754738)
+    row_tbd = next(r for r in block["schedule"] if r["match_id"] == 754739)
+    assert [s["name"] for s in row_known["sides"]] == ["NRG", "T1"]
+    assert row_known["sides"][0]["p_win"] == .7 and abs(row_known["sides"][1]["p_win"] - .3) < 1e-12
+    assert row_tbd["sides"] is None
+
+
+def test_playoff_schedule_adds_numeric_team_keys_only(tmp_path, monkeypatch):
+    import vct_quant.dashboard as dashboard
+    monkeypatch.setattr(dashboard, "PROCESSED_DIR", tmp_path)
+    pd.DataFrame([
+        {"match_id": 754739, "scheduled_at": pd.Timestamp("2026-10-09"), "best_of": 3,
+         "team_a_name": "T1", "team_b_name": "Paper Rex", "team_a_key": "14", "team_b_key": "624"},
+        {"match_id": 754738, "scheduled_at": pd.Timestamp("2026-10-09"), "best_of": 3,
+         "team_a_name": "TBD", "team_b_name": "TBD", "team_a_key": "TBD", "team_b_key": "TBD"},
+    ]).to_parquet(tmp_path / "upcoming_tier1.parquet")
+    rows = dashboard.playoff_schedule([754739, 754738])
+    named = next(r for r in rows if r["match_id"] == 754739)
+    tbd = next(r for r in rows if r["match_id"] == 754738)
+    assert named["teams"] == ["T1", "Paper Rex"] and named["team_ids"] == [14, 624]
+    assert "teams" not in tbd and "team_ids" not in tbd

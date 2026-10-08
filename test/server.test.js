@@ -477,7 +477,23 @@ async function main() {
       assert.ok(Math.abs(m.sides[0].p_win + m.sides[1].p_win - 1) < 1e-12);
       assert.equal(m.start, fixture.start);
     }
-    for (const row of playoffs.schedule) assert.ok(!("sides" in row), "later slots must not name teams");
+    for (const row of playoffs.schedule) {
+      if (row.sides) {
+        assert.equal(row.sides.length, 2);
+        assert.notEqual(row.sides[0].team_id, row.sides[1].team_id);
+        assert.ok(row.sides.every(side => side.team_id > 0 && side.name && side.name !== "TBD"));
+        if (row.match_id === 754739) {
+          assert.deepEqual(row.sides.map(side => side.team_id), [14, 624]);
+          assert.deepEqual(row.sides.map(side => side.name), ["T1", "Paper Rex"]);
+        }
+      } else assert.equal(row.sides, null);
+    }
+    assert.ok(Array.isArray(playoffs.unverified_match_ids));
+    for (const m of playoffs.opening) if (m.result) {
+      assert.ok(m.sides.some(side => side.team_id === m.result.winner_team_id));
+      const winnerIndex = m.sides.findIndex(side => side.team_id === m.result.winner_team_id);
+      assert.ok(m.result.scores[winnerIndex] > m.result.scores[1 - winnerIndex]);
+    }
     console.log(`  /api/champions/2766 playoffs: ${playoffs.opening.length} opening matchups, ${playoffs.schedule.length} TBD slots ok`);
     assert.equal((await fetch(base + "/api/champions/0")).status, 404);
     assert.equal((await fetch(base + "/api/champions/2767")).status, 404);

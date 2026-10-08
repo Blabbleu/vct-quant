@@ -214,17 +214,28 @@ def score_distribution(scores, best_of) -> list[dict] | None:
 def playoff_schedule(match_ids: list[int]) -> list[dict]:
     """Kick-off and format for the given match IDs from the cached upcoming feed.
 
-    Unlike ``fixtures()`` this keeps TBD-vs-TBD rows: it carries only the date,
-    never teams or odds.
+    TBD-vs-TBD rows retain only their date. Named rows carry the two source keys
+    so callers can join teams without guessing from names.
     """
     path = PROCESSED_DIR / "upcoming_tier1.parquet"
     if not path.exists():
         return []
-    up = pd.read_parquet(path, columns=["match_id", "scheduled_at", "best_of"])
+    up = pd.read_parquet(path, columns=["match_id", "scheduled_at", "best_of",
+                                        "team_a_name", "team_b_name", "team_a_key", "team_b_key"])
     up = up[up.match_id.isin(match_ids)].sort_values("scheduled_at")
-    return [{"match_id": int(r.match_id), "start": r.scheduled_at.isoformat(),
-             "best_of": int(r.best_of) if pd.notna(r.best_of) else None}
-            for r in up.itertuples() if pd.notna(r.scheduled_at)]
+    rows = []
+    for r in up.itertuples():
+        if pd.isna(r.scheduled_at):
+            continue
+        row = {"match_id": int(r.match_id), "start": r.scheduled_at.isoformat(),
+               "best_of": int(r.best_of) if pd.notna(r.best_of) else None}
+        if (r.team_a_name != "TBD" and r.team_b_name != "TBD"
+                and isinstance(r.team_a_key, str) and r.team_a_key.isdigit()
+                and isinstance(r.team_b_key, str) and r.team_b_key.isdigit()):
+            row["teams"] = [r.team_a_name, r.team_b_name]
+            row["team_ids"] = [int(r.team_a_key), int(r.team_b_key)]
+        rows.append(row)
+    return rows
 
 
 def fixtures() -> list[dict]:

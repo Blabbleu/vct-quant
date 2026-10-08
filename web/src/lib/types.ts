@@ -157,11 +157,17 @@ export interface ChampionsPlayoffMatch {
   match_id: number; stage: string; start: string | null; best_of: number | null; url: string | null;
   sides: [ChampionsPlayoffSide, ChampionsPlayoffSide];
   market: { p_a: number; spread: number | null; volume: number | null } | null;
+  result?: { winner_team_id: number; scores: [number, number] } | null;
 }
-export interface ChampionsPlayoffSlot { match_id: number; stage: string; start: string | null; best_of: number | null }
+export interface ChampionsPlayoffSlot {
+  match_id: number; stage: string; start: string | null; best_of: number | null;
+  sides?: [ChampionsPlayoffSide, ChampionsPlayoffSide] | null;
+  result?: { winner_team_id: number; scores: [number, number] } | null;
+}
 export interface ChampionsPlayoffs {
   routing: "unresolved"; observed_at: string; sources: string[];
   opening: ChampionsPlayoffMatch[]; schedule: ChampionsPlayoffSlot[];
+  unverified_match_ids?: number[];
 }
 export interface ChampionsStatus {
   event_id: number; as_of: string | null; playoff_routing: "unresolved";
