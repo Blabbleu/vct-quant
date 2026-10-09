@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { bracketKickoff, bracketRoundSub, playedDate, relative, utc, utcShort } from "../src/lib/format.ts";
+import { bracketKickoff, bracketRoundSub, playedDate, relative, stageSpan, utc, utcShort } from "../src/lib/format.ts";
 import { execFileSync } from "node:child_process";
 
 test("UTC formatters treat zoneless ISO timestamps as UTC", () => {
@@ -37,6 +37,22 @@ console.log(JSON.stringify({ kickoffs: starts.map(bracketKickoff), rounds: start
   assert.deepEqual(nyOutput, utcOutput);
   assert.deepEqual(utcOutput.kickoffs, ["Oct 8 · 23:30", "Oct 8 · 23:30", "Oct 8 · 23:30"]);
   assert.deepEqual(utcOutput.rounds, ["Oct 8 · Bo3", "Oct 8 · Bo3", "Oct 8 · Bo3"]);
+});
+
+test("stage spans stay UTC across viewer time zones", () => {
+  const script = `import { stageSpan } from './src/lib/format.ts';
+console.log(JSON.stringify([
+  stageSpan('2026-10-07', '2026-10-08'),
+  stageSpan('2026-10-09T00:30:00Z', '2026-10-09T23:00:00Z'),
+  stageSpan('2026-09-30', '2026-10-02'),
+  stageSpan(null, null),
+]));`;
+  const inZone = (TZ) => JSON.parse(execFileSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "--eval", script], {
+    cwd: new URL("..", import.meta.url), env: { ...process.env, TZ }, encoding: "utf8",
+  }));
+  const utcOutput = inZone("UTC");
+  assert.deepEqual(inZone("America/New_York"), utcOutput);
+  assert.deepEqual(utcOutput, ["Oct 7–8", "Oct 9", "Sep 30–Oct 2", ""]);
 });
 
 test("bracket malformed and null starts fall back or are ignored while retaining Bo labels", () => {

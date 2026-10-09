@@ -41,6 +41,21 @@ function parseUtc(iso: string | null): Date | null {
   return Number.isFinite(date.getTime()) ? date : null;
 }
 
+function utcDaySpan(start: Date, end: Date): string {
+  const a = bracketDayFmt.format(start), b = bracketDayFmt.format(end);
+  if (start.getUTCFullYear() === end.getUTCFullYear() && start.getUTCMonth() === end.getUTCMonth() && start.getUTCDate() === end.getUTCDate()) return a;
+  const sameMonth = start.getUTCFullYear() === end.getUTCFullYear() && start.getUTCMonth() === end.getUTCMonth();
+  return `${a}–${sameMonth ? b.replace(/^\w+ /, "") : b}`;
+}
+
+/** UTC date span for a stage timeline, with a useful fallback for a missing end. */
+export function stageSpan(start: string | null, end: string | null): string {
+  const a = parseUtc(start);
+  if (!a) return "";
+  const b = parseUtc(end);
+  return b ? utcDaySpan(a, b) : bracketDayFmt.format(a);
+}
+
 /** Compact bracket kickoff, matching its UTC legend. */
 export function bracketKickoff(iso: string | null): string {
   const date = parseUtc(iso);
@@ -59,8 +74,7 @@ export function bracketRoundSub(starts: (string | null)[], bestOf: (number | nul
   const bo = [...new Set(bestOf.filter((b): b is number => b != null))];
   const parts: string[] = [];
   if (days.length) {
-    const a = bracketDayFmt.format(days[0]), b = bracketDayFmt.format(days[days.length - 1]);
-    parts.push(a === b ? a : `${a}–${b.replace(/^\w+ /, "")}`);
+    parts.push(utcDaySpan(days[0], days[days.length - 1]));
   }
   if (bo.length) parts.push(bo.map(b => `Bo${b}`).join("/"));
   return parts.join(" · ");

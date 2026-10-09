@@ -6,15 +6,9 @@ import { formatCountdown, stageShort, type EventContext, type TimelineStage } fr
 import { useNow } from "../../lib/useNow";
 import { m, useInitial, EASE_OUT, D_BASE } from "../../lib/motion";
 import type { Fixture } from "../../lib/types";
+import { stageSpan } from "../../lib/format";
 
-const shortDay = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" });
 const tagOf = (f: Fixture, side: "a" | "b") => ((side === "a" ? f.tag_a ?? f.team_a : f.tag_b ?? f.team_b)).toUpperCase();
-
-function span(t: TimelineStage): string {
-  const a = shortDay.format(new Date(t.start));
-  const b = shortDay.format(new Date(t.end));
-  return a === b ? a : `${a}\u2013${b.replace(/^\w+ /, "")}`;
-}
 
 /**
  * Event context strip at the top of Matches: event + phase, a live-ticking countdown to the
@@ -66,7 +60,7 @@ export default function EventHero({ ctx, timeline, timelineLoading }: {
                   title={`${t.stage}: ${t.matches} ${t.matches === 1 ? "match" : "matches"}${t.bestOf ? `, Bo${t.bestOf}` : ""}`}
                 >
                   <span className="event-stage-name">{t.short}</span>
-                  <span className="event-stage-date num">{span(t)}</span>
+                  <span className="event-stage-date num">{stageSpan(t.start, t.end)}</span>
                 </m.li>
               ))}
             </ol>
