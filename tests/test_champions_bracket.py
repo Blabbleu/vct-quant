@@ -149,6 +149,20 @@ def test_champions_playoff_routes_are_source_checked():
     }
 
 
+def test_playoff_feeds_is_empty_for_legacy_unresolved_routing():
+    spec = load_bracket_spec(2766)
+    spec["playoff_advancement"] = "unresolved"
+    assert playoff_feeds(spec) == {}
+
+
+def test_champions_rejects_winner_and_loser_from_same_routed_match():
+    spec = load_bracket_spec(2766)
+    spec["playoff_advancement"]["slots"]["754734"]["b"].update(
+        **{"from": 754730, "take": "loser"})
+    with pytest.raises(ValueError, match="routing"):
+        validate_bracket_spec(spec)
+
+
 @pytest.mark.parametrize("mutate", [
     lambda s: s["playoff_advancement"]["slots"]["754735"]["a"].update(**{"from": 754730, "take": "winner"}),
     lambda s: s["playoff_advancement"]["slots"]["754734"]["a"].update(**{"from": 999999}),
