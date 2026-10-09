@@ -12,6 +12,7 @@ import { LoadingBlocks, ErrorPanel } from "../components/arena/States";
 import { Reveal, Stagger, StaggerItem, PageFade, CountUp } from "../lib/motion";
 import { URLS, loadCached, store, useChampionsStatus } from "../lib/api";
 import { LOW_DATA_MATCHES } from "../lib/constants";
+import { openingSectionCopy } from "../lib/championsCopy";
 import { playedDate, utc, utcShort } from "../lib/format";
 import type { ChampionsGroup, ChampionsPlayoffMatch, ChampionsPlayoffs, ChampionsQualificationTeam } from "../lib/types";
 import "./Champions.css";
@@ -69,16 +70,19 @@ function PlayoffMatch({ m, unverified }: { m: ChampionsPlayoffMatch; unverified:
 }
 
 function PlayoffsSection({ playoffs }: { playoffs: ChampionsPlayoffs }) {
+  const copy = openingSectionCopy(playoffs.opening, playoffs.unverified_match_ids ?? []);
+  const subline = copy.played === 0
+    ? <>The four opening matchups, as published on Riot's bracket and corroborated on VLR (observed {utc(playoffs.observed_at)}). Market shows only where a Polymarket price exists.</>
+    : copy.played === copy.total
+      ? <>Verified results of the four opening matchups (draw observed {utc(playoffs.observed_at)}).</>
+      : <>The four opening matchups, as published on Riot's bracket and corroborated on VLR (observed {utc(playoffs.observed_at)}). {copy.played} of {copy.total} have verified results; Market shows only for unplayed series with a Polymarket price.</>;
   return (
     <section className="champ-playoffs">
-      <SectionHead title="Upper Quarterfinals" right={<Chip variant="ghost">DRAWN &middot; ROUTING TBD</Chip>} />
-      <p className="champ-sub">
-        The four opening matchups, as published on Riot's bracket and corroborated on VLR (observed {utc(playoffs.observed_at)}).
-        Market shows only where a Polymarket price exists.
-      </p>
+      <SectionHead title="Upper Quarterfinals" right={<Chip variant="ghost">{copy.chip}</Chip>} />
+      <p className="champ-sub">{subline}</p>
       <Stagger className="champ-po-grid">
         {[...playoffs.opening]
-          .sort((x, y) => (x.start ?? "9").localeCompare(y.start ?? "9") || x.match_id - y.match_id)
+          .sort((x, y) => (x.start ?? x.played_on ?? "9").localeCompare(y.start ?? y.played_on ?? "9") || x.match_id - y.match_id)
           .map(m => <StaggerItem key={m.match_id}><PlayoffMatch m={m} unverified={(playoffs.unverified_match_ids ?? []).includes(m.match_id)} /></StaggerItem>)}
       </Stagger>
     </section>
