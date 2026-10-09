@@ -10,6 +10,15 @@
 export type Theme = "dark" | "light";
 
 const KEY = "vctq-theme";
+let explicitChoice = false;
+
+function storage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
 
 function systemTheme(): Theme {
   return window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches
@@ -18,8 +27,12 @@ function systemTheme(): Theme {
 }
 
 function stored(): Theme | null {
-  const v = localStorage.getItem(KEY);
-  return v === "dark" || v === "light" ? v : null;
+  try {
+    const v = storage()?.getItem(KEY);
+    return v === "dark" || v === "light" ? v : null;
+  } catch {
+    return null;
+  }
 }
 
 function apply(theme: Theme) {
@@ -31,7 +44,12 @@ export function getTheme(): Theme {
 }
 
 export function setTheme(theme: Theme) {
-  localStorage.setItem(KEY, theme);
+  explicitChoice = true;
+  try {
+    storage()?.setItem(KEY, theme);
+  } catch {
+    // The choice remains active for this session even when storage is denied.
+  }
   apply(theme);
   window.dispatchEvent(new CustomEvent("vctq-theme-change", { detail: theme }));
 }
@@ -47,7 +65,7 @@ if (typeof window !== "undefined" && window.matchMedia) {
   apply(stored() ?? systemTheme());
   const mq = window.matchMedia("(prefers-color-scheme: light)");
   const onChange = () => {
-    if (!stored()) apply(systemTheme());
+    if (!explicitChoice && !stored()) apply(systemTheme());
   };
   mq.addEventListener ? mq.addEventListener("change", onChange) : mq.addListener(onChange);
 }
