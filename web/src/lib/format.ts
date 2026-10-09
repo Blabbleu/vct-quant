@@ -95,3 +95,11 @@ export function utcShort(iso: string | null): string {
   if (!Number.isFinite(new Date(withZone).getTime())) return "Time TBD";
   return `${new Date(withZone).toLocaleString("en-US", { timeZone: "UTC", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })} UTC`;
 }
+
+/** Compact kick-off in the viewer's local time zone. */
+export function localShort(iso: string | null): string {
+  const date = parseUtc(iso);
+  return date
+    ? new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).format(date)
+    : "Time TBD";
+}

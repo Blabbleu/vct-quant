@@ -10,7 +10,7 @@ import { Chip } from "../arena/Chip";
 import { CountUp, Reveal } from "../../lib/motion";
 import { biggestMisses, nextPlayoffSeries, pickHit, pickSide, stageLabel, stageParts, verifiedNewestFirst } from "../../lib/matchesData";
 import { recordView } from "../../lib/record";
-import { utcShort } from "../../lib/format";
+import { localShort } from "../../lib/format";
 import type { ChampionsPlayoffs, Fixture, Ranking, ResultRow, ResultsList } from "../../lib/types";
 import "./RailPanels.css";
 
@@ -140,7 +140,7 @@ export function BracketMini({ playoffs, loading, index }: { playoffs: ChampionsP
                         <LogoSlot src={b.logo} name={b.name} tag={b.tag} size={20} />
                       </span>
                       <span className="rail-bracket-meta num">
-                        <span className="muted">{mm.start ? utcShort(mm.start).replace(" UTC", "") : "TBD"}</span>
+                        <span className="muted">{mm.start ? localShort(mm.start) : "TBD"}</span>
                         {known && <span className="rail-fav">{tag(fav.name, fav.tag)} {((fav.p_win as number) * 100).toFixed(0)}%</span>}
                       </span>
                       {known && <PipBar pA={a.p_win as number} blocks={20} />}
