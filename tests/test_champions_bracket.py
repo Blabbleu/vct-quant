@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 
 import pytest
-from vct_quant.event_bracket import load_bracket_spec, validate_bracket_spec
+from vct_quant.event_bracket import load_bracket_spec, playoff_feeds, validate_bracket_spec
 
 ARCHIVE = Path("data/raw/vlrgg/event_matches_2766_20260926T021503Z.json")
 
@@ -12,7 +12,7 @@ def test_champions_bracket_has_complete_distinct_slots():
     spec = load_bracket_spec(2766)
     assert spec["event_id"] == 2766
     assert spec["playoff_seeding"] == "unresolved"
-    assert spec["playoff_advancement"] == "unresolved"
+    assert isinstance(spec["playoff_advancement"], dict)
     assert len(spec["groups"]) == 4
     assert len(spec["playoffs"]) == 14
     assert len({slot["match_id"] for group in spec["groups"].values() for slot in group.values()} | {slot["match_id"] for slot in spec["playoffs"]}) == 34
@@ -130,8 +130,40 @@ def test_champions_pins_only_officially_verified_quarterfinal_pairings():
         ["NRG", "T1"],
         ["Paper Rex", "LOUD"],
     ]
-    assert spec["playoff_seeding"] == spec["playoff_advancement"] == "unresolved"
+    assert spec["playoff_seeding"] == "unresolved"
     assert validate_bracket_spec(spec) is None
+
+
+def test_champions_playoff_routes_are_source_checked():
+    assert playoff_feeds(load_bracket_spec(2766)) == {
+        754734: ((754730, "winner"), (754731, "winner")),
+        754735: ((754732, "winner"), (754733, "winner")),
+        754738: ((754730, "loser"), (754731, "loser")),
+        754739: ((754732, "loser"), (754733, "loser")),
+        754740: ((754738, "winner"), (754735, "loser")),
+        754741: ((754739, "winner"), (754734, "loser")),
+        754742: ((754740, "winner"), (754741, "winner")),
+        754736: ((754734, "winner"), (754735, "winner")),
+        754743: ((754736, "loser"), (754742, "winner")),
+        754737: ((754736, "winner"), (754743, "winner")),
+    }
+
+
+@pytest.mark.parametrize("mutate", [
+    lambda s: s["playoff_advancement"]["slots"]["754735"]["a"].update(**{"from": 754730, "take": "winner"}),
+    lambda s: s["playoff_advancement"]["slots"]["754734"]["a"].update(**{"from": 999999}),
+    lambda s: s["playoff_advancement"]["slots"]["754738"]["a"].update(**{"from": 754740}),
+    lambda s: s["playoff_advancement"]["slots"]["754734"]["a"].update(take="draw"),
+    lambda s: s["playoff_advancement"]["slots"].pop("754734"),
+    lambda s: s["playoff_advancement"]["slots"].update({"999999": {"a": {"from": 754730, "take": "winner"}, "b": {"from": 754731, "take": "winner"}, "basis": "observed"}}),
+    lambda s: s["playoff_advancement"]["slots"]["754740"]["a"].update(**{"from": 754739, "take": "loser"}),
+    lambda s: s["playoff_advancement"].update(sources=["http://example.org"]),
+])
+def test_champions_rejects_invalid_playoff_routing(mutate):
+    spec = load_bracket_spec(2766)
+    mutate(spec)
+    with pytest.raises(ValueError, match="routing"):
+        validate_bracket_spec(spec)
 
 
 @pytest.mark.parametrize("mutate, error", [

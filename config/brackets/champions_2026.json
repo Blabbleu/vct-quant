@@ -8,68 +8,402 @@
   "series_best_of": {
     "groups": 3,
     "playoffs": {
-      "Upper Quarterfinals": 3, "Upper Semifinals": 3, "Upper Final": 3,
-      "Lower Round 1": 3, "Lower Round 2": 3, "Lower Round 3": 3,
-      "Lower Final": 5, "Grand Final": 5
+      "Upper Quarterfinals": 3,
+      "Upper Semifinals": 3,
+      "Upper Final": 3,
+      "Lower Round 1": 3,
+      "Lower Round 2": 3,
+      "Lower Round 3": 3,
+      "Lower Final": 5,
+      "Grand Final": 5
     }
   },
   "playoff_seeding": "unresolved",
-  "playoff_advancement": "unresolved",
+  "playoff_advancement": {
+    "sources": [
+      "https://www.vlr.gg/event/2766/valorant-champions-2026",
+      "https://www.vlr.gg/event/2097/valorant-champions-2024",
+      "https://www.vlr.gg/event/2283/valorant-champions-2025"
+    ],
+    "observed_at": "2026-10-09T16:42:00Z",
+    "slots": {
+      "754734": {
+        "a": {
+          "from": 754730,
+          "take": "winner"
+        },
+        "b": {
+          "from": 754731,
+          "take": "winner"
+        },
+        "basis": "observed"
+      },
+      "754735": {
+        "a": {
+          "from": 754732,
+          "take": "winner"
+        },
+        "b": {
+          "from": 754733,
+          "take": "winner"
+        },
+        "basis": "observed"
+      },
+      "754738": {
+        "a": {
+          "from": 754730,
+          "take": "loser"
+        },
+        "b": {
+          "from": 754731,
+          "take": "loser"
+        },
+        "basis": "observed"
+      },
+      "754739": {
+        "a": {
+          "from": 754732,
+          "take": "loser"
+        },
+        "b": {
+          "from": 754733,
+          "take": "loser"
+        },
+        "basis": "observed"
+      },
+      "754740": {
+        "a": {
+          "from": 754738,
+          "take": "winner"
+        },
+        "b": {
+          "from": 754735,
+          "take": "loser"
+        },
+        "basis": "precedent"
+      },
+      "754741": {
+        "a": {
+          "from": 754739,
+          "take": "winner"
+        },
+        "b": {
+          "from": 754734,
+          "take": "loser"
+        },
+        "basis": "precedent"
+      },
+      "754742": {
+        "a": {
+          "from": 754740,
+          "take": "winner"
+        },
+        "b": {
+          "from": 754741,
+          "take": "winner"
+        },
+        "basis": "precedent"
+      },
+      "754736": {
+        "a": {
+          "from": 754734,
+          "take": "winner"
+        },
+        "b": {
+          "from": 754735,
+          "take": "winner"
+        },
+        "basis": "precedent"
+      },
+      "754743": {
+        "a": {
+          "from": 754736,
+          "take": "loser"
+        },
+        "b": {
+          "from": 754742,
+          "take": "winner"
+        },
+        "basis": "precedent"
+      },
+      "754737": {
+        "a": {
+          "from": 754736,
+          "take": "winner"
+        },
+        "b": {
+          "from": 754743,
+          "take": "winner"
+        },
+        "basis": "precedent"
+      }
+    }
+  },
   "playoff_draw_observed_at": "2026-10-04T16:02:00Z",
   "playoff_draw_sources": [
     "https://valorantesports.com/en-SG/tournament/115576361459045501/stage/115576361460159615",
     "https://www.vlr.gg/event/2766/valorant-champions-2026"
   ],
   "verified_opening_pairings": [
-    {"match_id": 754730, "stage": "Upper Quarterfinals", "teams": ["100 Thieves", "G2 Esports"], "team_ids": [120, 11058]},
-    {"match_id": 754731, "stage": "Upper Quarterfinals", "teams": ["Team Vitality", "Nongshim RedForce"], "team_ids": [2059, 11060]},
-    {"match_id": 754732, "stage": "Upper Quarterfinals", "teams": ["NRG", "T1"], "team_ids": [1034, 14]},
-    {"match_id": 754733, "stage": "Upper Quarterfinals", "teams": ["Paper Rex", "LOUD"], "team_ids": [624, 6961]}
+    {
+      "match_id": 754730,
+      "stage": "Upper Quarterfinals",
+      "teams": [
+        "100 Thieves",
+        "G2 Esports"
+      ],
+      "team_ids": [
+        120,
+        11058
+      ]
+    },
+    {
+      "match_id": 754731,
+      "stage": "Upper Quarterfinals",
+      "teams": [
+        "Team Vitality",
+        "Nongshim RedForce"
+      ],
+      "team_ids": [
+        2059,
+        11060
+      ]
+    },
+    {
+      "match_id": 754732,
+      "stage": "Upper Quarterfinals",
+      "teams": [
+        "NRG",
+        "T1"
+      ],
+      "team_ids": [
+        1034,
+        14
+      ]
+    },
+    {
+      "match_id": 754733,
+      "stage": "Upper Quarterfinals",
+      "teams": [
+        "Paper Rex",
+        "LOUD"
+      ],
+      "team_ids": [
+        624,
+        6961
+      ]
+    }
   ],
   "groups": {
     "A": {
-      "opening_1": {"match_id": 753444, "stage": "Opening (A)", "teams": ["100 Thieves", "T1"], "team_ids": [120, 14]},
-      "opening_2": {"match_id": 753445, "stage": "Opening (A)", "teams": ["JD Gaming", "FUT Esports"], "team_ids": [13576, 1184]},
-      "winners": {"match_id": 753446, "stage": "Winner's (A)"},
-      "elimination": {"match_id": 753447, "stage": "Elimination (A)"},
-      "decider": {"match_id": 753448, "stage": "Decider (A)"}
+      "opening_1": {
+        "match_id": 753444,
+        "stage": "Opening (A)",
+        "teams": [
+          "100 Thieves",
+          "T1"
+        ],
+        "team_ids": [
+          120,
+          14
+        ]
+      },
+      "opening_2": {
+        "match_id": 753445,
+        "stage": "Opening (A)",
+        "teams": [
+          "JD Gaming",
+          "FUT Esports"
+        ],
+        "team_ids": [
+          13576,
+          1184
+        ]
+      },
+      "winners": {
+        "match_id": 753446,
+        "stage": "Winner's (A)"
+      },
+      "elimination": {
+        "match_id": 753447,
+        "stage": "Elimination (A)"
+      },
+      "decider": {
+        "match_id": 753448,
+        "stage": "Decider (A)"
+      }
     },
     "B": {
-      "opening_1": {"match_id": 753449, "stage": "Opening (B)", "teams": ["Global Esports", "Team Vitality"], "team_ids": [918, 2059]},
-      "opening_2": {"match_id": 753450, "stage": "Opening (B)", "teams": ["LOUD", "EDward Gaming"], "team_ids": [6961, 1120]},
-      "winners": {"match_id": 753451, "stage": "Winner's (B)"},
-      "elimination": {"match_id": 753452, "stage": "Elimination (B)"},
-      "decider": {"match_id": 753453, "stage": "Decider (B)"}
+      "opening_1": {
+        "match_id": 753449,
+        "stage": "Opening (B)",
+        "teams": [
+          "Global Esports",
+          "Team Vitality"
+        ],
+        "team_ids": [
+          918,
+          2059
+        ]
+      },
+      "opening_2": {
+        "match_id": 753450,
+        "stage": "Opening (B)",
+        "teams": [
+          "LOUD",
+          "EDward Gaming"
+        ],
+        "team_ids": [
+          6961,
+          1120
+        ]
+      },
+      "winners": {
+        "match_id": 753451,
+        "stage": "Winner's (B)"
+      },
+      "elimination": {
+        "match_id": 753452,
+        "stage": "Elimination (B)"
+      },
+      "decider": {
+        "match_id": 753453,
+        "stage": "Decider (B)"
+      }
     },
     "C": {
-      "opening_1": {"match_id": 753454, "stage": "Opening (C)", "teams": ["TYLOO", "G2 Esports"], "team_ids": [731, 11058]},
-      "opening_2": {"match_id": 753455, "stage": "Opening (C)", "teams": ["Team Liquid", "Paper Rex"], "team_ids": [474, 624]},
-      "winners": {"match_id": 753456, "stage": "Winner's (C)"},
-      "elimination": {"match_id": 753457, "stage": "Elimination (C)"},
-      "decider": {"match_id": 753458, "stage": "Decider (C)"}
+      "opening_1": {
+        "match_id": 753454,
+        "stage": "Opening (C)",
+        "teams": [
+          "TYLOO",
+          "G2 Esports"
+        ],
+        "team_ids": [
+          731,
+          11058
+        ]
+      },
+      "opening_2": {
+        "match_id": 753455,
+        "stage": "Opening (C)",
+        "teams": [
+          "Team Liquid",
+          "Paper Rex"
+        ],
+        "team_ids": [
+          474,
+          624
+        ]
+      },
+      "winners": {
+        "match_id": 753456,
+        "stage": "Winner's (C)"
+      },
+      "elimination": {
+        "match_id": 753457,
+        "stage": "Elimination (C)"
+      },
+      "decider": {
+        "match_id": 753458,
+        "stage": "Decider (C)"
+      }
     },
     "D": {
-      "opening_1": {"match_id": 753459, "stage": "Opening (D)", "teams": ["Karmine Corp", "Xi Lai Gaming"], "team_ids": [8877, 13581]},
-      "opening_2": {"match_id": 753460, "stage": "Opening (D)", "teams": ["Nongshim RedForce", "NRG"], "team_ids": [11060, 1034]},
-      "winners": {"match_id": 753461, "stage": "Winner's (D)"},
-      "elimination": {"match_id": 753462, "stage": "Elimination (D)"},
-      "decider": {"match_id": 753463, "stage": "Decider (D)"}
+      "opening_1": {
+        "match_id": 753459,
+        "stage": "Opening (D)",
+        "teams": [
+          "Karmine Corp",
+          "Xi Lai Gaming"
+        ],
+        "team_ids": [
+          8877,
+          13581
+        ]
+      },
+      "opening_2": {
+        "match_id": 753460,
+        "stage": "Opening (D)",
+        "teams": [
+          "Nongshim RedForce",
+          "NRG"
+        ],
+        "team_ids": [
+          11060,
+          1034
+        ]
+      },
+      "winners": {
+        "match_id": 753461,
+        "stage": "Winner's (D)"
+      },
+      "elimination": {
+        "match_id": 753462,
+        "stage": "Elimination (D)"
+      },
+      "decider": {
+        "match_id": 753463,
+        "stage": "Decider (D)"
+      }
     }
   },
   "playoffs": [
-    {"match_id": 754730, "stage": "Upper Quarterfinals"},
-    {"match_id": 754731, "stage": "Upper Quarterfinals"},
-    {"match_id": 754732, "stage": "Upper Quarterfinals"},
-    {"match_id": 754733, "stage": "Upper Quarterfinals"},
-    {"match_id": 754734, "stage": "Upper Semifinals"},
-    {"match_id": 754735, "stage": "Upper Semifinals"},
-    {"match_id": 754736, "stage": "Upper Final"},
-    {"match_id": 754737, "stage": "Grand Final"},
-    {"match_id": 754738, "stage": "Lower Round 1"},
-    {"match_id": 754739, "stage": "Lower Round 1"},
-    {"match_id": 754740, "stage": "Lower Round 2"},
-    {"match_id": 754741, "stage": "Lower Round 2"},
-    {"match_id": 754742, "stage": "Lower Round 3"},
-    {"match_id": 754743, "stage": "Lower Final"}
+    {
+      "match_id": 754730,
+      "stage": "Upper Quarterfinals"
+    },
+    {
+      "match_id": 754731,
+      "stage": "Upper Quarterfinals"
+    },
+    {
+      "match_id": 754732,
+      "stage": "Upper Quarterfinals"
+    },
+    {
+      "match_id": 754733,
+      "stage": "Upper Quarterfinals"
+    },
+    {
+      "match_id": 754734,
+      "stage": "Upper Semifinals"
+    },
+    {
+      "match_id": 754735,
+      "stage": "Upper Semifinals"
+    },
+    {
+      "match_id": 754736,
+      "stage": "Upper Final"
+    },
+    {
+      "match_id": 754737,
+      "stage": "Grand Final"
+    },
+    {
+      "match_id": 754738,
+      "stage": "Lower Round 1"
+    },
+    {
+      "match_id": 754739,
+      "stage": "Lower Round 1"
+    },
+    {
+      "match_id": 754740,
+      "stage": "Lower Round 2"
+    },
+    {
+      "match_id": 754741,
+      "stage": "Lower Round 2"
+    },
+    {
+      "match_id": 754742,
+      "stage": "Lower Round 3"
+    },
+    {
+      "match_id": 754743,
+      "stage": "Lower Final"
+    }
   ]
 }

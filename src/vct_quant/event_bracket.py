@@ -20,7 +20,7 @@ def validate_bracket_spec(spec: dict) -> None:
     """Reject partial/ambiguous slots instead of inventing tournament odds."""
     if spec.get("event_id") != 2766 or set(spec.get("groups", {})) != set("ABCD"):
         raise ValueError("unsupported event or incomplete groups")
-    if spec.get("playoff_seeding") != "unresolved" or spec.get("playoff_advancement") != "unresolved":
+    if spec.get("playoff_seeding") != "unresolved":
         raise ValueError("playoff routing has not been source verified")
     formats = spec.get("series_best_of")
     if (not isinstance(formats, dict) or type(formats.get("groups")) is not int
@@ -80,6 +80,12 @@ def validate_bracket_spec(spec: dict) -> None:
         stages[stage] = stages.get(stage, 0) + 1
     if stages != _PLAYOFF_STAGES:
         raise ValueError("incomplete playoff stage counts")
+    advancement = spec.get("playoff_advancement")
+    if advancement != "unresolved":
+        try:
+            _validate_playoff_routing(spec, advancement)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError(f"invalid playoff routing: {exc}") from exc
     pairings = spec.get("verified_opening_pairings")
     sources = spec.get("playoff_draw_sources")
     observed_at = spec.get("playoff_draw_observed_at")
@@ -109,6 +115,73 @@ def validate_bracket_spec(spec: dict) -> None:
                 or seen_playoff_teams.intersection(team_ids)):
             raise ValueError("playoff pairing has unknown or inconsistent team identity")
         seen_playoff_teams.update(team_ids)
+
+
+def _validate_playoff_routing(spec: dict, advancement: dict) -> None:
+    if not isinstance(advancement, dict):
+        raise ValueError("expected unresolved or routing object")
+    sources, observed_at, slots = (advancement.get(key) for key in ("sources", "observed_at", "slots"))
+    if (not isinstance(sources, list) or not sources
+            or any(not isinstance(url, str) or not url.startswith("https://") for url in sources)
+            or not isinstance(observed_at, str) or not observed_at.endswith("Z")):
+        raise ValueError("missing https sources or observation time")
+    playoff = {slot["match_id"]: slot for slot in spec["playoffs"]}
+    expected_slots = {str(mid) for mid, slot in playoff.items() if slot["stage"] != "Upper Quarterfinals"}
+    if not isinstance(slots, dict) or set(slots) != expected_slots:
+        raise ValueError("slot keys do not match non-quarterfinal matches")
+    round_order = {"Upper Quarterfinals": 0, "Upper Semifinals": 1,
+                   "Lower Round 1": 2, "Lower Round 2": 3, "Upper Final": 4,
+                   "Lower Round 3": 5, "Lower Final": 6, "Grand Final": 7}
+    positions = {mid: (round_order[slot["stage"]], mid) for mid, slot in playoff.items()}
+    consumed: list[tuple[int, str]] = []
+    for target_text, route in slots.items():
+        target = int(target_text)
+        if not isinstance(route, dict) or route.get("basis") not in ("observed", "precedent"):
+            raise ValueError("invalid basis")
+        if set(route) != {"a", "b", "basis"}:
+            raise ValueError("invalid slot fields")
+        outcomes = []
+        for side in ("a", "b"):
+            feed = route[side]
+            if not isinstance(feed, dict) or set(feed) != {"from", "take"}:
+                raise ValueError("invalid feed")
+            source, take = feed["from"], feed["take"]
+            if type(source) is not int or source not in playoff:
+                raise ValueError("unknown source match")
+            if positions[source] >= positions[target]:
+                raise ValueError("source match is not earlier")
+            if take not in ("winner", "loser"):
+                raise ValueError("invalid take")
+            outcomes.append((source, take))
+        if outcomes[0][0] == outcomes[1][0]:
+            raise ValueError("same match feeds both sides")
+        consumed.extend(outcomes)
+    if len(consumed) != len(set(consumed)):
+        raise ValueError("duplicate outcome use")
+    expected = set()
+    for mid, slot in playoff.items():
+        stage = slot["stage"]
+        if stage in ("Upper Quarterfinals", "Upper Semifinals", "Upper Final"):
+            expected.add((mid, "winner"))
+        if stage in ("Upper Quarterfinals", "Upper Semifinals", "Upper Final"):
+            expected.add((mid, "loser"))
+        if stage in ("Lower Round 1", "Lower Round 2", "Lower Round 3", "Lower Final"):
+            expected.add((mid, "winner"))
+    if set(consumed) != expected:
+        raise ValueError("outcome consumption does not match double-elimination bracket")
+
+
+def playoff_feeds(spec: dict) -> dict[int, tuple[tuple[int, str], tuple[int, str]]]:
+    """Return validated participant routing, or an empty mapping if unresolved."""
+    advancement = spec.get("playoff_advancement")
+    if advancement == "unresolved":
+        return {}
+    validate_bracket_spec(spec)
+    return {
+        int(match_id): ((route["a"]["from"], route["a"]["take"]),
+                        (route["b"]["from"], route["b"]["take"]))
+        for match_id, route in advancement["slots"].items()
+    }
 
 
 def _is_bo3_final(scores: list[int]) -> bool:
