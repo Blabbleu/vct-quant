@@ -3,7 +3,7 @@ import copy
 import duckdb
 import pandas as pd
 
-from vct_quant.champions_status import attach_playoffs, playoff_results
+from vct_quant.champions_status import attach_playoffs, champions_status, playoff_results
 from vct_quant.event_bracket import load_bracket_spec
 
 
@@ -113,15 +113,60 @@ def playoff_db(rows):
     db = duckdb.connect(":memory:")
     db.execute("CREATE TABLE match (match_id BIGINT, event_id BIGINT, event_series VARCHAR, status VARCHAR, last_seen_at TIMESTAMP)")
     db.execute("CREATE TABLE match_team (match_id BIGINT, team_number INT, team_id BIGINT, team_name VARCHAR, series_score INT, is_winner BOOLEAN)")
-    for mid, event, stage, scores, ids, flags in rows:
-        db.execute("INSERT INTO match VALUES (?, ?, ?, 'completed', NULL)", [mid, event, stage])
+    for mid, event, stage, scores, ids, flags, last_seen in rows:
+        db.execute("INSERT INTO match VALUES (?, ?, ?, 'completed', ?)", [mid, event, stage, last_seen])
         for n in range(2):
             db.execute("INSERT INTO match_team VALUES (?, ?, ?, ?, ?, ?)", [mid, n + 1, ids[n], f"Team {ids[n]}", scores[n], flags[n]])
     return db
 
 
-def row(mid, stage="Upper Quarterfinals", scores=(2, 0), ids=(11058, 120), flags=(True, False), event=2766):
-    return mid, event, stage, list(scores), list(ids), list(flags)
+def row(mid, stage="Upper Quarterfinals", scores=(2, 0), ids=(11058, 120), flags=(True, False), event=2766,
+        last_seen="2026-10-08 14:15:20"):
+    return mid, event, stage, list(scores), list(ids), list(flags), last_seen
+
+
+def add_group_row(db, last_seen="2026-10-04 14:15:20"):
+    db.execute("INSERT INTO match VALUES (753454, 2766, 'Opening (C)', 'completed', ?)", [last_seen])
+    db.execute("INSERT INTO match_team VALUES (753454, 1, 731, 'Team 731', 0, false), (753454, 2, 11058, 'Team 11058', 2, true)")
+
+
+def test_playoff_last_seen_advances_top_level_as_of():
+    spec = load_bracket_spec(2766)
+    db = playoff_db([row(754730)])
+    add_group_row(db)
+    results = playoff_results(db, spec)
+    status = champions_status(db, spec)
+    out = attach_playoffs(status, spec, all_fixtures(), schedule(), results)
+    assert out["as_of"] == "2026-10-08T14:15:20"
+    db.close()
+
+
+@__import__("pytest").mark.parametrize("playoff_rows", [
+    [row(754730, last_seen="2026-10-03 14:15:20")],
+    [],
+    [row(754730, last_seen=None)],
+])
+def test_playoff_as_of_does_not_replace_later_group_timestamp(playoff_rows):
+    spec = load_bracket_spec(2766)
+    db = playoff_db(playoff_rows)
+    add_group_row(db)
+    results = playoff_results(db, spec)
+    status = champions_status(db, spec)
+    out = attach_playoffs(status, spec, all_fixtures(), schedule(), results)
+    assert out["as_of"] == "2026-10-04T14:15:20"
+    db.close()
+
+
+def test_all_group_and_playoff_timestamps_null_yield_none():
+    spec = load_bracket_spec(2766)
+    db = playoff_db([row(754730, last_seen=None)])
+    add_group_row(db, None)
+    results = playoff_results(db, spec)
+    assert results.last_seen_at is None
+    status = champions_status(db, spec)
+    out = attach_playoffs(status, spec, all_fixtures(), schedule(), results)
+    assert out["as_of"] is None
+    db.close()
 
 
 def test_playoff_results_and_opening_result_follow_pinned_side_order():

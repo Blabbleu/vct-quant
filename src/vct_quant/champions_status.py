@@ -1,5 +1,6 @@
 """Descriptive Champions group results from the canonical DB, never odds."""
 from __future__ import annotations
+from datetime import datetime
 
 from .event_bracket import group_progress, validate_bracket_spec
 
@@ -8,6 +9,7 @@ class _PlayoffResults(dict):
     """Exact public result mapping with DB names retained for completed slots."""
     team_names: dict[int, list[str]]
     unverified: list[int]
+    last_seen_at: object
 
 
 def playoff_results(db, spec: dict) -> dict[int, dict]:
@@ -17,11 +19,16 @@ def playoff_results(db, spec: dict) -> dict[int, dict]:
     for match_id, stage in stages.items():
         slots.setdefault(match_id, {"match_id": match_id, "stage": stage})
     ids = list(slots)
+    out = _PlayoffResults()
+    out.team_names = {}
+    out.unverified = []
+    out.last_seen_at = None
     if not ids:
-        return {}
+        return out
     rows = db.execute("""
         SELECT m.match_id, m.event_id, m.event_series, m.status,
-               mt.team_number, mt.team_id, mt.team_name, mt.series_score, mt.is_winner
+               mt.team_number, mt.team_id, mt.team_name, mt.series_score, mt.is_winner,
+               m.last_seen_at
         FROM match m LEFT JOIN match_team mt ON m.match_id = mt.match_id
         WHERE m.match_id IN (SELECT unnest(?))
         ORDER BY m.match_id, mt.team_number
@@ -29,9 +36,7 @@ def playoff_results(db, spec: dict) -> dict[int, dict]:
     by_id = {}
     for row in rows:
         by_id.setdefault(row[0], []).append(row)
-    out = _PlayoffResults()
-    out.team_names = {}
-    out.unverified = []
+    out.last_seen_at = max((row[9] for row in rows if row[9] is not None), default=None)
     for match_id, slot in slots.items():
         sides = by_id.get(match_id, [])
         if not sides or sides[0][3] != "completed":
@@ -164,6 +169,14 @@ def attach_playoffs(status: dict, spec: dict, fixtures: list[dict], schedule: li
     Routing and title odds stay unresolved/null.
     """
     pairings = spec.get("verified_opening_pairings") or []
+    playoff_as_of = getattr(results, "last_seen_at", None)
+    if playoff_as_of is not None:
+        current = status.get("as_of")
+        try:
+            current_dt = datetime.fromisoformat(current) if current else None
+        except (TypeError, ValueError):
+            current_dt = None
+        status["as_of"] = max((value for value in (current_dt, playoff_as_of) if value is not None)).isoformat()
     if not pairings:
         return status
     by_id = {f["match_id"]: f for f in fixtures}
