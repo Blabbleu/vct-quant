@@ -96,7 +96,7 @@ def test_attach_playoffs_schedule_lists_only_later_slots_with_tbd_participants()
     assert gf["stage"] == "Grand Final" and gf["best_of"] == 5 and gf["start"] == "2026-10-18T06:00:00+00:00"
     assert "sides" not in gf and "team_ids" not in gf
     undated = next(r for r in rows if r["match_id"] == 754743)
-    assert undated["start"] is None and undated["best_of"] is None
+    assert undated["start"] is None and undated["best_of"] == 5
 
 
 def test_attach_playoffs_does_not_mutate_spec_or_invent_without_verified_pairings():
@@ -111,10 +111,10 @@ def test_attach_playoffs_does_not_mutate_spec_or_invent_without_verified_pairing
 
 def playoff_db(rows):
     db = duckdb.connect(":memory:")
-    db.execute("CREATE TABLE match (match_id BIGINT, event_id BIGINT, event_series VARCHAR, status VARCHAR, last_seen_at TIMESTAMP)")
+    db.execute("CREATE TABLE match (match_id BIGINT, event_id BIGINT, event_series VARCHAR, status VARCHAR, last_seen_at TIMESTAMP, scheduled_at TIMESTAMP, completed_at TIMESTAMP, best_of INT, vlr_url VARCHAR)")
     db.execute("CREATE TABLE match_team (match_id BIGINT, team_number INT, team_id BIGINT, team_name VARCHAR, series_score INT, is_winner BOOLEAN)")
     for mid, event, stage, scores, ids, flags, last_seen in rows:
-        db.execute("INSERT INTO match VALUES (?, ?, ?, 'completed', ?)", [mid, event, stage, last_seen])
+        db.execute("INSERT INTO match VALUES (?, ?, ?, 'completed', ?, NULL, ?, 3, ?)", [mid, event, stage, last_seen, last_seen, f"https://www.vlr.gg/{mid}/db"])
         for n in range(2):
             db.execute("INSERT INTO match_team VALUES (?, ?, ?, ?, ?, ?)", [mid, n + 1, ids[n], f"Team {ids[n]}", scores[n], flags[n]])
     return db
@@ -126,7 +126,7 @@ def row(mid, stage="Upper Quarterfinals", scores=(2, 0), ids=(11058, 120), flags
 
 
 def add_group_row(db, last_seen="2026-10-04 14:15:20"):
-    db.execute("INSERT INTO match VALUES (753454, 2766, 'Opening (C)', 'completed', ?)", [last_seen])
+    db.execute("INSERT INTO match VALUES (753454, 2766, 'Opening (C)', 'completed', ?, NULL, NULL, NULL, NULL)", [last_seen])
     db.execute("INSERT INTO match_team VALUES (753454, 1, 731, 'Team 731', 0, false), (753454, 2, 11058, 'Team 11058', 2, true)")
 
 
@@ -178,6 +178,37 @@ def test_playoff_results_and_opening_result_follow_pinned_side_order():
     first = out["playoffs"]["opening"][0]
     assert [s["team_id"] for s in first["sides"]] == [120, 11058]
     assert first["result"] == {"winner_team_id": 11058, "scores": [0, 2]}
+    db.close()
+
+
+def test_completed_opening_without_fixture_uses_db_and_team_metadata_without_forecast():
+    spec = load_bracket_spec(2766)
+    db = playoff_db([row(754730)])
+    results = playoff_results(db, spec)
+    out = attach_playoffs(status(), spec, [], [], results,
+                          logos={"120": "/120.png", "11058": "/11058.png"},
+                          tags={"120": "100T", "11058": "G2"})["playoffs"]["opening"][0]
+    assert out["best_of"] == 3 and out["url"] == "https://www.vlr.gg/754730/db"
+    assert out["played_on"] == "2026-10-08" and out["start"] is None
+    assert [(s["logo"], s["tag"]) for s in out["sides"]] == [("/120.png", "100T"), ("/11058.png", "G2")]
+    assert all(s["p_win"] is None and s["matches"] is None for s in out["sides"])
+    assert out["market"] is None
+    no_maps = attach_playoffs(status(), spec, [], [], results)["playoffs"]["opening"][0]
+    assert all(s["logo"] is None and s["tag"] is None for s in no_maps["sides"])
+    db.close()
+
+
+def test_later_schedule_played_on_requires_verified_result():
+    spec = load_bracket_spec(2766)
+    db = playoff_db([row(754734, "Upper Semifinals", (2, 1), (2050, 11058), (True, False)),
+                     row(754735, "Upper Semifinals", (2, 0), (3050, 4050), (True, False))])
+    results = playoff_results(db, spec)
+    slots = [{"match_id": mid, "teams": [f"Team {a}", f"Team {b}"], "team_ids": [a, b]}
+             for mid, a, b in ((754734, 2050, 11058), (754735, 3050, 4050))]
+    results.pop(754735)
+    rows = attach_playoffs(status(), spec, [], slots, results)["playoffs"]["schedule"]
+    assert next(r for r in rows if r["match_id"] == 754734)["played_on"] == "2026-10-08"
+    assert next(r for r in rows if r["match_id"] == 754735)["played_on"] is None
     db.close()
 
 

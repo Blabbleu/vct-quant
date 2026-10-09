@@ -154,13 +154,13 @@ export interface ChampionsPlayoffSide {
   matches: number | null; p_win: number | null;
 }
 export interface ChampionsPlayoffMatch {
-  match_id: number; stage: string; start: string | null; best_of: number | null; url: string | null;
+  match_id: number; stage: string; start: string | null; best_of: number | null; url: string | null; played_on?: string | null;
   sides: [ChampionsPlayoffSide, ChampionsPlayoffSide];
   market: { p_a: number; spread: number | null; volume: number | null } | null;
   result?: { winner_team_id: number; scores: [number, number] } | null;
 }
 export interface ChampionsPlayoffSlot {
-  match_id: number; stage: string; start: string | null; best_of: number | null;
+  match_id: number; stage: string; start: string | null; best_of: number | null; played_on?: string | null;
   sides?: [ChampionsPlayoffSide, ChampionsPlayoffSide] | null;
   result?: { winner_team_id: number; scores: [number, number] } | null;
 }

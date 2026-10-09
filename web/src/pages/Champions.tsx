@@ -12,7 +12,7 @@ import { LoadingBlocks, ErrorPanel } from "../components/arena/States";
 import { Reveal, Stagger, StaggerItem, PageFade, CountUp } from "../lib/motion";
 import { URLS, loadCached, store, useChampionsStatus } from "../lib/api";
 import { LOW_DATA_MATCHES } from "../lib/constants";
-import { utc, utcShort } from "../lib/format";
+import { playedDate, utc, utcShort } from "../lib/format";
 import type { ChampionsGroup, ChampionsPlayoffMatch, ChampionsPlayoffs, ChampionsQualificationTeam } from "../lib/types";
 import "./Champions.css";
 
@@ -44,7 +44,7 @@ function PlayoffMatch({ m, unverified }: { m: ChampionsPlayoffMatch; unverified:
     <Panel cut="l" frame="line" lift className="champ-po-card">
       <div className="champ-po-in">
         <div className="champ-po-top">
-          <span className="num champ-po-time">{utcShort(m.start)}</span>
+          <span className="num champ-po-time">{m.start == null && m.played_on ? playedDate(m.played_on) : utcShort(m.start)}</span>
           <span className="muted small num ellipsis">
             {m.stage}{m.best_of ? ` \u00B7 Bo${m.best_of}` : ""}
           </span>

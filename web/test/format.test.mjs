@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { bracketKickoff, bracketRoundSub, relative, utc, utcShort } from "../src/lib/format.ts";
+import { bracketKickoff, bracketRoundSub, playedDate, relative, utc, utcShort } from "../src/lib/format.ts";
 import { execFileSync } from "node:child_process";
 
 test("UTC formatters treat zoneless ISO timestamps as UTC", () => {
@@ -9,6 +9,15 @@ test("UTC formatters treat zoneless ISO timestamps as UTC", () => {
   assert.equal(utc(zoneless), utc(explicitUtc));
   assert.equal(utcShort(zoneless), utcShort(explicitUtc));
   assert.equal(utcShort(zoneless), "Oct 8, 09:00 UTC");
+});
+
+test("played date is stable across viewer time zones", () => {
+  const script = `import { playedDate } from './src/lib/format.ts'; console.log(playedDate('2026-10-08'));`;
+  const inZone = (TZ) => execFileSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "--eval", script], {
+    cwd: new URL("..", import.meta.url), env: { ...process.env, TZ }, encoding: "utf8",
+  }).trim();
+  assert.equal(playedDate("2026-10-08"), "Played Oct 8");
+  assert.equal(inZone("America/New_York"), "Played Oct 8");
 });
 
 test("UTC formatters use their null fallback for invalid input", () => {

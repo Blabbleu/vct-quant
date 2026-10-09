@@ -10,6 +10,7 @@ class _PlayoffResults(dict):
     team_names: dict[int, list[str]]
     unverified: list[int]
     last_seen_at: object
+    match_meta: dict[int, dict]
 
 
 def playoff_results(db, spec: dict) -> dict[int, dict]:
@@ -23,12 +24,13 @@ def playoff_results(db, spec: dict) -> dict[int, dict]:
     out.team_names = {}
     out.unverified = []
     out.last_seen_at = None
+    out.match_meta = {}
     if not ids:
         return out
     rows = db.execute("""
         SELECT m.match_id, m.event_id, m.event_series, m.status,
                mt.team_number, mt.team_id, mt.team_name, mt.series_score, mt.is_winner,
-               m.last_seen_at
+               m.last_seen_at, m.scheduled_at, m.completed_at, m.best_of, m.vlr_url
         FROM match m LEFT JOIN match_team mt ON m.match_id = mt.match_id
         WHERE m.match_id IN (SELECT unnest(?))
         ORDER BY m.match_id, mt.team_number
@@ -37,6 +39,9 @@ def playoff_results(db, spec: dict) -> dict[int, dict]:
     for row in rows:
         by_id.setdefault(row[0], []).append(row)
     out.last_seen_at = max((row[9] for row in rows if row[9] is not None), default=None)
+    for row in rows:
+        out.match_meta.setdefault(row[0], {"scheduled_at": row[10], "completed_at": row[11],
+                                           "best_of": row[12], "url": row[13]})
     for match_id, slot in slots.items():
         sides = by_id.get(match_id, [])
         if not sides or sides[0][3] != "completed":
@@ -61,7 +66,7 @@ def playoff_results(db, spec: dict) -> dict[int, dict]:
     return out
 
 
-def _later_sides(slot, date_row, fixture, result, results, unverified):
+def _later_sides(slot, date_row, fixture, result, results, unverified, logos=None, tags=None):
     if date_row and "teams" in date_row and "team_ids" in date_row:
         names, team_ids = date_row["teams"], date_row["team_ids"]
     elif result:
@@ -85,8 +90,8 @@ def _later_sides(slot, date_row, fixture, result, results, unverified):
         src = (i + (1 if flip else 0)) % 2
         key = "ab"[src]
         sides.append({"team_id": team_ids[i], "name": names[i],
-                      "logo": fixture[f"logo_{key}"] if matched else None,
-                      "tag": fixture[f"tag_{key}"] if matched else None,
+                      "logo": fixture[f"logo_{key}"] if matched else (logos or {}).get(str(team_ids[i])),
+                      "tag": fixture[f"tag_{key}"] if matched else (tags or {}).get(str(team_ids[i])),
                       "matches": fixture[f"matches_{key}"] if matched else None,
                       "p_win": ((1 - fixture["p_a"]) if (i == 0 and flip) or (i == 1 and not flip)
                                 else fixture["p_a"])
@@ -159,7 +164,8 @@ def champions_status(db, spec: dict) -> dict:
     return output
 
 
-def attach_playoffs(status: dict, spec: dict, fixtures: list[dict], schedule: list[dict], results=None) -> dict:
+def attach_playoffs(status: dict, spec: dict, fixtures: list[dict], schedule: list[dict], results=None,
+                    *, logos=None, tags=None) -> dict:
     """Add the verified opening playoff pairings joined to their model fixtures.
 
     Only ``verified_opening_pairings`` (pinned names/IDs) appear; the forecast,
@@ -199,20 +205,22 @@ def attach_playoffs(status: dict, spec: dict, fixtures: list[dict], schedule: li
             src = (index + (1 if flip else 0)) % 2
             key = "ab"[src]
             return {"team_id": team_ids[index], "name": names[index],
-                    "logo": fixture[f"logo_{key}"] if fixture else None,
-                    "tag": fixture[f"tag_{key}"] if fixture else None,
+                    "logo": fixture[f"logo_{key}"] if fixture else (logos or {}).get(str(team_ids[index])),
+                    "tag": fixture[f"tag_{key}"] if fixture else (tags or {}).get(str(team_ids[index])),
                     "matches": fixture[f"matches_{key}"] if fixture else None,
                     "p_win": None if p_a is None else (p_a if index == 0 else 1 - p_a)}
 
         result = (results or {}).get(pairing["match_id"])
+        meta = getattr(results, "match_meta", {}).get(pairing["match_id"], {})
         if result and set(result["team_ids"]) != set(team_ids):
             result = None
         result_side_order = None if result is None else [result["team_ids"].index(team_id) for team_id in team_ids]
         entry = {
             "match_id": pairing["match_id"], "stage": pairing["stage"],
-            "start": fixture["start"] if fixture else None,
-            "best_of": fixture["best_of"] if fixture else None,
-            "url": fixture.get("url") if fixture else None,
+            "start": fixture["start"] if fixture else (meta.get("scheduled_at").isoformat() if meta.get("scheduled_at") else None),
+            "best_of": fixture["best_of"] if fixture else spec.get("series_best_of", {}).get("playoffs", {}).get(pairing["stage"]),
+            "url": fixture.get("url") if fixture else meta.get("url"),
+            "played_on": meta.get("completed_at").date().isoformat() if result and meta.get("completed_at") else None,
             "sides": [side(0), side(1)],
             "market": extra or None,
         }
@@ -226,7 +234,9 @@ def attach_playoffs(status: dict, spec: dict, fixtures: list[dict], schedule: li
     paired = {m["match_id"] for m in opening}
     later = [{"match_id": slot["match_id"], "stage": slot["stage"],
               "start": dates.get(slot["match_id"], {}).get("start"),
-              "best_of": dates.get(slot["match_id"], {}).get("best_of")}
+              "best_of": dates.get(slot["match_id"], {}).get("best_of") or spec.get("series_best_of", {}).get("playoffs", {}).get(slot["stage"]),
+              "played_on": (getattr(results, "match_meta", {}).get(slot["match_id"], {}).get("completed_at").date().isoformat()
+                            if (results or {}).get(slot["match_id"]) and getattr(results, "match_meta", {}).get(slot["match_id"], {}).get("completed_at") else None)}
              for slot in spec["playoffs"] if slot["match_id"] not in paired]
     if results is not None:
         for row in later:
@@ -239,7 +249,7 @@ def attach_playoffs(status: dict, spec: dict, fixtures: list[dict], schedule: li
                 "winner_team_id": found["team_ids"][0 if found["scores"][0] > found["scores"][1] else 1],
                 "scores": [found["scores"][i] for i in score_order] if score_order else list(found["scores"])})
             slot = next(s for s in spec["playoffs"] if s["match_id"] == slot_id)
-            row["sides"] = _later_sides(slot, dates.get(slot_id), by_id.get(slot_id), found, results, unverified)
+            row["sides"] = _later_sides(slot, dates.get(slot_id), by_id.get(slot_id), found, results, unverified, logos, tags)
     later.sort(key=lambda row: (row["start"] is None, row["start"] or ""))
     for pairing in pairings:
         found = (results or {}).get(pairing["match_id"])
@@ -259,6 +269,7 @@ if __name__ == "__main__":
     from .event_bracket import load_bracket_spec
     from .group_odds import attach_group_odds, current_elo
     from .dashboard import fixtures as dashboard_fixtures, playoff_schedule
+    from .logos import load_logos, load_tags
 
     bracket = load_bracket_spec(2766)
     with connect(read_only=True) as connection:
@@ -266,4 +277,5 @@ if __name__ == "__main__":
         results = playoff_results(connection, bracket)
     status = attach_group_odds(status, *current_elo())
     print(json.dumps(attach_playoffs(status, bracket, dashboard_fixtures(),
-                                     playoff_schedule([slot["match_id"] for slot in bracket["playoffs"]]), results)))
+                                     playoff_schedule([slot["match_id"] for slot in bracket["playoffs"]]), results,
+                                     logos=load_logos(), tags=load_tags())))

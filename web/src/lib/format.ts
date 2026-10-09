@@ -47,6 +47,12 @@ export function bracketKickoff(iso: string | null): string {
   return date ? `${bracketDayFmt.format(date)} · ${bracketTimeFmt.format(date)}` : "Time TBD";
 }
 
+/** Date-only label for a completed bracket match, formatted in UTC. */
+export function playedDate(iso: string | null): string {
+  const date = parseUtc(iso);
+  return date ? `Played ${bracketDayFmt.format(date)}` : "Time TBD";
+}
+
 /** Round date range and best-of labels for bracket headings. */
 export function bracketRoundSub(starts: (string | null)[], bestOf: (number | null)[]): string {
   const days = starts.map(parseUtc).filter((date): date is Date => date != null).sort((a, b) => a.getTime() - b.getTime());
