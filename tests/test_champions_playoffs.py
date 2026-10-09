@@ -3,7 +3,8 @@ import copy
 import duckdb
 import pandas as pd
 
-from vct_quant.champions_status import attach_playoffs, champions_status, playoff_results
+from vct_quant.champions_status import (attach_playoff_projection, attach_playoffs,
+                                        champions_status, playoff_results)
 from vct_quant.event_bracket import load_bracket_spec
 
 
@@ -62,6 +63,59 @@ def test_attach_playoffs_never_adds_title_odds_or_routing():
     out = attach_playoffs(status(), load_bracket_spec(2766), all_fixtures(), schedule())
     assert out["title_odds"] is None and out["playoff_routing"] == "unresolved"
     assert out["playoffs"]["routing"] == "unresolved"
+
+
+def projection_inputs(spec, results=None):
+    entrants = [team for row in spec["verified_opening_pairings"] for team in row["team_ids"]]
+    payload = attach_playoffs(status(), spec, [], [], results)
+    return payload, {str(team): float(team) for team in entrants}, {str(team): 10 for team in entrants}
+
+
+def test_playoff_projection_has_normalized_positive_slots_and_titles():
+    spec = load_bracket_spec(2766)
+    payload, ratings, counts = projection_inputs(spec, {})
+    out = attach_playoff_projection(payload, spec, {}, ratings, counts, 999999)
+    projection = out["playoffs"]["projection"]
+    assert out["playoffs"]["routing"] == "projected"
+    assert abs(sum(out["title_odds"].values()) - 1) < 1e-9
+    assert projection["routing_basis"]["slots"]["754740"] == "precedent"
+    assert projection["routing_basis"]["sources"] == spec["playoff_advancement"]["sources"]
+    for slot in projection["slots"].values():
+        assert slot["candidates"] and all(c["p_pairing"] > 0 for c in slot["candidates"])
+        assert abs(sum(c["p_pairing"] for c in slot["candidates"]) - 1) < 1e-9
+
+
+def test_playoff_projection_withholds_for_unrated_unverified_or_routing_conflict():
+    spec = load_bracket_spec(2766)
+    payload, ratings, counts = projection_inputs(spec, {})
+    counts[str(spec["verified_opening_pairings"][0]["team_ids"][0])] = 0
+    out = attach_playoff_projection(payload, spec, {}, ratings, counts, None)
+    assert out["playoffs"]["routing"] == "unresolved" and out["title_odds"] is None
+    assert "withheld" in out["playoffs"]["projection"]
+
+    class Results(dict):
+        unverified = [754730]
+    payload, ratings, counts = projection_inputs(spec, Results())
+    out = attach_playoff_projection(payload, spec, Results(), ratings, counts, None)
+    assert out["playoffs"]["routing"] == "unresolved" and out["title_odds"] is None
+
+    payload, ratings, counts = projection_inputs(spec, {})
+    wrong = {"team_ids": [999, 998], "scores": [2, 0]}
+    out = attach_playoff_projection(payload, spec, {754734: wrong}, ratings, counts, None)
+    assert out["playoffs"]["routing"] == "unresolved" and out["title_odds"] is None
+
+
+def test_fixed_quarterfinal_result_routes_winner_and_loser_with_certainty():
+    spec = load_bracket_spec(2766)
+    payload, ratings, counts = projection_inputs(spec, {})
+    pair = next(row["team_ids"] for row in spec["verified_opening_pairings"] if row["match_id"] == 754730)
+    out = attach_playoff_projection(payload, spec,
+                                    {754730: {"team_ids": pair, "scores": [2, 0]}},
+                                    ratings, counts, None)
+    projection = out["playoffs"]["projection"]
+    by_team = {row["team_id"]: row for row in projection["teams"]}
+    assert abs(by_team[pair[0]]["p_reach"]["Upper Semifinals"] - 1) < 1e-15
+    assert abs(by_team[pair[1]]["p_reach"]["Lower Round 1"] - 1) < 1e-15
 
 
 def test_attach_playoffs_flips_when_fixture_orientation_is_reversed():

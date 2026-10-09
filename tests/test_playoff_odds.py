@@ -57,21 +57,18 @@ def test_played_uqf_and_lr1_yield_hand_computed_lr2_pairings():
     # 754735 pairs the winners of 754732/754733. If its first side wins,
     # the second side loses (probability .7 when the first team ID is lower);
     # otherwise the first side loses. The 754740 first side is fixed by LR1.
-    pair_a, pair_b = entrants[754732][0], entrants[754733][0]
-    p_a_wins_735 = 0.7 if pair_a < pair_b else 0.3
-    loser_if_a_wins = pair_b
-    loser_if_b_wins = pair_a
     expected = {
-        (outcomes[754738][0], loser_if_a_wins): p_a_wins_735,
-        (outcomes[754738][0], loser_if_b_wins): 1 - p_a_wins_735,
+        (11058, 624): 0.3,
+        (11058, 1034): 0.7,
     }
     actual = output["slots"][754740]["candidates"]
     actual_probs = {tuple(c["team_ids"]): c["p_pairing"] for c in actual}
     assert set(actual_probs) == set(expected)
     assert all(abs(actual_probs[pair] - probability) < 1e-9
                for pair, probability in expected.items())
-    assert all(abs(c["p_a"] - (0.7 if c["team_ids"][0] < c["team_ids"][1] else 0.3)) < 1e-9
-               for c in actual)
+    actual_p_a = {tuple(c["team_ids"]): c["p_a"] for c in actual}
+    assert set(actual_p_a) == {(11058, 624), (11058, 1034)}
+    assert all(abs(actual_p_a[pair] - 0.3) < 1e-9 for pair in actual_p_a)
 
 
 def test_result_must_match_routed_pair():
@@ -89,4 +86,3 @@ def test_invalid_pairwise_probability_is_rejected(probability):
     spec = load_bracket_spec(2766)
     with pytest.raises(ValueError, match="invalid pairwise probability"):
         project_playoffs(spec, _entrants(spec), {}, lambda a, b: probability)
-import pytest

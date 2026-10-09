@@ -5,6 +5,60 @@ from datetime import datetime
 from .event_bracket import group_progress, validate_bracket_spec
 
 
+def attach_playoff_projection(status: dict, spec: dict, results: dict, ratings: dict,
+                              counts: dict, through: int | None) -> dict:
+    """Attach exact frozen-Elo playoff pairing and title probabilities."""
+    from .group_odds import MIN_RATED_MATCHES, elo_p_win
+    from .playoff_odds import project_playoffs
+
+    block = status.get("playoffs")
+    if block is None:
+        return status
+
+    def withhold(reason: str) -> dict:
+        block["projection"] = {"withheld": reason}
+        block["routing"] = "unresolved"
+        status["title_odds"] = None
+        return status
+
+    if getattr(results, "unverified", []):
+        return withhold("unverified completed playoff result")
+    entrants = {row["match_id"]: tuple(row["team_ids"])
+                for row in spec["verified_opening_pairings"]}
+    teams = sorted({team for pair in entrants.values() for team in pair})
+    unrated = [team for team in teams if counts.get(str(team), 0) < MIN_RATED_MATCHES]
+    if unrated:
+        return withhold(f"insufficient rated history for team IDs {unrated}")
+    verified = {mid: result for mid, result in results.items()
+                if mid not in getattr(results, "unverified", [])}
+    try:
+        projection = project_playoffs(spec, entrants, verified, elo_p_win(ratings))
+    except ValueError as exc:
+        return withhold(f"playoff routing could not be verified: {exc}")
+
+    advancement = spec.get("playoff_advancement", {})
+    projection["slots"] = {
+        str(mid): {"stage": slot["stage"], "candidates": [
+            candidate for candidate in slot["candidates"] if candidate["p_pairing"] > 0
+        ]} for mid, slot in projection["slots"].items()
+    }
+    projection["teams"] = [
+        {"team_id": team, "p_reach": values["p_reach"], "p_title": values["p_title"]}
+        for team, values in sorted(projection["teams"].items(), key=lambda item: (-item[1]["p_title"], item[0]))
+    ]
+    block["projection"] = {
+        "model": "primary Elo, ratings frozen for the rest of the playoffs",
+        "ratings_through_match_id": through,
+        "routing_basis": {"slots": {str(mid): row["basis"]
+                           for mid, row in advancement.get("slots", {}).items()},
+                          "sources": list(advancement.get("sources", []))},
+        **projection,
+    }
+    block["routing"] = "projected"
+    status["title_odds"] = {str(row["team_id"]): row["p_title"] for row in projection["teams"]}
+    return status
+
+
 class _PlayoffResults(dict):
     """Exact public result mapping with DB names retained for completed slots."""
     team_names: dict[int, list[str]]
@@ -275,7 +329,10 @@ if __name__ == "__main__":
     with connect(read_only=True) as connection:
         status = champions_status(connection, bracket)
         results = playoff_results(connection, bracket)
-    status = attach_group_odds(status, *current_elo())
-    print(json.dumps(attach_playoffs(status, bracket, dashboard_fixtures(),
-                                     playoff_schedule([slot["match_id"] for slot in bracket["playoffs"]]), results,
-                                     logos=load_logos(), tags=load_tags())))
+    ratings, counts, through = current_elo()
+    status = attach_group_odds(status, ratings, counts, through)
+    status = attach_playoffs(status, bracket, dashboard_fixtures(),
+                             playoff_schedule([slot["match_id"] for slot in bracket["playoffs"]]), results,
+                             logos=load_logos(), tags=load_tags())
+    status = attach_playoff_projection(status, bracket, results, ratings, counts, through)
+    print(json.dumps(status))

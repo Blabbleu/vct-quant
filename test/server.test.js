@@ -450,7 +450,14 @@ async function main() {
     assert.equal(championsBody.event_id, 2766);
     assert.deepEqual(championsBody.groups.C.expected.winners, [11058, 624]);
     assert.deepEqual(championsBody.groups.D.expected.winners, [8877, 1034]);
-    assert.equal(championsBody.title_odds, null);
+    assert.ok(championsBody.playoffs.projection);
+    if (championsBody.playoffs.projection.withheld) {
+      assert.equal(championsBody.title_odds, null);
+      assert.equal(championsBody.playoffs.routing, "unresolved");
+    } else {
+      assert.equal(championsBody.playoffs.routing, "projected");
+      assert.ok(Math.abs(Object.values(championsBody.title_odds).reduce((a, b) => a + b, 0) - 1) < 1e-9);
+    }
     assert.equal(championsBody.groups.C.entrants[11058], "G2 Esports");
     assert.equal(championsBody.groups.C.slots.decider.match_id, 753458);
     for (const [letter, group] of Object.entries(championsBody.groups)) {
@@ -462,10 +469,10 @@ async function main() {
       assert.ok(Math.abs(sum - 2) < 1e-9 && Math.abs(first - 1) < 1e-9, `group ${letter} odds do not sum to 2/1`);
       for (const t of q.teams) if (t.qualified) assert.ok(Math.abs(t.p_qualify - 1) < 1e-12);
     }
-    // Verified opening playoff pairings joined to the model fixtures (no routing, no title odds).
+    // Verified opening pairings include exact projected routing when inputs are verified.
     const playoffs = championsBody.playoffs;
     assert.ok(playoffs && playoffs.opening.length === 4, "verified opening pairings must be exposed");
-    assert.equal(playoffs.routing, "unresolved");
+    assert.ok(["projected", "unresolved"].includes(playoffs.routing));
     assert.deepEqual(playoffs.opening.map(m => m.match_id), [754730, 754731, 754732, 754733]);
     const fixturesById = new Map(snapshot.fixtures.map(f => [f.match_id, f]));
     for (const m of playoffs.opening) {
