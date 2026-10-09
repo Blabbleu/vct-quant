@@ -68,7 +68,7 @@ def test_refresh_reuses_cached_icon_without_repeated_image_download(tmp_path):
 
     icon_dir = tmp_path / "agents"
     icon_dir.mkdir()
-    (icon_dir / "miks.png").write_bytes(b"png")
+    (icon_dir / "miks.png").write_bytes(b"x" * 600_000)
     cache = tmp_path / "agent_icons.json"
     cache.write_text(json.dumps({"miks": {"file": "miks.png"}}), encoding="utf-8")
     session = Session()
@@ -184,6 +184,46 @@ def test_refresh_streams_and_rejects_oversized_image_without_buffering(tmp_path)
     assert session.calls[1][1]["stream"] is True
     assert session.calls[1][1]["allow_redirects"] is False
     assert all(response.closed for response in session.responses[1:])
+
+
+def test_refresh_writes_image_larger_than_legacy_limit(tmp_path):
+    import json
+
+    from vct_quant.agent_icons import refresh
+
+    size = 600_000
+
+    class Response:
+        def __init__(self, url, *, catalog=False):
+            self.url = url
+            self.catalog = catalog
+            self.headers = {"content-type": "application/json" if catalog else "image/png"}
+
+        def raise_for_status(self):
+            pass
+
+        def iter_content(self, chunk_size):
+            assert chunk_size == 64 * 1024
+            if self.catalog:
+                yield json.dumps({"data": [{
+                    "displayName": "Miks", "isPlayableCharacter": True,
+                    "displayIcon": "https://media.valorant-api.com/agents/miks.png",
+                }]}).encode()
+            else:
+                yield b"x" * size
+
+        def close(self):
+            pass
+
+    class Session:
+        def get(self, url, **kwargs):
+            return Response(url, catalog=url.endswith("isPlayableCharacter=true"))
+
+    icon_dir = tmp_path / "agents"
+    result = refresh(session=Session(), cache=tmp_path / "agent_icons.json", icon_dir=icon_dir)
+
+    assert result["miks"]["file"] == "miks.png"
+    assert (icon_dir / "miks.png").stat().st_size == size
 
 
 def test_refresh_rejects_image_response_with_untrusted_authority(tmp_path):

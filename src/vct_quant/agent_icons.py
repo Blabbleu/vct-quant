@@ -13,7 +13,7 @@ from .config import PROCESSED_DIR
 
 CACHE = PROCESSED_DIR / "agent_icons.json"
 ICON_DIR = PROCESSED_DIR / "agents"
-MAX_BYTES = 512 * 1024
+MAX_BYTES = 1024 * 1024
 MAX_CATALOG_BYTES = 256 * 1024
 API_URL = "https://valorant-api.com/v1/agents?isPlayableCharacter=true"
 ALLOWED_IMAGE_HOST = "media.valorant-api.com"
