@@ -291,3 +291,82 @@ def test_playoff_schedule_adds_numeric_team_keys_only(tmp_path, monkeypatch):
     tbd = next(r for r in rows if r["match_id"] == 754738)
     assert named["teams"] == ["T1", "Paper Rex"] and named["team_ids"] == [14, 624]
     assert "teams" not in tbd and "team_ids" not in tbd
+
+
+def _prediction_rows():
+    return pd.DataFrame([
+        {"match_id": 754738, "scheduled_at": pd.Timestamp("2026-10-09 11:00Z"), "best_of": 3,
+         "team_a_name": "Old A", "team_b_name": "Old B", "team_a_key": "1", "team_b_key": "2",
+         "predicted_at": pd.Timestamp("2026-10-08 10:00Z")},
+        {"match_id": 754738, "scheduled_at": pd.Timestamp("2026-10-09 12:00Z"), "best_of": 5,
+         "team_a_name": "100 Thieves", "team_b_name": "Nongshim RedForce", "team_a_key": "120", "team_b_key": "11060",
+         "predicted_at": pd.Timestamp("2026-10-09 11:00Z")},
+    ])
+
+
+def test_playoff_schedule_falls_back_to_latest_prediction_log(tmp_path, monkeypatch):
+    import vct_quant.dashboard as dashboard
+    monkeypatch.setattr(dashboard, "PROCESSED_DIR", tmp_path)
+    _prediction_rows().to_parquet(tmp_path / "prediction_log.parquet")
+    row = dashboard.playoff_schedule([754738])[0]
+    assert row == {"match_id": 754738, "start": "2026-10-09T12:00:00+00:00", "best_of": 5,
+                   "teams": ["100 Thieves", "Nongshim RedForce"], "team_ids": [120, 11060]}
+
+
+def test_playoff_schedule_prefers_named_upcoming_row(tmp_path, monkeypatch):
+    import vct_quant.dashboard as dashboard
+    monkeypatch.setattr(dashboard, "PROCESSED_DIR", tmp_path)
+    pd.DataFrame([{"match_id": 754738, "scheduled_at": pd.Timestamp("2026-10-09 13:00Z"), "best_of": 3,
+                   "team_a_name": "Upcoming A", "team_b_name": "Upcoming B", "team_a_key": "3", "team_b_key": "4"}]
+                 ).to_parquet(tmp_path / "upcoming_tier1.parquet")
+    _prediction_rows().to_parquet(tmp_path / "prediction_log.parquet")
+    row = dashboard.playoff_schedule([754738])[0]
+    assert row["start"] == "2026-10-09T13:00:00+00:00" and row["best_of"] == 3
+    assert row["teams"] == ["Upcoming A", "Upcoming B"]
+
+
+def test_playoff_schedule_replaces_tbd_upcoming_with_log_names(tmp_path, monkeypatch):
+    import vct_quant.dashboard as dashboard
+    monkeypatch.setattr(dashboard, "PROCESSED_DIR", tmp_path)
+    pd.DataFrame([{"match_id": 754738, "scheduled_at": pd.Timestamp("2026-10-09 10:00Z"), "best_of": 3,
+                   "team_a_name": "TBD", "team_b_name": "TBD", "team_a_key": "TBD", "team_b_key": "TBD"}]
+                 ).to_parquet(tmp_path / "upcoming_tier1.parquet")
+    _prediction_rows().to_parquet(tmp_path / "prediction_log.parquet")
+    row = dashboard.playoff_schedule([754738])[0]
+    assert row["teams"] == ["100 Thieves", "Nongshim RedForce"]
+
+
+def test_playoff_schedule_non_numeric_log_keys_only_add_start_and_format(tmp_path, monkeypatch):
+    import vct_quant.dashboard as dashboard
+    monkeypatch.setattr(dashboard, "PROCESSED_DIR", tmp_path)
+    log = _prediction_rows().iloc[[1]].copy()
+    log["team_a_key"] = "name:g2 esports"
+    log.to_parquet(tmp_path / "prediction_log.parquet")
+    row = dashboard.playoff_schedule([754738])[0]
+    assert row["start"] and row["best_of"] == 5
+    assert "teams" not in row and "team_ids" not in row
+
+
+def test_playoff_schedule_log_works_without_upcoming_and_neither_file_is_empty(tmp_path, monkeypatch):
+    import vct_quant.dashboard as dashboard
+    monkeypatch.setattr(dashboard, "PROCESSED_DIR", tmp_path)
+    _prediction_rows().to_parquet(tmp_path / "prediction_log.parquet")
+    assert dashboard.playoff_schedule([754738])[0]["teams"] == ["100 Thieves", "Nongshim RedForce"]
+    (tmp_path / "prediction_log.parquet").unlink()
+    assert dashboard.playoff_schedule([754738]) == []
+
+
+def test_log_fallback_schedule_attaches_verified_completed_result(tmp_path, monkeypatch):
+    import vct_quant.dashboard as dashboard
+    monkeypatch.setattr(dashboard, "PROCESSED_DIR", tmp_path)
+    _prediction_rows().to_parquet(tmp_path / "prediction_log.parquet")
+    slot = dashboard.playoff_schedule([754738])
+    spec = load_bracket_spec(2766)
+    result_db = playoff_db([row(754738, "Lower Round 1", (2, 1), (120, 11060), (True, False))])
+    results = playoff_results(result_db, spec)
+    out = attach_playoffs(status(), spec, [], slot, results)["playoffs"]["schedule"]
+    match = next(item for item in out if item["match_id"] == 754738)
+    assert match["start"] == "2026-10-09T12:00:00+00:00"
+    assert [side["team_id"] for side in match["sides"]] == [120, 11060]
+    assert match["result"] == {"winner_team_id": 120, "scores": [2, 1]}
+    result_db.close()

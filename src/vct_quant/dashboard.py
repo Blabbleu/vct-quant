@@ -212,30 +212,55 @@ def score_distribution(scores, best_of) -> list[dict] | None:
 
 
 def playoff_schedule(match_ids: list[int]) -> list[dict]:
-    """Kick-off and format for the given match IDs from the cached upcoming feed.
+    """Kick-off, format, and known teams for requested playoff match IDs.
 
-    TBD-vs-TBD rows retain only their date. Named rows carry the two source keys
-    so callers can join teams without guessing from names.
+    The upcoming feed is authoritative while it has named teams. Once a match
+    leaves that feed, use its last pre-match prediction-log row as a fixture.
     """
-    path = PROCESSED_DIR / "upcoming_tier1.parquet"
-    if not path.exists():
+    requested = set(match_ids)
+    if not requested:
         return []
-    up = pd.read_parquet(path, columns=["match_id", "scheduled_at", "best_of",
-                                        "team_a_name", "team_b_name", "team_a_key", "team_b_key"])
-    up = up[up.match_id.isin(match_ids)].sort_values("scheduled_at")
-    rows = []
-    for r in up.itertuples():
-        if pd.isna(r.scheduled_at):
-            continue
-        row = {"match_id": int(r.match_id), "start": r.scheduled_at.isoformat(),
-               "best_of": int(r.best_of) if pd.notna(r.best_of) else None}
-        if (r.team_a_name != "TBD" and r.team_b_name != "TBD"
+
+    def named(r) -> bool:
+        return (r.team_a_name != "TBD" and r.team_b_name != "TBD"
                 and isinstance(r.team_a_key, str) and r.team_a_key.isdigit()
-                and isinstance(r.team_b_key, str) and r.team_b_key.isdigit()):
+                and isinstance(r.team_b_key, str) and r.team_b_key.isdigit())
+
+    selected = {}
+    upcoming = PROCESSED_DIR / "upcoming_tier1.parquet"
+    if upcoming.exists():
+        up = pd.read_parquet(upcoming, columns=["match_id", "scheduled_at", "best_of",
+                                               "team_a_name", "team_b_name", "team_a_key", "team_b_key"])
+        up = up[up.match_id.isin(requested)].sort_values("scheduled_at")
+        for r in up.itertuples():
+            if pd.isna(r.scheduled_at):
+                continue
+            # A named upcoming row wins. A TBD row is retained only if no log
+            # fixture can replace it.
+            if r.match_id not in selected or named(r):
+                selected[r.match_id] = r
+
+    missing = requested - {mid for mid, r in selected.items() if named(r)}
+    log_path = PROCESSED_DIR / "prediction_log.parquet"
+    if missing and log_path.exists():
+        log = pd.read_parquet(log_path, columns=["match_id", "scheduled_at", "best_of",
+                                                 "team_a_name", "team_b_name", "team_a_key", "team_b_key",
+                                                 "predicted_at"])
+        log = log[log.match_id.isin(missing)].sort_values("predicted_at")
+        for r in log.itertuples():
+            if pd.isna(r.scheduled_at):
+                continue
+            selected[r.match_id] = r
+
+    rows = []
+    for mid, r in selected.items():
+        row = {"match_id": int(mid), "start": r.scheduled_at.isoformat(),
+               "best_of": int(r.best_of) if pd.notna(r.best_of) else None}
+        if named(r):
             row["teams"] = [r.team_a_name, r.team_b_name]
             row["team_ids"] = [int(r.team_a_key), int(r.team_b_key)]
         rows.append(row)
-    return rows
+    return sorted(rows, key=lambda row: row["start"])
 
 
 def fixtures() -> list[dict]:
