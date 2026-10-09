@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   stageParts, stageShort, stageLabel, formatCountdown, groupByDay, eventContext,
-  pickHit, justFinished, biggestMisses, stageTimeline,
+  pickHit, justFinished, biggestMisses, stageTimeline, nextPlayoffSeries,
 } from "../src/lib/matchesData.ts";
 
 const fx = (id, start, series = "Playoffs: Upper Quarterfinals", extra = {}) => ({
@@ -97,4 +97,52 @@ test("stageTimeline orders the feed's stages by date, merges matches and marks c
   const t = stageTimeline(po, "Playoffs: Upper Quarterfinals", Date.parse("2026-10-09T00:00:00Z"));
   assert.deepEqual(t.map(s => [s.stage, s.matches, s.current, s.past]), [["Upper Quarterfinals", 2, true, true], ["Grand Final", 1, false, false]]);
   assert.deepEqual(stageTimeline(undefined, null), []);
+});
+
+test("stageTimeline includes completed openers with a played date", () => {
+  const po = {
+    opening: [{ match_id: 1, stage: "Upper Quarterfinals", start: null, played_on: "2026-10-07", best_of: 3 }],
+    schedule: [{ match_id: 2, stage: "Grand Final", start: null, best_of: 5 }],
+  };
+  const t = stageTimeline(po, null, Date.parse("2026-10-08T00:00:00Z"));
+  assert.deepEqual(t.map(s => [s.stage, s.start, s.end, s.matches, s.past]), [
+    ["Upper Quarterfinals", "2026-10-07", "2026-10-07", 1, true],
+  ]);
+});
+
+const side = (name, p_win = 0.5) => ({ name, p_win });
+const playoffSlot = (match_id, stage, start, sides, extra = {}) => ({
+  match_id, stage, start, sides, best_of: 3, ...extra,
+});
+
+test("nextPlayoffSeries filters played, unverified and unnamed slots, then sorts and limits", () => {
+  const po = {
+    opening: [
+      playoffSlot(10, "Upper Quarterfinals", null, [side("A"), side("B")], { result: { winner_team_id: 1 } }),
+    ],
+    schedule: [
+      playoffSlot(4, "Upper Semifinals", "2026-10-10T09:00:00Z", [side("C"), side("D")]),
+      playoffSlot(3, "Lower Round 1", "2026-10-09T12:00:00Z", [side("E"), side("F")]),
+      playoffSlot(2, "Lower Round 1", "2026-10-09T12:00:00Z", [side("G"), side("H")]),
+      playoffSlot(1, "Lower Round 1", "2026-10-09T09:00:00Z", [side("I"), side("J")], { result: null }),
+      playoffSlot(5, "Lower Round 1", "2026-10-09T08:00:00Z", [side("K"), side("")]),
+      { match_id: 6, stage: "Lower Round 1", start: "2026-10-09T07:00:00Z", sides: null },
+    ],
+    unverified_match_ids: [1],
+  };
+  assert.deepEqual(nextPlayoffSeries(po, 3).map(s => s.match_id), [2, 3, 4]);
+  assert.deepEqual(nextPlayoffSeries(po).map(s => s.match_id), [2, 3, 4]);
+});
+
+test("nextPlayoffSeries falls back to opening sorted as the pre-draw slate", () => {
+  const po = {
+    opening: [
+      playoffSlot(8, "Upper Quarterfinals", null, [side("A"), side("B")]),
+      playoffSlot(4, "Upper Quarterfinals", "2026-10-07T12:00:00Z", [side("C"), side("D")]),
+      playoffSlot(2, "Upper Quarterfinals", "2026-10-07T09:00:00Z", [side("E"), side("F")]),
+    ],
+    schedule: [playoffSlot(1, "Lower Round 1", "2026-10-09T09:00:00Z", null)],
+  };
+  assert.deepEqual(nextPlayoffSeries(po).map(s => s.match_id), [2, 4, 8]);
+  assert.deepEqual(nextPlayoffSeries(po, 2).map(s => s.match_id), [2, 4]);
 });

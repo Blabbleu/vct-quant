@@ -8,7 +8,7 @@ import TeamLabel from "../arena/TeamLabel";
 import PipBar from "../arena/PipBar";
 import { Chip } from "../arena/Chip";
 import { CountUp, Reveal } from "../../lib/motion";
-import { biggestMisses, pickHit, pickSide, stageLabel, verifiedNewestFirst } from "../../lib/matchesData";
+import { biggestMisses, nextPlayoffSeries, pickHit, pickSide, stageLabel, stageParts, verifiedNewestFirst } from "../../lib/matchesData";
 import { recordView } from "../../lib/record";
 import { utcShort } from "../../lib/format";
 import type { ChampionsPlayoffs, Fixture, Ranking, ResultRow, ResultsList } from "../../lib/types";
@@ -113,17 +113,18 @@ function RecentRow({ r }: { r: ResultRow }) {
 
 /** The Upper Quarterfinal slate from the Champions feed: kick-off, tags and the favourite's chance. */
 export function BracketMini({ playoffs, loading, index }: { playoffs: ChampionsPlayoffs | undefined; loading: boolean; index?: number }) {
-  const opening = playoffs ? [...playoffs.opening].sort((x, y) => (x.start ?? "9").localeCompare(y.start ?? "9") || x.match_id - y.match_id) : [];
-  const stage = opening[0]?.stage;
+  const series = nextPlayoffSeries(playoffs);
+  const stages = [...new Set(series.map(mm => stageParts(mm.stage).stage).filter(Boolean))];
   return (
     <RailPanel title="Champions bracket" link="Full bracket" to="/champions/2766" index={index}>
       {loading ? <Skeleton rows={4} />
-        : opening.length === 0 ? <p className="muted small">Playoff matchups not published yet.</p>
+        : series.length === 0 ? <p className="muted small">Playoff matchups not published yet.</p>
         : (
           <>
-            {stage && <div className="rail-sub num">{stage}</div>}
+            {stages.length > 0 && <div className="rail-sub num">{stages.join(" · ")}</div>}
             <ul className="rail-list">
-              {opening.map(mm => {
+              {series.map(mm => {
+                if (!mm.sides || mm.sides.length !== 2) return null;
                 const [a, b] = mm.sides;
                 const known = a.p_win != null && b.p_win != null;
                 const favA = known && (a.p_win as number) >= 0.5;

@@ -3,7 +3,21 @@
  * Everything here derives from the existing /api payloads; nothing is invented.
  * Type-only imports keep this file runnable under `node --test` (see test/matchesData.test.mjs).
  */
-import type { ChampionsPlayoffs, Fixture, ResultRow } from "./types";
+import type { ChampionsPlayoffMatch, ChampionsPlayoffSlot, ChampionsPlayoffs, Fixture, ResultRow } from "./types";
+
+/** The next named, unplayed playoff series, with the opening slate as a pre-draw fallback. */
+export function nextPlayoffSeries(playoffs: ChampionsPlayoffs | undefined, limit = 4): (ChampionsPlayoffMatch | ChampionsPlayoffSlot)[] {
+  if (!playoffs) return [];
+  const unverified = new Set(playoffs.unverified_match_ids ?? []);
+  const named = [...playoffs.opening, ...playoffs.schedule]
+    .filter(s => s.sides?.length === 2 && s.sides.every(side => side.name.trim().length > 0)
+      && s.result == null && !unverified.has(s.match_id))
+    .sort((a, b) => (a.start ?? "9").localeCompare(b.start ?? "9") || a.match_id - b.match_id);
+  if (named.length > 0) return named.slice(0, limit);
+  return [...playoffs.opening]
+    .sort((a, b) => (a.start ?? "9").localeCompare(b.start ?? "9") || a.match_id - b.match_id)
+    .slice(0, limit);
+}
 
 /* ---------------------------------------------------------------- stage names */
 
@@ -147,18 +161,20 @@ export interface TimelineStage { stage: string; short: string; start: string; en
 /** The event's stages in order from the Champions playoff feed (opening matches + published schedule). */
 export function stageTimeline(playoffs: ChampionsPlayoffs | undefined, currentSeries: string | null, now = Date.now()): TimelineStage[] {
   if (!playoffs) return [];
-  const slots = [...playoffs.opening, ...playoffs.schedule].filter(s => s.start != null);
-  slots.sort((a, b) => (a.start as string).localeCompare(b.start as string));
+  const slots = [...playoffs.opening, ...playoffs.schedule]
+    .map(s => ({ ...s, timelineDate: s.start ?? s.played_on ?? null }))
+    .filter(s => s.timelineDate != null);
+  slots.sort((a, b) => (a.timelineDate as string).localeCompare(b.timelineDate as string));
   const out: TimelineStage[] = [];
   const cur = currentSeries ? stageParts(currentSeries).stage : null;
   for (const s of slots) {
     const found = out.find(o => o.stage === s.stage);
     if (found) {
-      found.end = s.start as string;
+      found.end = s.timelineDate as string;
       found.matches += 1;
     } else {
       out.push({
-        stage: s.stage, short: stageShort(s.stage), start: s.start as string, end: s.start as string,
+        stage: s.stage, short: stageShort(s.stage), start: s.timelineDate as string, end: s.timelineDate as string,
         matches: 1, bestOf: s.best_of, past: false, current: false,
       });
     }
