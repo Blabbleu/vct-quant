@@ -12,6 +12,14 @@
 .champ-meta { color: var(--text-3); font-size: var(--fs-meta); max-width: 72ch; }
 .champ-meta a { color: var(--text-2); }
 .champ-meta a:hover { color: var(--model); }
+.champ-title-odds { display: flex; flex-direction: column; gap: var(--s-3); min-width: 0; }
+.champ-odds-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-1); }
+.champ-odds-row { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto auto; gap: var(--s-2); align-items: center; border-bottom: 1px solid var(--line); padding: var(--s-2) 0; min-width: 0; }
+.champ-odds-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.champ-odds-stat { display: flex; flex-direction: column; text-align: right; white-space: nowrap; }
+.champ-odds-stat b { color: var(--model); }
+.champ-odds-stat small { color: var(--text-3); font-size: 10px; }
+@media (max-width: 420px) { .champ-odds-row { grid-template-columns: 30px minmax(0, 1fr) auto; } .champ-odds-stat:last-child { grid-column: 2 / -1; flex-direction: row; justify-content: space-between; gap: var(--s-2); } }
 
 /* Desktop: 2x2 group grid (spec allows 2x2 or 4-across); phone stacks. */
 .champ-grid { display: grid; grid-template-columns: 1fr; gap: var(--s-4); align-items: start; }

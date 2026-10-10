@@ -67,6 +67,12 @@
 .bracket-side-drop .bracket-tbd-label { font-style: italic; }
 .bracket-side-drop.is-drop .bracket-tbd-label { color: var(--model); font-weight: 700; }
 .bracket-side-drop.is-drop .bracket-tbd-dot { border-color: var(--model); background: var(--model); }
+.bracket-projected { display: flex; flex-direction: column; gap: 2px; min-width: 0; color: var(--text-2); }
+.bracket-proj-chip { align-self: flex-start; color: var(--model); font-size: 9px; font-weight: 800; letter-spacing: .08em; }
+.bracket-proj-pair { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: 11px; }
+.bracket-proj-team { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bracket-proj-pct { flex: none; color: var(--model); font-weight: 800; }
+.bracket-proj-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9px; color: var(--text-3); }
 .bracket-tbd-dot { width: 6px; height: 6px; transform: skewX(var(--slant)); border: 1px solid var(--text-ph); flex: none; }
 .bracket-tbd-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-3); }
 

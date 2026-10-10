@@ -13,6 +13,7 @@ import { Reveal, Stagger, StaggerItem, PageFade, CountUp } from "../lib/motion";
 import { URLS, loadCached, store, useChampionsStatus } from "../lib/api";
 import { LOW_DATA_MATCHES } from "../lib/constants";
 import { openingSectionCopy } from "../lib/championsCopy";
+import { titleTable } from "../lib/championsProjection";
 import { playedDate, utc, utcShort } from "../lib/format";
 import type { ChampionsGroup, ChampionsPlayoffMatch, ChampionsPlayoffs, ChampionsQualificationTeam } from "../lib/types";
 import "./Champions.css";
@@ -279,6 +280,12 @@ export default function Champions() {
   const groupsDone = letters.every(l => data.groups[l].qualifiers.length === 2 && data.groups[l].unverified_match_ids.length === 0);
   const recordedOpening = playoffs?.opening.filter(m => m.result && !(playoffs.unverified_match_ids ?? []).includes(m.match_id)).length ?? 0;
   const namedLater = playoffs?.schedule.some(s => s.sides?.length === 2) ?? false;
+  const projection = playoffs?.projection && "slots" in playoffs.projection ? playoffs.projection : null;
+  const oddsRows = titleTable(projection);
+  const precedentUsed = projection && Object.values(projection.routing_basis.slots).includes("precedent");
+  const names: Record<number, { name: string; logo: string | null; tag: string | null }> = {};
+  for (const g of Object.values(data.groups)) for (const [id, name] of Object.entries(g.entrants)) names[Number(id)] ??= { name, logo: null, tag: null };
+  for (const m of playoffs?.opening ?? []) for (const s of m.sides) names[s.team_id] = { name: s.name, logo: s.logo, tag: s.tag };
 
   return (
     <PageFade className="champions-page">
@@ -292,13 +299,28 @@ export default function Champions() {
       </header>
       <p className="champ-meta num">
         Canonical data last observed {utc(data.as_of)}; this is not a live event feed.{" "}
-        {playoffs
-          ? "Title odds are unavailable until the full bracket routing (upper/lower edges and grand-final rules) is verified."
-          : "Title odds wait for the playoff draw \u2014 unavailable until then."}{" "}
+        {oddsRows.length
+          ? `Title odds are projected from primary Elo with ratings frozen${precedentUsed ? "; some lower-bracket routes follow 2024/2025 precedent" : ""}.`
+          : playoffs ? "Title odds are unavailable until the full bracket routing (upper/lower edges and grand-final rules) is verified." : "Title odds wait for the playoff draw \u2014 unavailable until then."}{" "}
         <a href="https://www.vlr.gg/event/2766/valorant-champions-2026" target="_blank" rel="noopener noreferrer">Check live schedule &#8599;</a>
       </p>
 
       {playoffs && <Bracket playoffs={playoffs} />}
+      {oddsRows.length > 0 && <section className="champ-title-odds" aria-label="Title odds">
+        <SectionHead title="Title odds" right={<Chip variant="ghost">PROJECTED</Chip>} />
+        <ul className="champ-odds-list" aria-label="Projected title odds">
+          {oddsRows.map(row => {
+            const meta = names[row.team_id];
+            const name = meta?.name ?? `Team ${row.team_id}`;
+            return <li className="champ-odds-row" key={row.team_id}>
+              <LogoSlot src={meta?.logo ?? null} name={name} tag={meta?.tag ?? null} size={34} />
+              <Link to={`/team/${row.team_id}`} className="champ-team-link champ-odds-name"><TeamLabel name={name} tag={meta?.tag ?? null} mode="auto" /></Link>
+              <span className="champ-odds-stat"><b className="num">{(row.p_title * 100).toFixed(1)}%</b><small>P(title)</small></span>
+              <span className="champ-odds-stat"><b className="num">{(row.p_grand_final * 100).toFixed(1)}%</b><small>P(reach Grand Final)</small></span>
+            </li>;
+          })}
+        </ul>
+      </section>}
       {playoffs && <PlayoffsSection playoffs={playoffs} />}
 
       {playoffs && (
@@ -322,7 +344,7 @@ export default function Champions() {
             <p>The playoff draw is expected after October 4. Seeding and lower-bracket paths are not verified; title odds are unavailable. Group match results may lag the source.</p>
           </>
         )}
-        {playoffs && <p>{recordedOpening ? `${recordedOpening} opening result${recordedOpening === 1 ? " is" : "s are"} recorded.` : "Opening pairings and the published schedule are available."} {namedLater ? "Named scheduled sides appear in the bracket." : "Later sides appear as TBD until supplied."} Upper/lower-bracket routing and grand-final rules are not confirmed, so title odds remain unavailable. Group match results may lag the source.</p>}
+        {playoffs && <p>{recordedOpening ? `${recordedOpening} opening result${recordedOpening === 1 ? " is" : "s are"} recorded.` : "Opening pairings and the published schedule are available."} {namedLater ? "Named scheduled sides appear in the bracket." : "Later sides appear as TBD until supplied."} {oddsRows.length ? `Title odds are projected from primary Elo with ratings frozen${precedentUsed ? ", with some lower-bracket routes following 2024/2025 precedent" : ""}.` : "Upper/lower-bracket routing and grand-final rules are not confirmed, so title odds remain unavailable."} Group match results may lag the source.</p>}
         <p>Group odds replay every remaining group series with the same win probability the fixture board shows for that pairing, holding ratings fixed until the group ends (real ratings move after each result). &ldquo;1st seed&rdquo; means winning the winners' match. Descriptive only: not a separate model and not betting advice.</p>
       </section>
     </PageFade>

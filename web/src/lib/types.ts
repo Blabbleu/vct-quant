@@ -165,13 +165,22 @@ export interface ChampionsPlayoffSlot {
   result?: { winner_team_id: number; scores: [number, number] } | null;
 }
 export interface ChampionsPlayoffs {
-  routing: "unresolved"; observed_at: string; sources: string[];
+  routing: "unresolved" | "projected"; observed_at: string; sources: string[];
   opening: ChampionsPlayoffMatch[]; schedule: ChampionsPlayoffSlot[];
   unverified_match_ids?: number[];
+  projection?: ChampionsProjection | { withheld: string };
+}
+export interface ChampionsProjectionCandidate { team_ids: [number, number]; p_pairing: number; p_a: number }
+export interface ChampionsProjectionSlot { stage: string; candidates: ChampionsProjectionCandidate[] }
+export interface ChampionsProjectionTeam { team_id: number; elo?: number; p_reach: Record<string, number>; p_title: number }
+export interface ChampionsProjection {
+  model: string; ratings_through_match_id: number | null;
+  routing_basis: { slots: Record<string, "observed" | "precedent">; sources: string[] };
+  slots: Partial<Record<string, ChampionsProjectionSlot>>; teams: ChampionsProjectionTeam[];
 }
 export interface ChampionsStatus {
-  event_id: number; as_of: string | null; playoff_routing: "unresolved";
-  title_odds: null; groups: Record<"A" | "B" | "C" | "D", ChampionsGroup>;
+  event_id: number; as_of: string | null; playoff_routing: "unresolved" | "projected";
+  title_odds: Record<string, number> | null; groups: Record<"A" | "B" | "C" | "D", ChampionsGroup>;
   playoffs?: ChampionsPlayoffs;
 }
 export interface ResultMap { number: number; map: string; rounds_a: number; rounds_b: number }
