@@ -2,6 +2,7 @@
 import copy
 import duckdb
 import pandas as pd
+import pytest
 
 from vct_quant.champions_status import (attach_playoff_projection, attach_playoffs,
                                         champions_status, playoff_results)
@@ -320,6 +321,22 @@ def test_later_slot_sides_join_fixture_in_both_orientations_and_completed_result
         db.close()
 
 
+def test_later_schedule_forecast_used_without_fixture_and_fixture_has_priority():
+    spec = load_bracket_spec(2766)
+    slot = {"match_id": 754738, "teams": ["100 Thieves", "Nongshim RedForce"],
+            "team_ids": [120, 11060], "p_a": .8, "matches": [170, 88]}
+    block = attach_playoffs(status(), spec, [], [slot], {})["playoffs"]
+    sides = next(r for r in block["schedule"] if r["match_id"] == 754738)["sides"]
+    assert [s["p_win"] for s in sides] == pytest.approx([.8, .2])
+    assert sum(s["p_win"] for s in sides) == pytest.approx(1)
+    assert [s["matches"] for s in sides] == [170, 88]
+    override = fixture(754738, "100 Thieves", "Nongshim RedForce", .6)
+    sides = next(r for r in attach_playoffs(status(), spec, [override], [slot], {})["playoffs"]["schedule"]
+                 if r["match_id"] == 754738)["sides"]
+    assert [s["p_win"] for s in sides] == pytest.approx([.6, .4])
+    assert [s["matches"] for s in sides] == [100, 12]
+
+
 def test_named_schedule_sides_and_tbd_sides_with_results():
     spec = load_bracket_spec(2766)
     entries = [{"match_id": 754738, "start": None, "best_of": 3, "teams": ["NRG", "T1"], "team_ids": [1034, 14]}]
@@ -365,6 +382,41 @@ def test_playoff_schedule_falls_back_to_latest_prediction_log(tmp_path, monkeypa
     row = dashboard.playoff_schedule([754738])[0]
     assert row == {"match_id": 754738, "start": "2026-10-09T12:00:00+00:00", "best_of": 5,
                    "teams": ["100 Thieves", "Nongshim RedForce"], "team_ids": [120, 11060]}
+
+
+def test_playoff_schedule_uses_latest_pre_kickoff_forecast_and_flips_order(tmp_path, monkeypatch):
+    import vct_quant.dashboard as dashboard
+    monkeypatch.setattr(dashboard, "PROCESSED_DIR", tmp_path)
+    pd.DataFrame([
+        {"match_id": 754738, "scheduled_at": pd.Timestamp("2026-10-09 09:00Z"), "best_of": 3,
+         "team_a_name": "Nongshim RedForce", "team_b_name": "100 Thieves", "team_a_key": "11060", "team_b_key": "120",
+         "predicted_at": pd.Timestamp("2026-10-09 08:00Z"), "p_team_a_win": .3,
+         "rating_matches_a": 88, "rating_matches_b": 170},
+        {"match_id": 754738, "scheduled_at": pd.Timestamp("2026-10-09 09:00Z"), "best_of": 3,
+         "team_a_name": "100 Thieves", "team_b_name": "Nongshim RedForce", "team_a_key": "120", "team_b_key": "11060",
+         "predicted_at": pd.Timestamp("2026-10-09 10:00Z"), "p_team_a_win": .99,
+         "rating_matches_a": 170, "rating_matches_b": 88},
+    ]).to_parquet(tmp_path / "prediction_log.parquet")
+    row = dashboard.playoff_schedule([754738])[0]
+    assert row["teams"] == ["100 Thieves", "Nongshim RedForce"]
+    assert row["p_a"] == pytest.approx(.7)
+    assert row["matches"] == [170, 88]
+
+
+def test_playoff_schedule_omits_forecast_without_valid_pre_kickoff_row(tmp_path, monkeypatch):
+    import vct_quant.dashboard as dashboard
+    monkeypatch.setattr(dashboard, "PROCESSED_DIR", tmp_path)
+    log = _prediction_rows().iloc[[1]].copy()
+    log["predicted_at"] = pd.Timestamp("2026-10-09 13:00Z")
+    log["p_team_a_win"] = .5
+    log["rating_matches_a"] = 10
+    log["rating_matches_b"] = 20
+    log.to_parquet(tmp_path / "prediction_log.parquet")
+    row = dashboard.playoff_schedule([754738])[0]
+    assert "p_a" not in row and "matches" not in row
+    log.drop(columns="p_team_a_win").to_parquet(tmp_path / "prediction_log.parquet")
+    row = dashboard.playoff_schedule([754738])[0]
+    assert "p_a" not in row and "matches" not in row
 
 
 def test_playoff_schedule_prefers_named_upcoming_row(tmp_path, monkeypatch):

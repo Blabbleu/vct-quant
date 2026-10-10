@@ -139,6 +139,8 @@ def _later_sides(slot, date_row, fixture, result, results, unverified, logos=Non
     matched = fixture and [fixture["team_a"], fixture["team_b"]] in (schedule_names, schedule_names[::-1])
     if matched:
         flip = fixture["team_a"] != schedule_names[0]
+    scheduled_p = date_row.get("p_a") if date_row and not matched else None
+    scheduled_matches = date_row.get("matches") if date_row and not matched else None
     sides = []
     for i in range(2):
         src = (i + (1 if flip else 0)) % 2
@@ -146,10 +148,11 @@ def _later_sides(slot, date_row, fixture, result, results, unverified, logos=Non
         sides.append({"team_id": team_ids[i], "name": names[i],
                       "logo": fixture[f"logo_{key}"] if matched else (logos or {}).get(str(team_ids[i])),
                       "tag": fixture[f"tag_{key}"] if matched else (tags or {}).get(str(team_ids[i])),
-                      "matches": fixture[f"matches_{key}"] if matched else None,
+                      "matches": fixture[f"matches_{key}"] if matched else (scheduled_matches[i] if scheduled_matches else None),
                       "p_win": ((1 - fixture["p_a"]) if (i == 0 and flip) or (i == 1 and not flip)
                                 else fixture["p_a"])
-                      if matched else None})
+                      if matched else ((scheduled_p if i == 0 else 1 - scheduled_p)
+                                       if scheduled_p is not None else None)})
     return sides
 
 

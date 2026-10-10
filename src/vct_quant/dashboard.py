@@ -243,9 +243,8 @@ def playoff_schedule(match_ids: list[int]) -> list[dict]:
     missing = requested - {mid for mid, r in selected.items() if named(r)}
     log_path = PROCESSED_DIR / "prediction_log.parquet"
     if missing and log_path.exists():
-        log = pd.read_parquet(log_path, columns=["match_id", "scheduled_at", "best_of",
-                                                 "team_a_name", "team_b_name", "team_a_key", "team_b_key",
-                                                 "predicted_at"])
+        log = pd.read_parquet(log_path)
+        forecast_columns = {"p_team_a_win", "rating_matches_a", "rating_matches_b"}.issubset(log.columns)
         log = log[log.match_id.isin(missing)].sort_values("predicted_at")
         for r in log.itertuples():
             if pd.isna(r.scheduled_at):
@@ -259,6 +258,27 @@ def playoff_schedule(match_ids: list[int]) -> list[dict]:
         if named(r):
             row["teams"] = [r.team_a_name, r.team_b_name]
             row["team_ids"] = [int(r.team_a_key), int(r.team_b_key)]
+            # Only echo a forecast made before the reported kickoff, with the
+            # same pair of teams as the schedule row.
+            if mid in missing and forecast_columns:
+                candidates = log[(log.match_id == mid) & (log.predicted_at < r.scheduled_at)].sort_values("predicted_at", ascending=False)
+                for forecast in candidates.itertuples():
+                    keys = (str(forecast.team_a_key), str(forecast.team_b_key))
+                    wanted = (str(r.team_a_key), str(r.team_b_key))
+                    try:
+                        p = float(forecast.p_team_a_win)
+                        counts = [int(forecast.rating_matches_a), int(forecast.rating_matches_b)]
+                    except (TypeError, ValueError, OverflowError):
+                        continue
+                    if keys == wanted:
+                        pass
+                    elif keys == wanted[::-1]:
+                        p, counts = 1 - p, counts[::-1]
+                    else:
+                        continue
+                    if pd.notna(p) and 0 <= p <= 1:
+                        row["p_a"], row["matches"] = p, counts
+                        break
         rows.append(row)
     return sorted(rows, key=lambda row: row["start"])
 
