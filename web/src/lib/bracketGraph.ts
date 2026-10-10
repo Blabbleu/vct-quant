@@ -9,7 +9,8 @@
  *     (`playoffs.opening`) and are officially verified.
  *   - Scheduled sides and results are shown when supplied by the API; missing data stays TBD.
  *   - The EDGES below (who feeds whom) follow VLR's bracket layout. They are NOT officially
- *     confirmed (the API says `routing: "unresolved"`), so every edge is `confirmed: false`.
+ *     confirmed (the API may report `routing: "projected"` or `"unresolved"`), so every edge
+ *     is `confirmed: false`.
  *     The candidate renderer must style and label them as projections; do not surface any
  *     edge as an official route until each one is directly source-verified.
  */

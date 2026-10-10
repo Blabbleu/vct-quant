@@ -1,4 +1,12 @@
-import type { ChampionsProjection, ChampionsProjectionCandidate, ChampionsProjectionSlot } from "./types";
+import type { ChampionsPlayoffs, ChampionsProjection, ChampionsProjectionCandidate, ChampionsProjectionSlot } from "./types";
+
+export function routingChip(playoffs: Pick<ChampionsPlayoffs, "routing" | "projection">): string {
+  const projection = playoffs.projection;
+  if (playoffs.routing !== "projected" || !projection || "withheld" in projection || !("slots" in projection)) {
+    return "ROUTING UNCONFIRMED";
+  }
+  return "PROJECTED ROUTING";
+}
 
 export function mergeCandidates(slot: ChampionsProjectionSlot | null | undefined): ChampionsProjectionCandidate[] {
   if (!slot || !Array.isArray(slot.candidates)) return [];
@@ -24,9 +32,14 @@ export function mostLikely(slot: ChampionsProjectionSlot | null | undefined): Ch
 
 export function titleTable(projection: ChampionsProjection | { withheld: string } | null | undefined) {
   if (!projection || "withheld" in projection) return [];
-  return [...projection.teams].sort((a, b) => b.p_title - a.p_title).map(team => ({
+  const reach = (team: ChampionsProjection["teams"][number], key: string, alias: string) => {
+    const value = team.p_reach?.[key] ?? team.p_reach?.[alias];
+    return typeof value === "number" && Number.isFinite(value) ? value : 0;
+  };
+  return projection.teams.filter(team => Number.isFinite(team.p_title) && team.p_title >= 0 && team.p_title <= 1)
+    .map(team => ({
     ...team,
-    p_upper_final: team.p_reach["Upper Final"] ?? team.p_reach.UF ?? 0,
-    p_grand_final: team.p_reach["Grand Final"] ?? team.p_reach.GF ?? 0,
-  }));
+    p_upper_final: reach(team, "Upper Final", "UF"),
+    p_grand_final: reach(team, "Grand Final", "GF"),
+  })).sort((a, b) => b.p_title - a.p_title || b.p_grand_final - a.p_grand_final || a.team_id - b.team_id);
 }

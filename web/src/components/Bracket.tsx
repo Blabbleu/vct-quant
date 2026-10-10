@@ -6,7 +6,7 @@ import SectionHead from "./arena/SectionHead";
 import { m, useInitial, CountUp, EASE_OUT, D_BASE } from "../lib/motion";
 import { buildBracketGraph, dropTargets, feedLabel, progressionEdges, type BracketNode, type RoundKey } from "../lib/bracketGraph";
 import { bracketKickoff, bracketRoundSub } from "../lib/format";
-import { mostLikely } from "../lib/championsProjection";
+import { mostLikely, routingChip } from "../lib/championsProjection";
 import type { ChampionsPlayoffs, ChampionsPlayoffSide } from "../lib/types";
 import "./Bracket.css";
 
@@ -235,7 +235,7 @@ export default function Bracket({ playoffs }: { playoffs: ChampionsPlayoffs }) {
 
   return (
     <section className="champ-bracket" aria-label="Playoff bracket">
-      <SectionHead title="Playoff bracket" right={<Chip variant="ghost">ROUTING UNCONFIRMED</Chip>} />
+      <SectionHead title="Playoff bracket" right={<Chip variant="ghost">{routingChip(playoffs)}</Chip>} />
       <p className="champ-sub">
         Upper bracket on top, lower bracket below, Grand Final at the right. Losers drop into the labelled lower slots; hover a match to light up its path. {recorded ? `${recorded} opening result${recorded === 1 ? " is" : "s are"} recorded.` : "Opening pairings are published."} {namedLater ? "Named later-round sides are shown where supplied." : "Later-round sides remain TBD until supplied."} Named unplayed sides may show primary Elo win probabilities. Unnamed pairings marked PROJ are model projections, not fixture forecasts.
       </p>

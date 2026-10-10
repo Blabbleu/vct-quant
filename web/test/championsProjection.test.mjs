@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mergeCandidates, mostLikely, titleTable } from '../src/lib/championsProjection.ts';
+import { mergeCandidates, mostLikely, routingChip, titleTable } from '../src/lib/championsProjection.ts';
 
 test('merges oriented candidates into unordered pairs and reweights p_a', () => {
   const merged = mergeCandidates({ candidates: [
@@ -29,4 +29,28 @@ test('missing candidates and withheld projections are safe', () => {
   assert.deepEqual(mergeCandidates({ candidates: [] }), []);
   assert.equal(mostLikely(undefined), null);
   assert.deepEqual(titleTable({ withheld: 'routing unresolved' }), []);
+});
+
+test('routing chip reflects published projection availability', () => {
+  assert.equal(routingChip({ routing: 'unresolved' }), 'ROUTING UNCONFIRMED');
+  assert.equal(routingChip({ routing: 'projected', projection: { withheld: 'routing unresolved' } }), 'ROUTING UNCONFIRMED');
+  assert.equal(routingChip({ routing: 'projected' }), 'ROUTING UNCONFIRMED');
+  assert.equal(routingChip({ routing: 'projected', projection: { slots: {}, routing_basis: { slots: { LR: 'precedent' } } } }), 'PROJECTED ROUTING');
+});
+
+test('title table validates probabilities, defaults reach values, and sorts deterministically', () => {
+  const rows = titleTable({ teams: [
+    { team_id: 9, p_title: 0.4, p_reach: { GF: 0.7 } },
+    { team_id: 4, p_title: 0.4, p_reach: { GF: 0.7 } },
+    { team_id: 5, p_title: 0.4, p_reach: { GF: 0.8 } },
+    { team_id: 3, p_title: 0, p_reach: {} },
+    { team_id: 10, p_title: 0.8, p_reach: { GF: Infinity } },
+    { team_id: 11, p_title: NaN, p_reach: {} },
+    { team_id: 12, p_title: Infinity, p_reach: {} },
+    { team_id: 13, p_title: -0.1, p_reach: {} },
+    { team_id: 14, p_title: 1.1, p_reach: {} },
+  ] });
+  assert.deepEqual(rows.map(row => row.team_id), [10, 5, 4, 9, 3]);
+  assert.equal(rows.find(row => row.team_id === 10).p_grand_final, 0);
+  assert.equal(rows.find(row => row.team_id === 10).p_upper_final, 0);
 });
