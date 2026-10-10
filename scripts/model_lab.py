@@ -92,6 +92,7 @@ def load() -> dict:
         """).df()
     finally:
         con.close()
+    extra = extra[["match_id", *(c for c in extra.columns if c not in df.columns)]]
     df = df.merge(extra, on="match_id", how="left")
     rosters = {(int(m), int(t)): list(r) for m, t, r in lineups.itertuples(index=False)}
 
