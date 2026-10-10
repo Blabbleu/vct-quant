@@ -54,3 +54,15 @@ test('title table validates probabilities, defaults reach values, and sorts dete
   assert.equal(rows.find(row => row.team_id === 10).p_grand_final, 0);
   assert.equal(rows.find(row => row.team_id === 10).p_upper_final, 0);
 });
+
+test('title table keeps teams with absent or null reach data and reads long keys and aliases', () => {
+  const rows = titleTable({ teams: [
+    { team_id: 1, p_title: 0.2 },
+    { team_id: 2, p_title: 0.1, p_reach: null },
+    { team_id: 3, p_title: 0.4, p_reach: { 'Upper Final': 0.3, UF: 0.2, 'Grand Final': 0.15, GF: 0.1 } },
+    { team_id: 4, p_title: 0.3, p_reach: { UF: 0.25, GF: 0.12 } },
+  ] });
+  assert.deepEqual(rows.map(row => row.team_id), [3, 4, 1, 2]);
+  assert.deepEqual(rows.filter(row => row.team_id <= 2).map(row => [row.p_upper_final, row.p_grand_final]), [[0, 0], [0, 0]]);
+  assert.deepEqual(rows.filter(row => row.team_id >= 3).map(row => [row.p_upper_final, row.p_grand_final]), [[0.3, 0.15], [0.25, 0.12]]);
+});

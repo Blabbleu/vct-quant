@@ -19,6 +19,8 @@
 .champ-odds-stat { display: flex; flex-direction: column; text-align: right; white-space: nowrap; }
 .champ-odds-stat b { color: var(--model); }
 .champ-odds-stat small { color: var(--text-3); font-size: 10px; }
+.champ-odds-row.is-out > :first-child, .champ-odds-row.is-out .champ-odds-name { opacity: .55; }
+.champ-odds-row.is-out .champ-odds-stat b { color: var(--text-3); }
 @media (max-width: 420px) { .champ-odds-row { grid-template-columns: 30px minmax(0, 1fr) auto; } .champ-odds-stat:last-child { grid-column: 2 / -1; flex-direction: row; justify-content: space-between; gap: var(--s-2); } }
 
 /* Desktop: 2x2 group grid (spec allows 2x2 or 4-across); phone stacks. */

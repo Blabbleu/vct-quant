@@ -312,11 +312,12 @@ export default function Champions() {
           {oddsRows.map(row => {
             const meta = names[row.team_id];
             const name = meta?.name ?? `Team ${row.team_id}`;
-            return <li className="champ-odds-row" key={row.team_id}>
+            const eliminated = row.p_title === 0;
+            return <li className={`champ-odds-row${eliminated ? " is-out" : ""}`} key={row.team_id}>
               <LogoSlot src={meta?.logo ?? null} name={name} tag={meta?.tag ?? null} size={34} />
               <Link to={`/team/${row.team_id}`} className="champ-team-link champ-odds-name"><TeamLabel name={name} tag={meta?.tag ?? null} mode="auto" /></Link>
               <span className="champ-odds-stat"><b className="num">{row.p_title === 0 ? "Eliminated" : `${(row.p_title * 100).toFixed(1)}%`}</b><small>P(title)</small></span>
-              <span className="champ-odds-stat"><b className="num">{(row.p_grand_final * 100).toFixed(1)}%</b><small>P(reach Grand Final)</small></span>
+              <span className="champ-odds-stat"><b className="num">{eliminated ? "—" : `${(row.p_grand_final * 100).toFixed(1)}%`}</b><small>P(reach Grand Final)</small></span>
             </li>;
           })}
         </ul>
