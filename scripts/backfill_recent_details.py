@@ -10,39 +10,9 @@ import sys
 from datetime import date
 
 from vct_quant import db
-from vct_quant.config import RAW_VLRGG_DIR
 from vct_quant.etl import normalize
 from vct_quant.ingest import vlrgg
-
-
-TARGETS_SQL = """
-SELECT m.match_id
-FROM match m
-JOIN event e USING (event_id)
-JOIN match_team mt1 ON mt1.match_id = m.match_id AND mt1.team_number = 1
-JOIN match_team mt2 ON mt2.match_id = m.match_id AND mt2.team_number = 2
-WHERE m.completed_at IS NOT NULL
-  AND CAST(m.completed_at AS DATE) >= ?
-  AND e.tier IN ({tiers})
-  AND NOT EXISTS (SELECT 1 FROM match_map mm WHERE mm.match_id = m.match_id)
-  AND mt1.series_score IS NOT NULL AND mt2.series_score IS NOT NULL
-  AND (mt1.series_score > 0 OR mt2.series_score > 0)
-  AND lower(coalesce(m.status, '')) NOT LIKE '%forfeit%'
-  AND lower(coalesce(mt1.team_name, '') || ' ' || coalesce(mt2.team_name, '')) NOT LIKE '%forfeit%'
-ORDER BY m.completed_at DESC, m.match_id DESC
-"""
-
-
-def targets(con, since: date, tiers: tuple[int, ...] = (1,)) -> list[int]:
-    if not tiers:
-        return []
-    placeholders = ", ".join("?" for _ in tiers)
-    rows = con.execute(TARGETS_SQL.format(tiers=placeholders), [since, *tiers]).fetchall()
-    return [int(row[0]) for row in rows]
-
-
-def already_have(match_id: int) -> bool:
-    return any(RAW_VLRGG_DIR.glob(f"match_details_{match_id}_*.json"))
+from vct_quant.recent_details import TARGETS_SQL, already_have, targets
 
 
 def main(argv: list[str] | None = None) -> int:

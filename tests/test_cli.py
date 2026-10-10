@@ -8,6 +8,7 @@ from vct_quant import cli
 from vct_quant import config
 from vct_quant.etl import normalize
 from vct_quant.features import build
+from vct_quant import recent_details
 
 
 def test_load_vlrgg_dispatches_to_loader(monkeypatch, capsys):
@@ -78,6 +79,17 @@ def test_update_refreshes_results_before_predictions(monkeypatch, tmp_path, caps
         lambda **kwargs: calls.append(f"load details {kwargs.get('match_id')}") or "details",
     )
     monkeypatch.setattr(
+        cli, "_materialize_upcoming",
+        lambda data: (
+            calls.append("predict upcoming") or pd.DataFrame([{"match_id": 1}]),
+            tmp_path / "upcoming_tier1.parquet",
+        ),
+    )
+    monkeypatch.setattr(recent_details, "refresh_recent_details",
+                        lambda: calls.append("refresh recent details") or {
+                            "targets": 1, "fetched": 0, "failed": 1, "loaded": 0,
+                        })
+    monkeypatch.setattr(
         vlrgg, "fetch_upcoming_matches",
         lambda: calls.append("fetch upcoming") or {"data": {"segments": [1]}},
     )
@@ -94,11 +106,12 @@ def test_update_refreshes_results_before_predictions(monkeypatch, tmp_path, caps
     assert calls == [
         "fetch events", "fetch event 1", "fetch upcoming", "load results",
         "find unresolved", "fetch details 42", "load details None",
-        "predict upcoming",
+        "refresh recent details", "predict upcoming",
     ]
     out = capsys.readouterr().out
     assert "retained 1 official" in out
     assert "1 match details for unresolved Tier-1 teams" in out
+    assert "Recent Tier-1 details: 0 fetched, 1 failed (of 1 targets)" in out
 
 
 @pytest.mark.parametrize("failed_source", ["events", "event_matches", "upcoming"])

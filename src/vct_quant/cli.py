@@ -128,6 +128,7 @@ def main() -> None:
         from .etl import normalize
         from .etl.events import competition_tier, untiered_vct_titles
         from .ingest import vlrgg
+        from . import recent_details
 
         # The loader reads event match lists, not the ~50-row results feed.
         # ponytail: newest listing page only; after a long gap run
@@ -155,6 +156,12 @@ def main() -> None:
                 vlrgg.fetch_match_details(match_id)
             print(f"Fetched {len(targets)} match details for unresolved Tier-1 teams")
             print(normalize.load_vlrgg_match_details())
+
+        recent = recent_details.refresh_recent_details()
+        print(
+            f"Recent Tier-1 details: {recent['fetched']} fetched, {recent['failed']} failed "
+            f"(of {recent['targets']} targets)"
+        )
 
         fixtures, path = _materialize_upcoming(upcoming)
         upcoming_count = len(upcoming.get("data", {}).get("segments", []))

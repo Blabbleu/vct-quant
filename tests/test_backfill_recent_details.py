@@ -3,6 +3,7 @@ from datetime import date, datetime, timezone
 import duckdb
 
 from scripts import backfill_recent_details as backfill
+from vct_quant import recent_details
 
 
 def make_db():
@@ -40,7 +41,7 @@ def test_targets_filters_and_orders_completed_scored_unmapped_matches():
 
 def test_already_have_finds_timestamped_detail(monkeypatch, tmp_path):
     (tmp_path / "match_details_123_20261009T120000.json").touch()
-    monkeypatch.setattr(backfill, "RAW_VLRGG_DIR", tmp_path)
+    monkeypatch.setattr(recent_details, "RAW_VLRGG_DIR", tmp_path)
     assert backfill.already_have(123)
     assert not backfill.already_have(124)
 
