@@ -106,6 +106,77 @@ def test_playoff_projection_withholds_for_unrated_unverified_or_routing_conflict
     assert out["playoffs"]["routing"] == "unresolved" and out["title_odds"] is None
 
 
+def _routing_results():
+    return {
+        754730: {"team_ids": [120, 11058], "scores": [0, 2]},
+        754731: {"team_ids": [2059, 11060], "scores": [2, 0]},
+        754732: {"team_ids": [1034, 14], "scores": [2, 0]},
+        754733: {"team_ids": [624, 6961], "scores": [0, 2]},
+        754738: {"team_ids": [120, 11060], "scores": [2, 1]},
+        754739: {"team_ids": [14, 624], "scores": [2, 1]},
+        754735: {"team_ids": [6961, 1034], "scores": [2, 0]},
+        754734: {"team_ids": [2059, 11058], "scores": [2, 1]},
+    }
+
+
+def _routing_payload(spec, named_ids, results):
+    entries = []
+    names = {team: f"Team {team}" for pair in [row["team_ids"] for row in spec["verified_opening_pairings"]]
+             for team in pair}
+    for slot in spec["playoffs"]:
+        mid = slot["match_id"]
+        entry = {"match_id": mid, "start": None, "best_of": 3}
+        if mid in named_ids:
+            ids = named_ids[mid]
+            entry.update(teams=[names[team] for team in ids], team_ids=ids)
+        entries.append(entry)
+    payload = attach_playoffs(status(), spec, [], entries, results)
+    entrants = [team for row in spec["verified_opening_pairings"] for team in row["team_ids"]]
+    ratings = {str(team): float(team) for team in entrants}
+    counts = {str(team): 10 for team in entrants}
+    out = attach_playoff_projection(payload, spec, results, ratings, counts, None)
+    return out
+
+
+def test_named_schedule_routing_is_observed_without_changing_probabilities():
+    spec = load_bracket_spec(2766)
+    results = _routing_results()
+    named_ids = {754740: [1034, 120], 754741: [11058, 14], 754736: [2059, 6961]}
+    named = _routing_payload(spec, named_ids, results)
+    assert named["playoffs"]["routing"] == "projected"
+    basis = named["playoffs"]["projection"]["routing_basis"]["slots"]
+    assert [basis[str(mid)] for mid in (754736, 754740, 754741)] == ["observed"] * 3
+    assert [basis[str(mid)] for mid in (754742, 754743, 754737)] == ["precedent"] * 3
+    assert all(basis[str(mid)] == "observed" for mid in (754734, 754735, 754738, 754739))
+
+    reversed_sides = _routing_payload(spec, {**named_ids, 754740: [120, 1034]}, results)
+    assert reversed_sides["playoffs"]["routing"] == "projected"
+    assert reversed_sides["playoffs"]["projection"]["routing_basis"]["slots"]["754740"] == "observed"
+
+    unnamed = _routing_payload(spec, {}, results)
+    assert unnamed["playoffs"]["routing"] == "projected"
+    assert all(unnamed["playoffs"]["projection"]["routing_basis"]["slots"][str(mid)] == "precedent"
+               for mid in (754736, 754740, 754741))
+    for key in ("slots", "teams"):
+        assert named["playoffs"]["projection"][key] == unnamed["playoffs"]["projection"][key]
+    assert named["title_odds"] == unnamed["title_odds"]
+
+    missing = dict(results)
+    del missing[754735]
+    no_feed = _routing_payload(spec, named_ids, missing)
+    assert no_feed["playoffs"]["routing"] == "projected"
+    assert no_feed["playoffs"]["projection"]["routing_basis"]["slots"]["754740"] == "precedent"
+
+
+def test_named_schedule_routing_contradiction_withholds_projection():
+    spec = load_bracket_spec(2766)
+    out = _routing_payload(spec, {754740: [1034, 11058]}, _routing_results())
+    assert out["playoffs"]["routing"] == "unresolved"
+    assert out["playoffs"]["projection"] == {
+        "withheld": "named schedule contradicts playoff routing for match 754740"}
+    assert out["title_odds"] is None
+
+
 def test_fixed_quarterfinal_result_routes_winner_and_loser_with_certainty():
     spec = load_bracket_spec(2766)
     payload, ratings, counts = projection_inputs(spec, {})

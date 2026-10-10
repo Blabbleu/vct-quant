@@ -2,7 +2,7 @@
 from __future__ import annotations
 from datetime import datetime
 
-from .event_bracket import group_progress, validate_bracket_spec
+from .event_bracket import group_progress, playoff_feeds, validate_bracket_spec
 
 
 def attach_playoff_projection(status: dict, spec: dict, results: dict, ratings: dict,
@@ -37,6 +37,36 @@ def attach_playoff_projection(status: dict, spec: dict, results: dict, ratings: 
         return withhold(f"playoff routing could not be verified: {exc}")
 
     advancement = spec.get("playoff_advancement", {})
+    bases = {str(mid): row["basis"] for mid, row in advancement.get("slots", {}).items()}
+    feeds = playoff_feeds(spec)
+    unverified = getattr(results, "unverified", [])
+    schedule_rows = {row.get("match_id"): row for row in block.get("schedule", [])}
+    for match_id, feed in feeds.items():
+        key = str(match_id)
+        if bases.get(key) != "precedent":
+            continue
+        sides = schedule_rows.get(match_id, {}).get("sides")
+        if (not isinstance(sides, list) or len(sides) != 2
+                or any(not isinstance(side, dict) or type(side.get("team_id")) is not int
+                       or side["team_id"] <= 0 for side in sides)):
+            continue
+        named = [side["team_id"] for side in sides]
+        if named[0] == named[1]:
+            continue
+        outcomes = []
+        for source_id, take in feed:
+            result = results.get(source_id)
+            if result is None or source_id in unverified:
+                break
+            pair, scores = result["team_ids"], result["scores"]
+            winner = pair[0] if scores[0] > scores[1] else pair[1]
+            outcomes.append(winner if take == "winner" else (pair[1] if winner == pair[0] else pair[0]))
+        if len(outcomes) != 2:
+            continue
+        if set(named) != set(outcomes):
+            return withhold(f"named schedule contradicts playoff routing for match {match_id}")
+        bases[key] = "observed"
+
     projection["slots"] = {
         str(mid): {"stage": slot["stage"], "candidates": [
             candidate for candidate in slot["candidates"] if candidate["p_pairing"] > 0
@@ -49,8 +79,7 @@ def attach_playoff_projection(status: dict, spec: dict, results: dict, ratings: 
     block["projection"] = {
         "model": "primary Elo, ratings frozen for the rest of the playoffs",
         "ratings_through_match_id": through,
-        "routing_basis": {"slots": {str(mid): row["basis"]
-                           for mid, row in advancement.get("slots", {}).items()},
+        "routing_basis": {"slots": bases,
                           "sources": list(advancement.get("sources", []))},
         **projection,
     }
