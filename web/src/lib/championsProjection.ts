@@ -8,6 +8,20 @@ export function routingChip(playoffs: Pick<ChampionsPlayoffs, "routing" | "proje
   return "PROJECTED ROUTING";
 }
 
+export function slotBasis(projection: ChampionsProjection | { withheld: string } | null | undefined, matchId: number | string): "observed" | "precedent" | null {
+  if (!projection || "withheld" in projection) return null;
+  const basis: unknown = projection.routing_basis;
+  if (!basis || typeof basis !== "object") return null;
+  const slots: unknown = (basis as { slots?: unknown }).slots;
+  if (!slots || typeof slots !== "object") return null;
+  const value = (slots as Record<string, unknown>)[String(matchId)];
+  return value === "observed" || value === "precedent" ? value : null;
+}
+
+export function isEliminated(row: { p_title?: number | null }): boolean {
+  return row.p_title === 0;
+}
+
 export function mergeCandidates(slot: ChampionsProjectionSlot | null | undefined): ChampionsProjectionCandidate[] {
   if (!slot || !Array.isArray(slot.candidates)) return [];
   const pairs = new Map<string, { ids: [number, number]; weight: number; aWeight: number }>();

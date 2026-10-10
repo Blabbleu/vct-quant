@@ -1,6 +1,24 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mergeCandidates, mostLikely, routingChip, titleTable } from '../src/lib/championsProjection.ts';
+import { isEliminated, mergeCandidates, mostLikely, routingChip, slotBasis, titleTable } from '../src/lib/championsProjection.ts';
+
+test('slotBasis safely reads observed and precedent routing by stringified match ID', () => {
+  const projection = { routing_basis: { slots: { '754734': 'observed', '754736': 'precedent', '754737': 'unknown' } } };
+  assert.equal(slotBasis(projection, 754734), 'observed');
+  assert.equal(slotBasis(projection, '754736'), 'precedent');
+  assert.equal(slotBasis(projection, 754737), null);
+  assert.equal(slotBasis(projection, 754738), null);
+  assert.equal(slotBasis({ withheld: 'routing unresolved' }, '754736'), null);
+  assert.equal(slotBasis({}, '754736'), null);
+  assert.equal(slotBasis({ routing_basis: {} }, '754736'), null);
+  assert.equal(slotBasis(null, '754736'), null);
+});
+
+test('isEliminated is true only when title probability is zero', () => {
+  assert.equal(isEliminated({ p_title: 0 }), true);
+  assert.equal(isEliminated({ p_title: 0.0001 }), false);
+  assert.equal(isEliminated({}), false);
+});
 
 test('merges oriented candidates into unordered pairs and reweights p_a', () => {
   const merged = mergeCandidates({ candidates: [

@@ -6,7 +6,7 @@ import SectionHead from "./arena/SectionHead";
 import { m, useInitial, CountUp, EASE_OUT, D_BASE } from "../lib/motion";
 import { buildBracketGraph, dropTargets, feedLabel, progressionEdges, type BracketNode, type RoundKey } from "../lib/bracketGraph";
 import { bracketKickoff, bracketRoundSub } from "../lib/format";
-import { mostLikely, routingChip } from "../lib/championsProjection";
+import { mostLikely, routingChip, slotBasis } from "../lib/championsProjection";
 import type { ChampionsPlayoffs, ChampionsPlayoffSide } from "../lib/types";
 import "./Bracket.css";
 
@@ -127,9 +127,10 @@ function SideRow({ s, fav, tied, score, winner }: { s: ChampionsPlayoffSide; fav
   );
 }
 
-function Node({ n, slot, hot, inPath, dropFrom, onHot, projectionSlot, teamMeta }: {
+function Node({ n, slot, hot, inPath, dropFrom, onHot, projectionSlot, routingProjection, teamMeta }: {
   n: BracketNode; slot: Slot; hot: boolean; inPath: boolean; dropFrom: number | null; onHot: (id: number | null) => void;
   projectionSlot: import("../lib/types").ChampionsProjectionSlot | undefined;
+  routingProjection: import("../lib/types").ChampionsProjection | null;
   teamMeta: Record<number, { name: string; tag: string | null; logo: string | null }>;
 }) {
   const isDrop = dropFrom != null && n.feeds.some(f => f.take === "loser" && f.from === dropFrom);
@@ -137,6 +138,7 @@ function Node({ n, slot, hot, inPath, dropFrom, onHot, projectionSlot, teamMeta 
   const verified = n.verified;
   const result = n.result;
   const projection = !sides && !result ? mostLikely(projectionSlot) : null;
+  const precedent = projection != null && slotBasis(routingProjection, n.id) === "precedent";
   const pA = result ? null : sides?.[0].p_win ?? null, pB = result ? null : sides?.[1].p_win ?? null;
   const tied = pA != null && pB != null && pA === pB;
   const favA = pA != null && pB != null ? pA > pB : false;
@@ -170,7 +172,10 @@ function Node({ n, slot, hot, inPath, dropFrom, onHot, projectionSlot, teamMeta 
         </>
       ) : (
         projection ? <div className="bracket-projected">
-          <span className="bracket-proj-chip">PROJ</span>
+          <div className="bracket-proj-labels">
+            <span className="bracket-proj-chip">PROJ</span>
+            {precedent && <span className="bracket-proj-chip bracket-proj-precedent" aria-label="route assumed from 2024/2025 precedent">PRECEDENT</span>}
+          </div>
           <span className="bracket-proj-pair">
             <span className="bracket-proj-team">{teamMeta[projection.team_ids[0]]?.tag ?? teamMeta[projection.team_ids[0]]?.name ?? `Team ${projection.team_ids[0]}`}</span>
             <span>v</span>
@@ -231,13 +236,16 @@ export default function Bracket({ playoffs }: { playoffs: ChampionsPlayoffs }) {
   const recorded = placed.filter(n => n.round === "UQF" && n.result).length;
   const namedLater = placed.some(n => n.round !== "UQF" && n.sides);
   const projection = playoffs.projection && "slots" in playoffs.projection ? playoffs.projection : null;
+  const precedentProjected = projection != null && placed.some(n =>
+    !n.sides && !n.result && mostLikely(projection.slots[String(n.id)]) != null && slotBasis(projection, n.id) === "precedent"
+  );
   const teamMeta = Object.fromEntries(playoffs.opening.flatMap(m => m.sides.map(s => [s.team_id, { name: s.name, tag: s.tag, logo: s.logo }])));
 
   return (
     <section className="champ-bracket" aria-label="Playoff bracket">
       <SectionHead title="Playoff bracket" right={<Chip variant="ghost">{routingChip(playoffs)}</Chip>} />
       <p className="champ-sub">
-        Upper bracket on top, lower bracket below, Grand Final at the right. Losers drop into the labelled lower slots; hover a match to light up its path. {recorded ? `${recorded} opening result${recorded === 1 ? " is" : "s are"} recorded.` : "Opening pairings are published."} {namedLater ? "Named later-round sides are shown where supplied." : "Later-round sides remain TBD until supplied."} Named unplayed sides may show primary Elo win probabilities. Unnamed pairings marked PROJ are model projections, not fixture forecasts.
+        Upper bracket on top, lower bracket below, Grand Final at the right. Losers drop into the labelled lower slots; hover a match to light up its path. {recorded ? `${recorded} opening result${recorded === 1 ? " is" : "s are"} recorded.` : "Opening pairings are published."} {namedLater ? "Named later-round sides are shown where supplied." : "Later-round sides remain TBD until supplied."} Named unplayed sides may show primary Elo win probabilities. Unnamed pairings marked PROJ are model projections, not fixture forecasts.{precedentProjected ? " PRECEDENT marks slots whose route follows the 2024/2025 Champions bracket." : ""}
       </p>
 
       <div className={`bracket-frame${overflowing ? " is-scrollable" : ""}${atEnd ? " at-end" : ""}`}>
@@ -302,7 +310,7 @@ export default function Bracket({ playoffs }: { playoffs: ChampionsPlayoffs }) {
                 key={n.id} n={n} slot={SLOTS[n.code]}
                 hot={hotId === n.id} inPath={path?.nodes.has(n.id) ?? false} dropFrom={dropFrom}
                 onHot={setHotId}
-                projectionSlot={projection?.slots[String(n.id)]} teamMeta={teamMeta}
+                projectionSlot={projection?.slots[String(n.id)]} routingProjection={projection} teamMeta={teamMeta}
               />
             ))}
           </m.div>
