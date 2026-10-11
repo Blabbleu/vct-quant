@@ -70,7 +70,8 @@
 .bracket-projected { display: flex; flex-direction: column; gap: 2px; min-width: 0; color: var(--text-2); }
 .bracket-proj-labels { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .bracket-proj-chip { align-self: flex-start; color: var(--model); font-size: 9px; font-weight: 800; letter-spacing: .08em; }
-.bracket-proj-precedent { color: var(--text-3); font-size: 8px; letter-spacing: .06em; }
+.bracket-proj-precedent { color: var(--text-3); font-size: 9px; letter-spacing: .06em; }
+.bracket-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .bracket-proj-pair { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: 11px; }
 .bracket-proj-team { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bracket-proj-pct { flex: none; color: var(--model); font-weight: 800; }

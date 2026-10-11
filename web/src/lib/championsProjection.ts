@@ -44,6 +44,14 @@ export function mostLikely(slot: ChampionsProjectionSlot | null | undefined): Ch
   return mergeCandidates(slot)[0] ?? null;
 }
 
+export function isPrecedentProjection(
+  node: { id: number | string; sides?: unknown; result?: unknown },
+  projection: ChampionsProjection | { withheld: string } | null | undefined,
+): boolean {
+  if (node.sides || node.result || !projection || "withheld" in projection) return false;
+  return mostLikely(projection.slots[String(node.id)]) != null && slotBasis(projection, node.id) === "precedent";
+}
+
 export function titleTable(projection: ChampionsProjection | { withheld: string } | null | undefined) {
   if (!projection || "withheld" in projection) return [];
   const reach = (team: ChampionsProjection["teams"][number], key: string, alias: string) => {

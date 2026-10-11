@@ -6,7 +6,7 @@ import SectionHead from "./arena/SectionHead";
 import { m, useInitial, CountUp, EASE_OUT, D_BASE } from "../lib/motion";
 import { buildBracketGraph, dropTargets, feedLabel, progressionEdges, type BracketNode, type RoundKey } from "../lib/bracketGraph";
 import { bracketKickoff, bracketRoundSub } from "../lib/format";
-import { mostLikely, routingChip, slotBasis } from "../lib/championsProjection";
+import { isPrecedentProjection, mostLikely, routingChip } from "../lib/championsProjection";
 import type { ChampionsPlayoffs, ChampionsPlayoffSide } from "../lib/types";
 import "./Bracket.css";
 
@@ -138,7 +138,7 @@ function Node({ n, slot, hot, inPath, dropFrom, onHot, projectionSlot, routingPr
   const verified = n.verified;
   const result = n.result;
   const projection = !sides && !result ? mostLikely(projectionSlot) : null;
-  const precedent = projection != null && slotBasis(routingProjection, n.id) === "precedent";
+  const precedent = isPrecedentProjection(n, routingProjection);
   const pA = result ? null : sides?.[0].p_win ?? null, pB = result ? null : sides?.[1].p_win ?? null;
   const tied = pA != null && pB != null && pA === pB;
   const favA = pA != null && pB != null ? pA > pB : false;
@@ -174,7 +174,7 @@ function Node({ n, slot, hot, inPath, dropFrom, onHot, projectionSlot, routingPr
         projection ? <div className="bracket-projected">
           <div className="bracket-proj-labels">
             <span className="bracket-proj-chip">PROJ</span>
-            {precedent && <span className="bracket-proj-chip bracket-proj-precedent" aria-label="route assumed from 2024/2025 precedent">PRECEDENT</span>}
+            {precedent && <span className="bracket-proj-chip bracket-proj-precedent"><span aria-hidden="true">PRECEDENT</span><span className="bracket-sr-only">route assumed from 2024/2025 precedent</span></span>}
           </div>
           <span className="bracket-proj-pair">
             <span className="bracket-proj-team">{teamMeta[projection.team_ids[0]]?.tag ?? teamMeta[projection.team_ids[0]]?.name ?? `Team ${projection.team_ids[0]}`}</span>
@@ -236,9 +236,7 @@ export default function Bracket({ playoffs }: { playoffs: ChampionsPlayoffs }) {
   const recorded = placed.filter(n => n.round === "UQF" && n.result).length;
   const namedLater = placed.some(n => n.round !== "UQF" && n.sides);
   const projection = playoffs.projection && "slots" in playoffs.projection ? playoffs.projection : null;
-  const precedentProjected = projection != null && placed.some(n =>
-    !n.sides && !n.result && mostLikely(projection.slots[String(n.id)]) != null && slotBasis(projection, n.id) === "precedent"
-  );
+  const precedentProjected = placed.some(n => isPrecedentProjection(n, projection));
   const teamMeta = Object.fromEntries(playoffs.opening.flatMap(m => m.sides.map(s => [s.team_id, { name: s.name, tag: s.tag, logo: s.logo }])));
 
   return (

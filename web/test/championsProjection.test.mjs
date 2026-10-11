@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isEliminated, mergeCandidates, mostLikely, routingChip, slotBasis, titleTable } from '../src/lib/championsProjection.ts';
+import { isEliminated, isPrecedentProjection, mergeCandidates, mostLikely, routingChip, slotBasis, titleTable } from '../src/lib/championsProjection.ts';
 
 test('slotBasis safely reads observed and precedent routing by stringified match ID', () => {
   const projection = { routing_basis: { slots: { '754734': 'observed', '754736': 'precedent', '754737': 'unknown' } } };
@@ -12,6 +12,21 @@ test('slotBasis safely reads observed and precedent routing by stringified match
   assert.equal(slotBasis({}, '754736'), null);
   assert.equal(slotBasis({ routing_basis: {} }, '754736'), null);
   assert.equal(slotBasis(null, '754736'), null);
+});
+
+test('isPrecedentProjection requires an unnamed unplayed slot, a candidate, and precedent basis', () => {
+  const node = { id: 42 };
+  const projection = {
+    slots: { '42': { candidates: [{ team_ids: [1, 2], p_pairing: 0.8, p_a: 0.6 }] } },
+    routing_basis: { slots: { '42': 'precedent' } },
+  };
+  assert.equal(isPrecedentProjection(node, projection), true);
+  assert.equal(isPrecedentProjection(node, { ...projection, routing_basis: { slots: { '42': 'observed' } } }), false);
+  assert.equal(isPrecedentProjection({ ...node, sides: [] }, projection), false);
+  assert.equal(isPrecedentProjection({ ...node, result: {} }, projection), false);
+  assert.equal(isPrecedentProjection(node, { ...projection, slots: { '42': { candidates: [] } } }), false);
+  assert.equal(isPrecedentProjection(node, { withheld: 'routing unresolved' }), false);
+  assert.equal(isPrecedentProjection(node, null), false);
 });
 
 test('isEliminated is true only when title probability is zero', () => {
