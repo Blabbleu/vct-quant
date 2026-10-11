@@ -13,7 +13,7 @@ import { Reveal, Stagger, StaggerItem, PageFade, CountUp } from "../lib/motion";
 import { URLS, loadCached, store, useChampionsStatus } from "../lib/api";
 import { LOW_DATA_MATCHES } from "../lib/constants";
 import { openingSectionCopy } from "../lib/championsCopy";
-import { championOf, isEliminated, titleTable } from "../lib/championsProjection";
+import { championOf, isEliminated, playoffsNoteCopy, titleTable } from "../lib/championsProjection";
 import { playedDate, utc, utcShort } from "../lib/format";
 import type { ChampionsGroup, ChampionsPlayoffMatch, ChampionsPlayoffs, ChampionsQualificationTeam } from "../lib/types";
 import "./Champions.css";
@@ -352,7 +352,7 @@ export default function Champions() {
             <p>The playoff draw is expected after October 4. Seeding and lower-bracket paths are not verified; title odds are unavailable. Group match results may lag the source.</p>
           </>
         )}
-        {playoffs && <p>{recordedOpening ? `${recordedOpening} opening result${recordedOpening === 1 ? " is" : "s are"} recorded.` : "Opening pairings and the published schedule are available."} {namedLater ? "Named scheduled sides appear in the bracket." : "Later sides appear as TBD until supplied."} {champion ? "Playoffs are complete and recorded results are shown." : oddsRows.length ? `Title odds are projected from primary Elo with ratings frozen${precedentUsed ? ", with some lower-bracket routes following 2024/2025 precedent" : ""}.` : "Upper/lower-bracket routing and grand-final rules are not confirmed, so title odds remain unavailable."} Group match results may lag the source.</p>}
+        {playoffs && <p>{playoffsNoteCopy({ recordedOpening, namedLater, champion, hasOdds: oddsRows.length > 0, precedentUsed: Boolean(precedentUsed) })} Group match results may lag the source.</p>}
         <p>Group odds replay every remaining group series with the same win probability the fixture board shows for that pairing, holding ratings fixed until the group ends (real ratings move after each result). &ldquo;1st seed&rdquo; means winning the winners' match. Descriptive only: not a separate model and not betting advice.</p>
       </section>
     </PageFade>

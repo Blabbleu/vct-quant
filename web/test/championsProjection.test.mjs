@@ -1,6 +1,27 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { championOf, isEliminated, isPrecedentProjection, mergeCandidates, mostLikely, routingChip, slotBasis, titleTable } from '../src/lib/championsProjection.ts';
+import { bracketSubCopy, championOf, isEliminated, isPrecedentProjection, mergeCandidates, mostLikely, playoffsNoteCopy, routingChip, slotBasis, titleTable } from '../src/lib/championsProjection.ts';
+
+test('projection copy preserves pre-final wording exactly', () => {
+  for (const recorded of [0, 4]) for (const namedLater of [false, true]) for (const precedentProjected of [false, true]) {
+    const expected = `${recorded ? `${recorded} opening result${recorded === 1 ? ' is' : 's are'} recorded.` : 'Opening pairings are published.'} ${namedLater ? 'Named later-round sides are shown where supplied.' : 'Later-round sides remain TBD until supplied.'} Named unplayed sides may show primary Elo win probabilities. Unnamed pairings marked PROJ are model projections, not fixture forecasts.${precedentProjected ? ' PRECEDENT marks slots whose route follows the 2024/2025 Champions bracket.' : ''}`;
+    assert.equal(bracketSubCopy({ recorded, namedLater, champion: null, precedentProjected }), expected);
+  }
+  for (const recordedOpening of [0, 4]) for (const namedLater of [false, true]) for (const precedentUsed of [false, true]) for (const hasOdds of [false, true]) {
+    const opening = recordedOpening ? `${recordedOpening} opening results are recorded.` : 'Opening pairings and the published schedule are available.';
+    const named = namedLater ? 'Named scheduled sides appear in the bracket.' : 'Later sides appear as TBD until supplied.';
+    const odds = hasOdds ? `Title odds are projected from primary Elo with ratings frozen${precedentUsed ? ', with some lower-bracket routes following 2024/2025 precedent' : ''}.` : 'Upper/lower-bracket routing and grand-final rules are not confirmed, so title odds remain unavailable.';
+    assert.equal(playoffsNoteCopy({ recordedOpening, namedLater, champion: null, hasOdds, precedentUsed }), `${opening} ${named} ${odds}`);
+  }
+});
+
+test('completed playoff copy drops projections and repeated completion notes', () => {
+  const bracket = bracketSubCopy({ recorded: 4, namedLater: true, champion: { name: 'Alpha' }, precedentProjected: true });
+  const note = playoffsNoteCopy({ recordedOpening: 4, namedLater: false, champion: { name: 'Alpha' }, hasOdds: true, precedentUsed: true });
+  assert.match(bracket, /All playoff series are recorded and the bracket shows final results\./);
+  assert.doesNotMatch(bracket, /PROJ|unplayed/);
+  assert.doesNotMatch(note, /TBD|Playoffs are complete/);
+});
 
 const side = (team_id, name) => ({ team_id, name, logo: `${name}.png`, tag: name.slice(0, 3), matches: 1, p_win: null });
 const final = (sides = [side(1, 'Alpha'), side(2, 'Bravo')], result = { winner_team_id: 1, scores: [3, 1] }, extras = {}) => ({

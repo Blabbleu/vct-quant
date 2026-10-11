@@ -1,5 +1,17 @@
 import type { ChampionsPlayoffs, ChampionsProjection, ChampionsProjectionCandidate, ChampionsProjectionSlot } from "./types";
 
+export function bracketSubCopy(input: { recorded: number; namedLater: boolean; champion: unknown; precedentProjected: boolean }): string {
+  if (input.champion) return "All playoff series are recorded and the bracket shows final results.";
+  return `${input.recorded ? `${input.recorded} opening result${input.recorded === 1 ? " is" : "s are"} recorded.` : "Opening pairings are published."} ${input.namedLater ? "Named later-round sides are shown where supplied." : "Later-round sides remain TBD until supplied."} Named unplayed sides may show primary Elo win probabilities. Unnamed pairings marked PROJ are model projections, not fixture forecasts.${input.precedentProjected ? " PRECEDENT marks slots whose route follows the 2024/2025 Champions bracket." : ""}`;
+}
+
+export function playoffsNoteCopy(input: { recordedOpening: number; namedLater: boolean; champion: unknown; hasOdds: boolean; precedentUsed: boolean }): string {
+  const opening = input.recordedOpening ? `${input.recordedOpening} opening result${input.recordedOpening === 1 ? " is" : "s are"} recorded.` : "Opening pairings and the published schedule are available.";
+  const named = input.namedLater ? "Named scheduled sides appear in the bracket." : "Later sides appear as TBD until supplied.";
+  if (input.champion) return input.namedLater ? `${opening} ${named}` : opening;
+  return `${opening} ${named} ${input.hasOdds ? `Title odds are projected from primary Elo with ratings frozen${input.precedentUsed ? ", with some lower-bracket routes following 2024/2025 precedent" : ""}.` : "Upper/lower-bracket routing and grand-final rules are not confirmed, so title odds remain unavailable."}`;
+}
+
 export function championOf(playoffs: Pick<ChampionsPlayoffs, "schedule" | "unverified_match_ids"> | null | undefined) {
   const final = playoffs?.schedule?.find(row => row.stage === "Grand Final");
   if (!final || (playoffs?.unverified_match_ids ?? []).includes(final.match_id)) return null;
