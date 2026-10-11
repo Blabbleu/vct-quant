@@ -5,11 +5,12 @@ import SectionHead from "../components/arena/SectionHead";
 import { ModelRecord, PowerRanks, RecentResults } from "../components/matches/RailPanels";
 import { LoadingBlocks, ErrorPanel, EmptyState } from "../components/arena/States";
 import { COPY } from "../lib/constants";
+import { homeEmptyLine } from "../lib/homeCopy";
 import { PageFade, Words, Stagger, StaggerItem, Reveal } from "../lib/motion";
 import "./Home.css";
 
 const QUICK_LINKS = [
-  { to: "/champions/2766", title: "Champions Shanghai groups", line: "Verified group results and qualifiers from the recorded bracket." },
+  { to: "/champions/2766", title: "Champions Shanghai", line: "Playoff bracket, title odds and verified results." },
   { to: "/rankings", title: "Power rankings", line: "The full Elo table and a head-to-head picker." },
   { to: "/edge", title: "Edge board", line: "Where the model and the market disagree most, on paper." },
   { to: "/track-record", title: "Track record", line: "Every forecast logged before the match and graded after." },
@@ -46,7 +47,7 @@ export default function Home() {
           {next.length === 0 ? (
             <EmptyState
               title={COPY.noMatchesScheduled}
-              line={data.fixtures[0]?.event ? `Next known event: ${data.fixtures[0].event}.` : "No event is scheduled yet."}
+              line={homeEmptyLine(data.fixtures.length)}
             />
           ) : (
             <Stagger className="fill-board">

@@ -15,6 +15,11 @@ test('projection copy preserves pre-final wording exactly', () => {
   }
 });
 
+test('projection copy uses singular wording for one recorded opening result', () => {
+  assert.match(bracketSubCopy({ recorded: 1, namedLater: false, champion: null, precedentProjected: false }), /^1 opening result is recorded\./);
+  assert.match(playoffsNoteCopy({ recordedOpening: 1, namedLater: false, champion: null, hasOdds: false, precedentUsed: false }), /^1 opening result is recorded\./);
+});
+
 test('completed playoff copy drops projections and repeated completion notes', () => {
   const bracket = bracketSubCopy({ recorded: 4, namedLater: true, champion: { name: 'Alpha' }, precedentProjected: true });
   const note = playoffsNoteCopy({ recordedOpening: 4, namedLater: false, champion: { name: 'Alpha' }, hasOdds: true, precedentUsed: true });
