@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { EMPTY_RESULTS, SEARCH_DEBOUNCE_MS, isSearchResults, searchUrl, type SearchResults } from "./searchModel";
+import { EMPTY_RESULTS, SEARCH_DEBOUNCE_MS, isAbortError, loadSearch, type SearchResults } from "./searchModel";
 
 export interface SearchState {
   results: SearchResults;
@@ -28,20 +28,13 @@ export function useSearch(input: string): SearchState {
     const timer = window.setTimeout(() => {
       setLoading(true);
       setError(null);
-      fetch(searchUrl(trimmed), { signal: controller.signal })
-        .then(async response => {
-          if (!response.ok) throw new Error(response.status === 503
-            ? "Search is temporarily unavailable. Try again shortly."
-            : `Search failed (${response.status}).`);
-          return response.json() as Promise<unknown>;
-        })
+      loadSearch(trimmed, controller.signal, fetch)
         .then(data => {
-          if (!isSearchResults(data)) throw new Error("Search returned an unexpected response.");
           setResults(data);
           setResultsFor(trimmed);
         })
         .catch((reason: unknown) => {
-          if (reason instanceof DOMException && reason.name === "AbortError") return;
+          if (isAbortError(reason)) return;
           setError(reason instanceof Error ? reason.message : "Search failed.");
           setResults(EMPTY_RESULTS);
         })

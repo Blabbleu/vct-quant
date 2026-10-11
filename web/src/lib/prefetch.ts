@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 import { prefetch } from "./api";
 import { IDLE_PREFETCH, planForPath } from "./urls";
+import { linkPath as eligibleLinkPath } from "./linkPath";
 
 /**
  * Warm the client cache (and the lazy Champions chunk) before the user needs it:
@@ -36,9 +37,8 @@ export function warmPath(pathname: string) {
 
 function linkPath(target: EventTarget | null): string | null {
   const anchor = target instanceof Element ? target.closest("a[href]") : null;
-  if (!(anchor instanceof HTMLAnchorElement) || anchor.target === "_blank") return null;
-  if (anchor.origin !== location.origin) return null;
-  return anchor.pathname;
+  if (!(anchor instanceof HTMLAnchorElement)) return eligibleLinkPath(null, location.origin);
+  return eligibleLinkPath({ pathname: anchor.pathname, origin: anchor.origin, target: anchor.target }, location.origin);
 }
 
 export function installPrefetch() {

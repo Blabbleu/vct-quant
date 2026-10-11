@@ -13,6 +13,28 @@ export const SEARCH_DEBOUNCE_MS = 200;
 
 export const searchUrl = (query: string) => `/api/search?q=${encodeURIComponent(query.trim())}&limit=${SEARCH_LIMIT}`;
 
+/** Fetch and validate search results without coupling the response rules to React. */
+export async function loadSearch(
+  query: string,
+  signal: AbortSignal,
+  fetcher: (url: string, init: { signal: AbortSignal }) => Promise<Pick<Response, "ok" | "status" | "json">>,
+): Promise<SearchResults> {
+  const response = await fetcher(searchUrl(query), { signal });
+  if (!response.ok) {
+    throw new Error(response.status === 503
+      ? "Search is temporarily unavailable. Try again shortly."
+      : `Search failed (${response.status}).`);
+  }
+  const data: unknown = await response.json();
+  if (!isSearchResults(data)) throw new Error("Search returned an unexpected response.");
+  return data;
+}
+
+/** Identify fetch cancellation errors without requiring browser globals. */
+export function isAbortError(reason: unknown): boolean {
+  return !!reason && typeof reason === "object" && "name" in reason && reason.name === "AbortError";
+}
+
 export function isSearchResults(data: unknown): data is SearchResults {
   const d = data as Partial<SearchResults> | null;
   return !!d && Array.isArray(d.teams) && Array.isArray(d.players) && Array.isArray(d.events);
