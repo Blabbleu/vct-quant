@@ -6,7 +6,7 @@ import SectionHead from "./arena/SectionHead";
 import { m, useInitial, CountUp, EASE_OUT, D_BASE } from "../lib/motion";
 import { buildBracketGraph, dropTargets, feedLabel, progressionEdges, type BracketNode, type RoundKey } from "../lib/bracketGraph";
 import { bracketKickoff, bracketRoundSub } from "../lib/format";
-import { isPrecedentProjection, mostLikely, routingChip } from "../lib/championsProjection";
+import { championOf, isPrecedentProjection, mostLikely, routingChip } from "../lib/championsProjection";
 import type { ChampionsPlayoffs, ChampionsPlayoffSide } from "../lib/types";
 import "./Bracket.css";
 
@@ -236,14 +236,15 @@ export default function Bracket({ playoffs }: { playoffs: ChampionsPlayoffs }) {
   const recorded = placed.filter(n => n.round === "UQF" && n.result).length;
   const namedLater = placed.some(n => n.round !== "UQF" && n.sides);
   const projection = playoffs.projection && "slots" in playoffs.projection ? playoffs.projection : null;
+  const champion = championOf(playoffs);
   const precedentProjected = placed.some(n => isPrecedentProjection(n, projection));
   const teamMeta = Object.fromEntries(playoffs.opening.flatMap(m => m.sides.map(s => [s.team_id, { name: s.name, tag: s.tag, logo: s.logo }])));
 
   return (
     <section className="champ-bracket" aria-label="Playoff bracket">
-      <SectionHead title="Playoff bracket" right={<Chip variant="ghost">{routingChip(playoffs)}</Chip>} />
+      <SectionHead title="Playoff bracket" right={<Chip variant="ghost">{champion ? "COMPLETE" : routingChip(playoffs)}</Chip>} />
       <p className="champ-sub">
-        Upper bracket on top, lower bracket below, Grand Final at the right. Losers drop into the labelled lower slots; hover a match to light up its path. {recorded ? `${recorded} opening result${recorded === 1 ? " is" : "s are"} recorded.` : "Opening pairings are published."} {namedLater ? "Named later-round sides are shown where supplied." : "Later-round sides remain TBD until supplied."} Named unplayed sides may show primary Elo win probabilities. Unnamed pairings marked PROJ are model projections, not fixture forecasts.{precedentProjected ? " PRECEDENT marks slots whose route follows the 2024/2025 Champions bracket." : ""}
+        Upper bracket on top, lower bracket below, Grand Final at the right. Losers drop into the labelled lower slots; hover a match to light up its path. {recorded ? `${recorded} opening result${recorded === 1 ? " is" : "s are"} recorded.` : "Opening pairings are published."} {namedLater ? "Named later-round sides are shown where supplied." : "Later-round sides remain TBD until supplied."} Named unplayed sides may show primary Elo win probabilities. Unnamed pairings marked PROJ are model projections, not fixture forecasts.{!champion && precedentProjected ? " PRECEDENT marks slots whose route follows the 2024/2025 Champions bracket." : ""}
       </p>
 
       <div className={`bracket-frame${overflowing ? " is-scrollable" : ""}${atEnd ? " at-end" : ""}`}>

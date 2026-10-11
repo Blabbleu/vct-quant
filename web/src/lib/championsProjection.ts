@@ -1,5 +1,19 @@
 import type { ChampionsPlayoffs, ChampionsProjection, ChampionsProjectionCandidate, ChampionsProjectionSlot } from "./types";
 
+export function championOf(playoffs: Pick<ChampionsPlayoffs, "schedule" | "unverified_match_ids"> | null | undefined) {
+  const final = playoffs?.schedule?.find(row => row.stage === "Grand Final");
+  if (!final || (playoffs?.unverified_match_ids ?? []).includes(final.match_id)) return null;
+  const sides = final.sides;
+  const result = final.result;
+  if (!sides || sides.length !== 2 || !sides[0] || !sides[1] || !result || !Array.isArray(result.scores) || result.scores.length !== 2) return null;
+  const winnerIndex = sides.findIndex(side => side.team_id === result.winner_team_id);
+  if (winnerIndex < 0) return null;
+  const loserIndex = 1 - winnerIndex;
+  if (!(result.scores[winnerIndex] > result.scores[loserIndex])) return null;
+  const winner = sides[winnerIndex];
+  return { team_id: winner.team_id, name: winner.name, logo: winner.logo, tag: winner.tag, scores: [result.scores[winnerIndex], result.scores[loserIndex]] as [number, number] };
+}
+
 export function routingChip(playoffs: Pick<ChampionsPlayoffs, "routing" | "projection">): string {
   const projection = playoffs.projection;
   if (playoffs.routing !== "projected" || !projection || "withheld" in projection || !("slots" in projection)) {

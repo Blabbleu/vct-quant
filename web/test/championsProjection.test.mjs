@@ -1,6 +1,29 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isEliminated, isPrecedentProjection, mergeCandidates, mostLikely, routingChip, slotBasis, titleTable } from '../src/lib/championsProjection.ts';
+import { championOf, isEliminated, isPrecedentProjection, mergeCandidates, mostLikely, routingChip, slotBasis, titleTable } from '../src/lib/championsProjection.ts';
+
+const side = (team_id, name) => ({ team_id, name, logo: `${name}.png`, tag: name.slice(0, 3), matches: 1, p_win: null });
+const final = (sides = [side(1, 'Alpha'), side(2, 'Bravo')], result = { winner_team_id: 1, scores: [3, 1] }, extras = {}) => ({
+  schedule: [{ match_id: 754737, stage: 'Grand Final', sides, result, ...extras }], unverified_match_ids: [],
+});
+
+test('championOf returns verified Grand Final winner with winner-first positional scores', () => {
+  assert.deepEqual(championOf(final()), { team_id: 1, name: 'Alpha', logo: 'Alpha.png', tag: 'Alp', scores: [3, 1] });
+  assert.deepEqual(championOf(final([side(2, 'Bravo'), side(1, 'Alpha')], { winner_team_id: 1, scores: [1, 3] })), {
+    team_id: 1, name: 'Alpha', logo: 'Alpha.png', tag: 'Alp', scores: [3, 1],
+  });
+});
+
+test('championOf rejects absent, unverified, or inconsistent Grand Final results', () => {
+  assert.equal(championOf({ schedule: [], unverified_match_ids: [] }), null);
+  assert.equal(championOf(final([side(1, 'Alpha'), side(2, 'Bravo')], null)), null);
+  assert.equal(championOf({ ...final(), unverified_match_ids: [754737] }), null);
+  assert.equal(championOf(final([side(1, 'Alpha'), side(2, 'Bravo')], { winner_team_id: 3, scores: [3, 1] })), null);
+  assert.equal(championOf(final([side(1, 'Alpha'), side(2, 'Bravo')], { winner_team_id: 1, scores: [2, 2] })), null);
+  assert.equal(championOf(final([side(1, 'Alpha'), side(2, 'Bravo')], { winner_team_id: 1, scores: [1, 3] })), null);
+  assert.equal(championOf(final([side(1, 'Alpha')], { winner_team_id: 1, scores: [3, 1] })), null);
+  assert.equal(championOf(undefined), null);
+});
 
 test('slotBasis safely reads observed and precedent routing by stringified match ID', () => {
   const projection = { routing_basis: { slots: { '754734': 'observed', '754736': 'precedent', '754737': 'unknown' } } };

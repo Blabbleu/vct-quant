@@ -13,7 +13,7 @@ import { Reveal, Stagger, StaggerItem, PageFade, CountUp } from "../lib/motion";
 import { URLS, loadCached, store, useChampionsStatus } from "../lib/api";
 import { LOW_DATA_MATCHES } from "../lib/constants";
 import { openingSectionCopy } from "../lib/championsCopy";
-import { isEliminated, titleTable } from "../lib/championsProjection";
+import { championOf, isEliminated, titleTable } from "../lib/championsProjection";
 import { playedDate, utc, utcShort } from "../lib/format";
 import type { ChampionsGroup, ChampionsPlayoffMatch, ChampionsPlayoffs, ChampionsQualificationTeam } from "../lib/types";
 import "./Champions.css";
@@ -277,6 +277,9 @@ export default function Champions() {
   }, letters[0]);
 
   const playoffs = data.playoffs && data.playoffs.opening.length > 0 ? data.playoffs : null;
+  const champion = championOf(playoffs);
+  const finalMatch = champion ? playoffs?.schedule.find(m => m.stage === "Grand Final") : null;
+  const runnerUp = champion && finalMatch?.sides ? finalMatch.sides.find(s => s.team_id !== champion.team_id) : null;
   const groupsDone = letters.every(l => data.groups[l].qualifiers.length === 2 && data.groups[l].unverified_match_ids.length === 0);
   const recordedOpening = playoffs?.opening.filter(m => m.result && !(playoffs.unverified_match_ids ?? []).includes(m.match_id)).length ?? 0;
   const namedLater = playoffs?.schedule.some(s => s.sides?.length === 2) ?? false;
@@ -290,25 +293,29 @@ export default function Champions() {
   return (
     <PageFade className="champions-page">
       <header className="champ-head">
-        <h1 className="champ-title">{playoffs ? "Playoffs" : "Group stage"}</h1>
+        <h1 className="champ-title">{champion ? `Champions 2026: ${champion.name}` : playoffs ? "Playoffs" : "Group stage"}</h1>
         <p className="champ-lede">
-          {playoffs
+          {champion && runnerUp
+            ? `${champion.name} beat ${runnerUp.name} ${champion.scores[0]}–${champion.scores[1]} in the Grand Final.`
+            : playoffs
             ? `${recordedOpening ? `${recordedOpening} opening series ${recordedOpening === 1 ? "has" : "have"} recorded results` : "Opening Upper Quarterfinals are drawn"}; named later-round sides are shown when supplied, with Elo forecasts only for unplayed series.`
             : "Recorded best-of-three results, confirmed advancement, and each team's chance to leave its group under the primary Elo forecast."}
         </p>
       </header>
       <p className="champ-meta num">
         Canonical data last observed {utc(data.as_of)}; this is not a live event feed.{" "}
-        {oddsRows.length
+        {champion
+          ? "Playoffs are complete; the bracket shows recorded results."
+          : oddsRows.length
           ? `Title odds are projected from primary Elo with ratings frozen${precedentUsed ? "; some lower-bracket routes follow 2024/2025 precedent" : ""}.`
           : playoffs ? "Title odds are unavailable until the full bracket routing (upper/lower edges and grand-final rules) is verified." : "Title odds wait for the playoff draw \u2014 unavailable until then."}{" "}
         <a href="https://www.vlr.gg/event/2766/valorant-champions-2026" target="_blank" rel="noopener noreferrer">Check live schedule &#8599;</a>
       </p>
 
       {playoffs && <Bracket playoffs={playoffs} />}
-      {oddsRows.length > 0 && <section className="champ-title-odds" aria-label="Title odds">
-        <SectionHead title="Title odds" right={<Chip variant="ghost">PROJECTED</Chip>} />
-        <ul className="champ-odds-list" aria-label="Projected title odds">
+      {oddsRows.length > 0 && <section className="champ-title-odds" aria-label={champion ? "Final standings" : "Title odds"}>
+        <SectionHead title={champion ? "Final standings" : "Title odds"} right={<Chip variant="ghost">{champion ? "FINAL" : "PROJECTED"}</Chip>} />
+        <ul className="champ-odds-list" aria-label={champion ? "Final standings" : "Projected title odds"}>
           {oddsRows.map(row => {
             const meta = names[row.team_id];
             const name = meta?.name ?? `Team ${row.team_id}`;
@@ -345,7 +352,7 @@ export default function Champions() {
             <p>The playoff draw is expected after October 4. Seeding and lower-bracket paths are not verified; title odds are unavailable. Group match results may lag the source.</p>
           </>
         )}
-        {playoffs && <p>{recordedOpening ? `${recordedOpening} opening result${recordedOpening === 1 ? " is" : "s are"} recorded.` : "Opening pairings and the published schedule are available."} {namedLater ? "Named scheduled sides appear in the bracket." : "Later sides appear as TBD until supplied."} {oddsRows.length ? `Title odds are projected from primary Elo with ratings frozen${precedentUsed ? ", with some lower-bracket routes following 2024/2025 precedent" : ""}.` : "Upper/lower-bracket routing and grand-final rules are not confirmed, so title odds remain unavailable."} Group match results may lag the source.</p>}
+        {playoffs && <p>{recordedOpening ? `${recordedOpening} opening result${recordedOpening === 1 ? " is" : "s are"} recorded.` : "Opening pairings and the published schedule are available."} {namedLater ? "Named scheduled sides appear in the bracket." : "Later sides appear as TBD until supplied."} {champion ? "Playoffs are complete and recorded results are shown." : oddsRows.length ? `Title odds are projected from primary Elo with ratings frozen${precedentUsed ? ", with some lower-bracket routes following 2024/2025 precedent" : ""}.` : "Upper/lower-bracket routing and grand-final rules are not confirmed, so title odds remain unavailable."} Group match results may lag the source.</p>}
         <p>Group odds replay every remaining group series with the same win probability the fixture board shows for that pairing, holding ratings fixed until the group ends (real ratings move after each result). &ldquo;1st seed&rdquo; means winning the winners' match. Descriptive only: not a separate model and not betting advice.</p>
       </section>
     </PageFade>
