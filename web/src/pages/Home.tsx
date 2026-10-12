@@ -5,7 +5,7 @@ import SectionHead from "../components/arena/SectionHead";
 import { ModelRecord, PowerRanks, RecentResults } from "../components/matches/RailPanels";
 import { LoadingBlocks, ErrorPanel, EmptyState } from "../components/arena/States";
 import { COPY } from "../lib/constants";
-import { homeEmptyLine } from "../lib/homeCopy";
+import { homeEmptyLine, homeHeadlineCopy } from "../lib/homeCopy";
 import { PageFade, Words, Stagger, StaggerItem, Reveal } from "../lib/motion";
 import "./Home.css";
 
@@ -27,17 +27,17 @@ export default function Home() {
   const next = [...data.fixtures].sort((a, b) => a.start.localeCompare(b.start)).slice(0, 6);
   const nextEvent = next[0]?.event ?? data.fixtures[0]?.event;
   const nextStage = next[0]?.series ?? data.fixtures[0]?.series;
+  const headlineCopy = homeHeadlineCopy(data.fixtures.length > 0);
 
 
   return (
     <PageFade className="home-page">
       <header className="page-head">
         {nextEvent && <div className="home-event num">{nextEvent}{nextStage ? ` \u00B7 ${nextStage}` : ""}</div>}
-        <Words text="Who wins the next VCT match?" />
+        <Words text={headlineCopy.headline} />
         <span className="home-sweep" aria-hidden="true" />
         <p className="lede">
-          Win chances for every upcoming Tier 1 match, next to what the betting market thinks, and an honest
-          record of how the model has done.
+          {headlineCopy.lede}
         </p>
       </header>
 
