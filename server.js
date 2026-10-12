@@ -6,8 +6,8 @@
  *
  * The model lives in Python, so this server shells out to
  * `python -m vct_quant.dashboard`, which prints the payload as JSON, and caches
- * the result against the DuckDB file's mtime: page reloads are free until the
- * next `vct update` rewrites the database. Read-only by design -- DuckDB takes
+ * the result against its data inputs: page reloads are free until the next
+ * refresh rewrites them. Read-only by design -- DuckDB takes
  * one writer at a time, and ingestion stays a command-line job.
  *
  * No dependencies: node's own http, fs and child_process.
@@ -69,11 +69,6 @@ function createSnapshotter(readStamp, compute) {
     }
   };
 }
-
-const snapshot = createSnapshotter(
-  () => fs.stat(DB).then(s => String(s.mtimeMs), () => "no-db"),
-  computeSnapshot,
-);
 
 function createInFlight(compute) {
   const pending = new Map();
@@ -199,6 +194,7 @@ const OPS_INPUTS = [
 ];
 const readDataStamp = createStamper(DATA_INPUTS, { memoMs: 500 });
 const readOpsStamp = createStamper(OPS_INPUTS, { memoMs: 500 });
+const snapshot = createSnapshotter(readDataStamp, computeSnapshot);
 
 const MINUTE = 60 * 1000;
 function logCacheError(name) {

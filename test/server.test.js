@@ -78,6 +78,63 @@ async function checkSnapshotCacheRace() {
   console.log("  snapshot cache update race retries and caches the new payload");
 }
 
+async function checkProductionSnapshotInputInvalidation() {
+  const fsPromises = require("node:fs/promises");
+  const childProcess = require("node:child_process");
+  const path = require("node:path");
+  const serverPath = require.resolve("../server.js");
+  const originalStat = fsPromises.stat;
+  const originalExecFile = childProcess.execFile;
+  const originalNow = Date.now;
+  const stamps = new Map();
+  const statPaths = [];
+  let clock = 1000;
+  let calls = 0;
+  try {
+    fsPromises.stat = async file => {
+      statPaths.push(file);
+      const stamp = stamps.get(file);
+      if (!stamp) throw Object.assign(new Error("missing"), { code: "ENOENT" });
+      return { mtimeMs: stamp.mtimeMs, size: stamp.size };
+    };
+    childProcess.execFile = (command, args, options, callback) => {
+      calls += 1;
+      callback(null, JSON.stringify({ version: calls }), "");
+    };
+    Date.now = () => clock;
+    delete require.cache[serverPath];
+    const production = require("../server.js");
+    for (const input of production.DATA_INPUTS) stamps.set(input, { mtimeMs: 1, size: 10 });
+    const byBase = new Map(production.DATA_INPUTS.map(input => [path.basename(input), input]));
+    assert.deepEqual([...byBase.keys()].sort(), [
+      "champions_2026.json", "player_photos.json", "prediction_log.parquet", "team_logos.json",
+      "upcoming_tier1.parquet", "vct.duckdb", "vct.duckdb.wal",
+    ].sort(), "production snapshot stamp must cover the expected DATA_INPUTS");
+
+    const first = await production.snapshot();
+    assert.deepEqual(await production.snapshot(), first, "unchanged production inputs must reuse the cached payload");
+    assert.equal(calls, 1);
+    for (const name of ["upcoming_tier1.parquet", "prediction_log.parquet", "vct.duckdb.wal"]) {
+      const input = byBase.get(name);
+      stamps.set(input, { mtimeMs: stamps.get(input).mtimeMs + 1, size: 10 });
+      clock += 1000;
+      const updated = await production.snapshot();
+      assert.deepEqual(updated, { version: calls }, `${name} change should return the newly computed payload`);
+      assert.equal(calls, name === "upcoming_tier1.parquet" ? 2 : name === "prediction_log.parquet" ? 3 : 4,
+        `${name} alone must invalidate the production snapshot`);
+      assert.equal(stamps.get(byBase.get("vct.duckdb")).mtimeMs, 1, "DB fingerprint remains unchanged");
+    }
+    assert.ok(statPaths.includes(byBase.get("vct.duckdb.wal")));
+    console.log("  production snapshot invalidates on parquet and WAL changes and reuses unchanged inputs");
+  } finally {
+    Date.now = originalNow;
+    fsPromises.stat = originalStat;
+    childProcess.execFile = originalExecFile;
+    delete require.cache[serverPath];
+    require("../server.js");
+  }
+}
+
 async function checkInFlightDeduplication() {
   let calls = 0;
   const release = new Map();
@@ -290,6 +347,7 @@ async function main() {
   await checkSearchIndexQuery();
   await checkSnapshotSubprocessTimeout();
   await checkSnapshotCacheRace();
+  await checkProductionSnapshotInputInvalidation();
   await checkInFlightDeduplication();
   await checkBoundedInFlightZeroQueue();
   await checkBoundedInFlightConfiguration();
