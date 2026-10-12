@@ -260,6 +260,56 @@ async function checkWarmer() {
   await broken.start();
   broken.stop();
   assert.ok(logs.some(line => /failed: python missing/.test(line)), "warm failures are logged, never thrown");
+
+  const now = clock();
+  let attempts = 0;
+  let recover = false;
+  const retrying = createWarmer({
+    stamp: async () => "unchanged",
+    warm: async () => { attempts += 1; if (!recover) throw new Error("transient"); },
+    stableTicks: 2, retryMs: 100, now, log: message => logs.push(message),
+  });
+  await retrying.start();
+  assert.equal(attempts, 1, "startup makes the initial attempt");
+  await retrying.tick();
+  await retrying.tick();
+  assert.equal(attempts, 1, "failed stamp is not retried before the deadline");
+  now.advance(100);
+  recover = true;
+  await retrying.tick();
+  assert.equal(attempts, 2, "unchanged stable input retries after the bounded delay");
+  for (let i = 0; i < 4; i += 1) await retrying.tick();
+  assert.equal(attempts, 2, "successful retry marks the stamp complete");
+  retrying.stop();
+
+  const persistentNow = clock();
+  let persistentAttempts = 0;
+  const persistent = createWarmer({
+    stamp: async () => "same", warm: async () => { persistentAttempts += 1; throw new Error("still locked"); },
+    stableTicks: 1, retryMs: 50, now: persistentNow,
+  });
+  await persistent.start();
+  for (let i = 0; i < 5; i += 1) await persistent.tick();
+  assert.equal(persistentAttempts, 1, "persistent failures do not create a retry storm");
+  persistentNow.advance(50);
+  await persistent.tick();
+  assert.equal(persistentAttempts, 2, "persistent failure retries at the deadline");
+  persistent.stop();
+
+  let release;
+  let active = 0;
+  let peak = 0;
+  const concurrent = createWarmer({
+    stamp: async () => "s", stableTicks: 1,
+    warm: () => { active += 1; peak = Math.max(peak, active); return new Promise(resolve => { release = () => { active -= 1; resolve(); }; }); },
+  });
+  const starting = concurrent.start();
+  await until(() => release, "concurrent warm start");
+  await Promise.all([concurrent.tick(), concurrent.tick(), concurrent.tick()]);
+  assert.equal(peak, 1, "concurrent ticks never overlap an active warm call");
+  release();
+  await starting;
+  concurrent.stop();
   console.log("  warmer runs at start and after changed inputs settle; failures never throw");
 }
 

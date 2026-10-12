@@ -147,8 +147,10 @@ function createSwrCache({
  * would hit the DuckDB lock and waste a process). It never throws and never
  * runs twice at once. Tests call tick() directly instead of waiting on timers.
  */
-function createWarmer({ stamp, warm, intervalMs = 5000, stableTicks = 2, log = () => {} }) {
+function createWarmer({ stamp, warm, intervalMs = 5000, stableTicks = 2, retryMs = 30000, now = Date.now, log = () => {} }) {
   let warmedStamp = null;
+  let failedStamp = null;
+  let retryAt = 0;
   let candidate = null;
   let seen = 0;
   let running = null;
@@ -157,14 +159,18 @@ function createWarmer({ stamp, warm, intervalMs = 5000, stableTicks = 2, log = (
   async function runWarm(reason, stampValue) {
     if (running) return running;
     running = (async () => {
-      const started = Date.now();
+      const started = now();
       try {
         await warm();
-        log(`warm-up (${reason}) done in ${((Date.now() - started) / 1000).toFixed(1)}s`);
+        warmedStamp = stampValue;
+        failedStamp = null;
+        retryAt = 0;
+        log(`warm-up (${reason}) done in ${((now() - started) / 1000).toFixed(1)}s`);
       } catch (error) {
+        failedStamp = stampValue;
+        retryAt = now() + retryMs;
         log(`warm-up (${reason}) failed: ${error.message}`);
       } finally {
-        warmedStamp = stampValue;
         running = null;
       }
     })();
@@ -176,7 +182,11 @@ function createWarmer({ stamp, warm, intervalMs = 5000, stableTicks = 2, log = (
     try { value = await stamp(); } catch { return; }
     if (value === warmedStamp) { candidate = null; seen = 0; return; }
     if (value !== candidate) { candidate = value; seen = 1; } else seen += 1;
-    if (seen >= stableTicks && !running) await runWarm("inputs changed", value);
+    if (seen >= stableTicks && !running) {
+      const retrying = value === failedStamp;
+      if (retrying && now() < retryAt) return;
+      await runWarm(retrying ? "retry" : "inputs changed", value);
+    }
   }
 
   return {
