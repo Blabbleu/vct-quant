@@ -114,6 +114,85 @@ def test_update_refreshes_results_before_predictions(monkeypatch, tmp_path, caps
     assert "Recent Tier-1 details: 0 fetched, 1 failed (of 1 targets)" in out
 
 
+def _update_event_fixtures():
+    return [
+        {"event_id": 1, "title": "VCT Creator Showdown 2027"},
+        {"event_id": 2, "title": "Valorant Champions 2026"},
+        {"event_id": 3, "title": "VCT Off//Season 2026"},
+        {"event_id": 4, "title": "Red Bull Home Ground"},
+    ]
+
+
+def test_update_warns_for_untiered_vct_title_on_success(monkeypatch, tmp_path, capsys):
+    from vct_quant.ingest import vlrgg
+
+    monkeypatch.setattr(sys, "argv", ["vct", "update"])
+    monkeypatch.setattr(vlrgg, "fetch_events", lambda page: {
+        "data": {"segments": _update_event_fixtures()}
+    })
+    monkeypatch.setattr(vlrgg, "fetch_event_matches", lambda event_id: {})
+    monkeypatch.setattr(vlrgg, "fetch_upcoming_matches", lambda: {"data": {"segments": []}})
+    monkeypatch.setattr(normalize, "load_vlrgg_match_results", lambda: "loaded")
+    monkeypatch.setattr(normalize, "unresolved_team_detail_targets", lambda: [])
+    monkeypatch.setattr(recent_details, "refresh_recent_details", lambda: {
+        "targets": 0, "fetched": 0, "failed": 0, "loaded": 0,
+    })
+    monkeypatch.setattr(cli, "_materialize_upcoming", lambda data: (
+        pd.DataFrame(), tmp_path / "upcoming_tier1.parquet",
+    ))
+
+    cli.main()
+
+    warning_lines = [line for line in capsys.readouterr().out.splitlines()
+                     if "WARNING:" in line]
+    assert warning_lines == [
+        "WARNING: VCT-branded event has no tier and is skipped: "
+        "'VCT Creator Showdown 2027' (extend etl/events.py)"
+    ]
+
+
+@pytest.mark.parametrize("failed_fetch", ["event_matches", "upcoming"])
+def test_update_warns_before_later_fetch_failure_without_writes(
+    monkeypatch, capsys, failed_fetch,
+):
+    from vct_quant.ingest import vlrgg
+
+    calls = []
+    monkeypatch.setattr(sys, "argv", ["vct", "update"])
+    monkeypatch.setattr(vlrgg, "fetch_events", lambda page: {
+        "data": {"segments": _update_event_fixtures()}
+    })
+
+    def fetch_event_matches(event_id):
+        calls.append(f"event_matches:{event_id}")
+        if failed_fetch == "event_matches":
+            raise ValueError("bad event matches feed")
+
+    def fetch_upcoming_matches():
+        calls.append("upcoming")
+        if failed_fetch == "upcoming":
+            raise ValueError("bad upcoming feed")
+        return {"data": {"segments": []}}
+
+    monkeypatch.setattr(vlrgg, "fetch_event_matches", fetch_event_matches)
+    monkeypatch.setattr(vlrgg, "fetch_upcoming_matches", fetch_upcoming_matches)
+    monkeypatch.setattr(normalize, "load_vlrgg_match_results",
+                        lambda: calls.append("load results"))
+    monkeypatch.setattr(cli, "_materialize_upcoming",
+                        lambda data: calls.append("write forecasts"))
+
+    with pytest.raises(ValueError, match="bad .* feed"):
+        cli.main()
+
+    output = capsys.readouterr().out
+    assert output.splitlines() == [
+        "WARNING: VCT-branded event has no tier and is skipped: "
+        "'VCT Creator Showdown 2027' (extend etl/events.py)"
+    ]
+    assert "load results" not in calls
+    assert "write forecasts" not in calls
+
+
 @pytest.mark.parametrize("failed_source", ["events", "event_matches", "upcoming"])
 def test_update_source_failure_precedes_database_and_forecast_writes(monkeypatch, failed_source):
     from vct_quant.ingest import vlrgg

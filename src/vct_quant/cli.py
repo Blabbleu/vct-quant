@@ -134,6 +134,9 @@ def main() -> None:
         # ponytail: newest listing page only; after a long gap run
         # scripts/backfill_vlrgg.py --pages 3 --force first.
         events = vlrgg.fetch_events(1).get("data", {}).get("segments", [])
+        for title in untiered_vct_titles(e["title"] for e in events):
+            print(f"WARNING: VCT-branded event has no tier and is skipped: {title!r}"
+                  " (extend etl/events.py)")
         official = [e for e in events if competition_tier(e["title"]) is not None]
         for event in official:
             vlrgg.fetch_event_matches(event["event_id"])
@@ -142,9 +145,6 @@ def main() -> None:
         # Reuse this validated snapshot rather than requesting upcoming again.
         upcoming = vlrgg.fetch_upcoming_matches()
         print(f"Refreshed {len(official)} recent official events")
-        for title in untiered_vct_titles(e["title"] for e in events):
-            print(f"WARNING: VCT-branded event has no tier and is skipped: {title!r}"
-                  " (extend etl/events.py)")
         print(normalize.load_vlrgg_match_results())
 
         # The event feed has team names only. A renamed or new org shows up as
