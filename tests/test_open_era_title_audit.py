@@ -27,10 +27,10 @@ def test_2027_titles_join_events_and_fixtures_without_inventing_tiers():
     ])
     upcoming = payload([{"match_event": "VCT 2027: Pacific LCQ"},
                         {"match_event": "VCT 2027: Pacific LCQ"},
-                        {"match_event": "VCT Cup Americas 2027"}])
+                        {"match_event": "VCT Creator Showdown 2027"}])
     rows = titles.audit(events, upcoming)
     assert [row["title"] for row in rows] == [
-        "Esports Nations Cup 2027", "VCT 2027: Pacific LCQ", "VCT Cup Americas 2027"]
+        "Esports Nations Cup 2027", "VCT 2027: Pacific LCQ", "VCT Creator Showdown 2027"]
     lcq = rows[1]
     assert lcq["event_id"] == "123"
     assert lcq["event_url"] == "https://www.vlr.gg/event/123/example"

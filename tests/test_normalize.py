@@ -68,6 +68,31 @@ def test_vct_2027_open_stages_stay_out_of_tier_1():
     assert competition_tier("VCT 2024: Pacific Last Chance Qualifier") == 1
 
 
+@pytest.mark.parametrize(("title", "tier"), [
+    ("VCT Americas: Open Qualifier 2027", 2),
+    ("VCT EMEA: Open Playoffs 2027", 2),
+    ("VCT Pacific: Wild Card 2027", 2),
+    ("VCT Pacific: LCQ 2027", 2),
+    ("VCT Americas: Kickoff 2027", 1),
+    ("VCT EMEA: Cup 1 2027", 1),
+    ("VCT Masters Bangkok 2027", 1),
+    ("VCT Champions 2027", 1),
+])
+def test_reordered_vct_2027_titles(title, tier):
+    assert competition_tier(title) == tier
+
+
+def test_reordered_vct_lcq_uses_passed_calendar_year_precedence():
+    title = "VCT Pacific: LCQ 2027"
+    assert competition_tier(title, 2024) == 1
+    assert competition_tier(title, 2027) == 2
+
+
+def test_unknown_vct_title_and_offseason_stage_remain_untiered():
+    assert competition_tier("VCT Creator Showdown") is None
+    assert competition_tier("VCT OFF//SEASON Cup 2027") is None
+
+
 def test_opt_in_uses_2027_event_season_for_november_2026_lcq(monkeypatch):
     # November qualifiers feed the 2027 circuit, but their fixture calendar
     # year is 2026. The opt-in must not relabel the 2026 Champions LCQ.
@@ -121,8 +146,8 @@ def test_untiered_vct_titles_flags_only_unknown_official_events():
         "VCT OFF//SEASON Spotlight Series 2024: EMEA",
         "NECC Valorant Champions Finals - Spring 2023",
         "Red Bull Home Ground",
-        "VCT Cup Americas 2027",
-    ]) == ["VCT Cup Americas 2027"]
+        "VCT Creator Showdown",
+    ]) == ["VCT Creator Showdown"]
 
 
 def test_vlrgg_match_keeps_its_event_id_and_title(tmp_path, monkeypatch):

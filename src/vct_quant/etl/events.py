@@ -89,6 +89,21 @@ def competition_tier(name: str, year: int | None = None, *,
             return 2
         return 1
 
+    # Vlr.gg also uses reordered and yearless titles (for example,
+    # "VCT Americas: Open Qualifier"). Keep this fallback VCT-only so
+    # unrelated tournaments with similar stage names remain out of scope.
+    if title.startswith("vct "):
+        season = _season(title, year, title_season_override)
+        if OPEN_STAGE.search(title):
+            return 2
+        if LAST_CHANCE.search(title):
+            return 2 if season is not None and season >= OPEN_ERA else 1
+        if re.search(
+            r"\b(?:kickoff|cup|masters|champions|ascension|(?:americas|emea|pacific|china) league|stage \d+)\b",
+            title,
+        ):
+            return 1
+
     return None
 
 

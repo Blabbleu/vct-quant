@@ -1,5 +1,10 @@
 # 2027 LCQ season boundary (candidate, disabled)
 
+After the approved narrow VCT-title fallback was recreated on main, the stored
+event snapshot was audited with the calendar year passed by the loader. All
+2,232 events were checked against the previous classifier; zero tier changes
+were found.
+
 The [Riot 2027 format](https://valorantesports.com/news/get-ready-for-vct-2027-open-qualifiers) places South Asia/Oceania on an open Pacific LCQ/Wild Card path; [November 2026 qualifiers](https://valorantesports.com/news/no-guaranteed-paths-inside-the-new-vct-2027) feed the 2027 Kickoff. Vlr.gg's actual 2027 event titles have **not** been observed yet. Examples below are provisional, not source-verified names.
 
 The current `competition_tier(title, year)` prioritizes its `year` argument over the season in the title. For a November 2026 fixture titled `VCT 2027: Pacific LCQ`, `official_upcoming` passes 2026, labels it Tier 1 and emits a primary forecast. `_classify_stored_events` likewise passes `dates_raw=2026`, feeding its completed results into Tier-1 ratings. Without a supplied year, the same title is Tier 2. A `Champions Tour 2027: ... LCQ` title also passed through the historical Tier-1 branch before the LCQ rule.
