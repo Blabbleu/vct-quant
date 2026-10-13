@@ -8,6 +8,7 @@ import { BracketMini, ModelRecord, PowerRanks, RecentResults } from "../componen
 import SectionHead from "../components/arena/SectionHead";
 import { LoadingBlocks, ErrorPanel, EmptyState } from "../components/arena/States";
 import { COPY } from "../lib/constants";
+import { fixtureTierCopy } from "../lib/homeCopy";
 import { eventContext, groupByDay, justFinished, stageParts, stageTimeline } from "../lib/matchesData";
 import { PageFade, Stagger, StaggerItem } from "../lib/motion";
 import "./Matches.css";
@@ -31,6 +32,7 @@ export default function Matches() {
 
   const events = [...new Set(fixtures.map(f => f.event))];
   const shown = event === "all" ? fixtures : fixtures.filter(f => f.event === event);
+  const shownTierCopy = fixtureTierCopy(shown);
   const days = groupByDay(shown, dayLabel);
   const ctx = eventContext(shown, dayLabel);
   const isChampions = ctx != null && /champions/i.test(ctx.event);
@@ -43,7 +45,7 @@ export default function Matches() {
       <header className="page-head">
         <h1>Matches</h1>
         <p className="lede">
-          Upcoming Tier 1 matches grouped by day, in your local time. Red is the model, gold is the
+          Upcoming {shownTierCopy} matches grouped by day, in your local time. Red is the model, gold is the
           market; both show the chance that the first-named team wins the series.
         </p>
       </header>
@@ -54,7 +56,7 @@ export default function Matches() {
         <div className="matches-filter">
           <label className="matches-filter-label" htmlFor="event-select">EVENT</label>
           <select id="event-select" value={event} onChange={e => setEvent(e.target.value)}>
-            <option value="all">All Tier 1</option>
+            <option value="all">All {fixtureTierCopy(fixtures)}</option>
             {events.map(e => <option key={e} value={e}>{e}</option>)}
           </select>
         </div>
@@ -68,7 +70,7 @@ export default function Matches() {
               line={events[0] ? `Next known event: ${events[0]}.` : "No event is scheduled yet."}
               action={event !== "all" ? (
                 <button type="button" className="btn btn-secondary" onClick={() => setEvent("all")}>
-                  Show all Tier 1
+                  Show all {fixtureTierCopy(fixtures)}
                 </button>
               ) : undefined}
             />

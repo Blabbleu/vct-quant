@@ -27,7 +27,7 @@ export default function Home() {
   const next = [...data.fixtures].sort((a, b) => a.start.localeCompare(b.start)).slice(0, 6);
   const nextEvent = next[0]?.event ?? data.fixtures[0]?.event;
   const nextStage = next[0]?.series ?? data.fixtures[0]?.series;
-  const headlineCopy = homeHeadlineCopy(data.fixtures.length > 0);
+  const headlineCopy = homeHeadlineCopy(data.fixtures);
 
 
   return (
