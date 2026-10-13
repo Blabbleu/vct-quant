@@ -18,14 +18,25 @@ export function selectFixtures(fixtures: Fixture[], selectedEvent: string): Fixt
 export function nextPlayoffSeries(playoffs: ChampionsPlayoffs | undefined, limit = 4): (ChampionsPlayoffMatch | ChampionsPlayoffSlot)[] {
   if (!playoffs) return [];
   const unverified = new Set(playoffs.unverified_match_ids ?? []);
+  const eligible = (s: ChampionsPlayoffMatch | ChampionsPlayoffSlot) => s.sides?.length === 2
+    && s.sides.every(side => side.name.trim().length > 0) && s.result == null && !unverified.has(s.match_id);
   const named = [...playoffs.opening, ...playoffs.schedule]
-    .filter(s => s.sides?.length === 2 && s.sides.every(side => side.name.trim().length > 0)
-      && s.result == null && !unverified.has(s.match_id))
+    .filter(eligible)
     .sort((a, b) => (a.start ?? "9").localeCompare(b.start ?? "9") || a.match_id - b.match_id);
   if (named.length > 0) return named.slice(0, limit);
   return [...playoffs.opening]
+    .filter(eligible)
     .sort((a, b) => (a.start ?? "9").localeCompare(b.start ?? "9") || a.match_id - b.match_id)
     .slice(0, limit);
+}
+
+/** True only when the complete expected Champions bracket has verified results. */
+export function isPlayoffBracketComplete(playoffs: ChampionsPlayoffs | undefined): boolean {
+  if (!playoffs || playoffs.opening.length < 4 || playoffs.schedule.length < 4) return false;
+  const slots = [...playoffs.opening, ...playoffs.schedule];
+  const unverified = new Set(playoffs.unverified_match_ids ?? []);
+  return slots.every(slot => slot.result != null && !unverified.has(slot.match_id))
+    && playoffs.schedule.some(slot => /grand final/i.test(slot.stage));
 }
 
 /* ---------------------------------------------------------------- stage names */

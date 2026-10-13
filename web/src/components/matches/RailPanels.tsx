@@ -8,7 +8,7 @@ import TeamLabel from "../arena/TeamLabel";
 import PipBar from "../arena/PipBar";
 import { Chip } from "../arena/Chip";
 import { CountUp, Reveal } from "../../lib/motion";
-import { biggestMisses, nextPlayoffSeries, pickHit, pickSide, stageLabel, stageParts, verifiedNewestFirst } from "../../lib/matchesData";
+import { biggestMisses, isPlayoffBracketComplete, nextPlayoffSeries, pickHit, pickSide, stageLabel, stageParts, verifiedNewestFirst } from "../../lib/matchesData";
 import { recordView } from "../../lib/record";
 import { localShort } from "../../lib/format";
 import type { ChampionsPlayoffs, Fixture, Ranking, ResultRow, ResultsList } from "../../lib/types";
@@ -118,7 +118,7 @@ export function BracketMini({ playoffs, loading, index }: { playoffs: ChampionsP
   return (
     <RailPanel title="Champions bracket" link="Full bracket" to="/champions/2766" index={index}>
       {loading ? <Skeleton rows={4} />
-        : series.length === 0 ? <p className="muted small">Playoff matchups not published yet.</p>
+        : series.length === 0 ? <p className="muted small">{!playoffs ? "Playoff data unavailable." : isPlayoffBracketComplete(playoffs) ? "All playoff matches are complete." : "Playoff matchups not published yet."}</p>
         : (
           <>
             {stages.length > 0 && <div className="rail-sub num">{stages.join(" · ")}</div>}

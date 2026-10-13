@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   stageParts, stageShort, stageLabel, formatCountdown, groupByDay, eventContext, selectFixtures,
-  pickHit, justFinished, biggestMisses, stageTimeline, nextPlayoffSeries,
+  pickHit, justFinished, biggestMisses, stageTimeline, nextPlayoffSeries, isPlayoffBracketComplete,
 } from "../src/lib/matchesData.ts";
 
 const fx = (id, start, series = "Playoffs: Upper Quarterfinals", extra = {}) => ({
@@ -164,4 +164,28 @@ test("nextPlayoffSeries falls back to opening sorted as the pre-draw slate", () 
   };
   assert.deepEqual(nextPlayoffSeries(po).map(s => s.match_id), [2, 4, 8]);
   assert.deepEqual(nextPlayoffSeries(po, 2).map(s => s.match_id), [2, 4]);
+});
+
+test("opening fallback excludes completed, unnamed and unverified slots", () => {
+  const po = { opening: [
+    playoffSlot(1, "Upper Quarterfinals", "2026-10-07T08:00:00Z", [side("Done A"), side("Done B")], { result: { winner_team_id: 1 } }),
+    playoffSlot(2, "Upper Quarterfinals", "2026-10-07T09:00:00Z", [side("A"), side("B")]),
+    playoffSlot(3, "Upper Quarterfinals", "2026-10-07T10:00:00Z", [side("C"), side("D")]),
+    playoffSlot(4, "Upper Quarterfinals", "2026-10-07T11:00:00Z", [side("TBD"), side("")]),
+    playoffSlot(5, "Upper Quarterfinals", "2026-10-07T12:00:00Z", [side("E"), side("F")]),
+  ], schedule: [], unverified_match_ids: [5] };
+  assert.deepEqual(nextPlayoffSeries(po, 1).map(s => s.match_id), [2]);
+  assert.deepEqual(nextPlayoffSeries(po).map(s => s.match_id), [2, 3]);
+});
+
+test("completed bracket needs opening and schedule results including a verified Grand Final", () => {
+  const opening = Array.from({ length: 4 }, (_, i) => playoffSlot(i + 1, "Upper Quarterfinals", null, [side("A"), side("B")], { result: { winner_team_id: 1 } }));
+  const schedule = ["Upper Semifinals", "Lower Semifinals", "Final", "Grand Final"].map((stage, i) => playoffSlot(i + 5, stage, null, null, { result: { winner_team_id: 1 } }));
+  const complete = { opening, schedule };
+  assert.deepEqual(nextPlayoffSeries(complete), []);
+  assert.equal(isPlayoffBracketComplete(complete), true);
+  assert.equal(isPlayoffBracketComplete({ opening: [], schedule: [] }), false);
+  assert.equal(isPlayoffBracketComplete({ opening, schedule: [] }), false);
+  assert.equal(isPlayoffBracketComplete({ opening, schedule: schedule.map((s, i) => i === 3 ? { ...s, result: null } : s) }), false);
+  assert.equal(isPlayoffBracketComplete({ opening, schedule, unverified_match_ids: [8] }), false);
 });
