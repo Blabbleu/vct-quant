@@ -14,7 +14,7 @@ export function fixtureTierLabels(fixtures: FixtureTier[]): string[] {
 
 export function fixtureTierCopy(fixtures: FixtureTier[]): string {
   const labels = fixtureTierLabels(fixtures);
-  return labels.length < 2 ? labels[0] ?? "Tier 1" : `${labels.slice(0, -1).join(", ")} and ${labels.at(-1)}`;
+  return labels.length < 2 ? labels[0] ?? "" : `${labels.slice(0, -1).join(", ")} and ${labels.at(-1)}`;
 }
 
 export function homeHeadlineCopy(fixtures: FixtureTier[]): HomeHeadlineCopy {

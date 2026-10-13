@@ -5,6 +5,15 @@
  */
 import type { ChampionsPlayoffMatch, ChampionsPlayoffSlot, ChampionsPlayoffs, Fixture, ResultRow } from "./types";
 
+export interface FixtureSelection { event: string; fixtures: Fixture[] }
+
+/** Keep a selected event only while it exists in the current slate. */
+export function selectFixtures(fixtures: Fixture[], selectedEvent: string): FixtureSelection {
+  const events = new Set(fixtures.map(f => f.event));
+  const event = selectedEvent !== "all" && events.has(selectedEvent) ? selectedEvent : "all";
+  return { event, fixtures: event === "all" ? fixtures : fixtures.filter(f => f.event === event) };
+}
+
 /** The next named, unplayed playoff series, with the opening slate as a pre-draw fallback. */
 export function nextPlayoffSeries(playoffs: ChampionsPlayoffs | undefined, limit = 4): (ChampionsPlayoffMatch | ChampionsPlayoffSlot)[] {
   if (!playoffs) return [];

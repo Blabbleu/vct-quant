@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  stageParts, stageShort, stageLabel, formatCountdown, groupByDay, eventContext,
+  stageParts, stageShort, stageLabel, formatCountdown, groupByDay, eventContext, selectFixtures,
   pickHit, justFinished, biggestMisses, stageTimeline, nextPlayoffSeries,
 } from "../src/lib/matchesData.ts";
 
@@ -11,6 +11,25 @@ const fx = (id, start, series = "Playoffs: Upper Quarterfinals", extra = {}) => 
 const row = (id, at, pA, winner, ll = 0.5) => ({
   match_id: id, scheduled_at: at, p_a: pA, log_loss: ll,
   result: { status: "verified", winner, maps_a: 2, maps_b: 0 },
+});
+
+test("selection falls back to all when an event disappears from a refreshed slate", () => {
+  const champions = [fx(1, "2026-10-07T09:00:00Z")];
+  const selected = selectFixtures(champions, "Game Changers 2026 Americas LCQ");
+  assert.equal(selected.event, "all");
+  assert.deepEqual(selected.fixtures, champions);
+});
+
+test("selection recovers to all when the refreshed slate is empty", () => {
+  assert.deepEqual(selectFixtures([], "Game Changers 2026 Americas LCQ"), { event: "all", fixtures: [] });
+});
+
+test("selection preserves an event that remains in the refreshed slate", () => {
+  const champions = [fx(1, "2026-10-07T09:00:00Z"), fx(2, "2026-10-08T09:00:00Z", "Playoffs: Lower Round 1", { event: "Valorant Champions 2026" })];
+  const gc = [fx(3, "2026-10-09T09:00:00Z", "Group Stage", { event: "Game Changers 2026 Americas LCQ" })];
+  const selected = selectFixtures([...champions, ...gc], "Valorant Champions 2026");
+  assert.equal(selected.event, "Valorant Champions 2026");
+  assert.deepEqual(selected.fixtures, champions);
 });
 
 test("stage names are split and shortened so the card header never truncates them", () => {

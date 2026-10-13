@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { homeEmptyLine, homeHeadlineCopy } from '../src/lib/homeCopy.ts';
+import { fixtureTierCopy, homeEmptyLine, homeHeadlineCopy } from '../src/lib/homeCopy.ts';
 
 const fixture = (tier, start = '2026-10-12T12:00:00Z') => ({ tier, start });
 
@@ -45,6 +45,10 @@ test('home names only the tiers in the slate and headlines the earliest fixture 
 
 test('home empty state explains when Tier 1 forecasts resume', () => {
   assert.equal(homeEmptyLine(0), 'No Tier 1 match is scheduled yet. Forecasts resume when the next Tier 1 fixtures are published.');
+});
+
+test('empty fixture tier copy does not invent Tier 1', () => {
+  assert.equal(fixtureTierCopy([]), '');
 });
 
 test('Champions quick link uses current playoffs copy', async () => {

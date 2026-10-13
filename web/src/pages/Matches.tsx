@@ -9,7 +9,7 @@ import SectionHead from "../components/arena/SectionHead";
 import { LoadingBlocks, ErrorPanel, EmptyState } from "../components/arena/States";
 import { COPY } from "../lib/constants";
 import { fixtureTierCopy } from "../lib/homeCopy";
-import { eventContext, groupByDay, justFinished, stageParts, stageTimeline } from "../lib/matchesData";
+import { eventContext, groupByDay, justFinished, selectFixtures, stageParts, stageTimeline } from "../lib/matchesData";
 import { PageFade, Stagger, StaggerItem } from "../lib/motion";
 import "./Matches.css";
 
@@ -31,7 +31,9 @@ export default function Matches() {
   if (error || !data) return <ErrorPanel detail={error ?? "no data"} onRetry={() => location.reload()} />;
 
   const events = [...new Set(fixtures.map(f => f.event))];
-  const shown = event === "all" ? fixtures : fixtures.filter(f => f.event === event);
+  const selection = selectFixtures(fixtures, event);
+  const shown = selection.fixtures;
+  const selectedEvent = selection.event;
   const shownTierCopy = fixtureTierCopy(shown);
   const days = groupByDay(shown, dayLabel);
   const ctx = eventContext(shown, dayLabel);
@@ -45,8 +47,9 @@ export default function Matches() {
       <header className="page-head">
         <h1>Matches</h1>
         <p className="lede">
-          Upcoming {shownTierCopy} matches grouped by day, in your local time. Red is the model, gold is the
-          market; both show the chance that the first-named team wins the series.
+          {shown.length === 0
+            ? "No upcoming matches are currently scheduled."
+            : <>Upcoming {shownTierCopy} matches grouped by day, in your local time. Red is the model, gold is the market; both show the chance that the first-named team wins the series.</>}
         </p>
       </header>
 
@@ -55,7 +58,7 @@ export default function Matches() {
       {events.length > 1 && (
         <div className="matches-filter">
           <label className="matches-filter-label" htmlFor="event-select">EVENT</label>
-          <select id="event-select" value={event} onChange={e => setEvent(e.target.value)}>
+          <select id="event-select" value={selectedEvent} onChange={e => setEvent(e.target.value)}>
             <option value="all">All {fixtureTierCopy(fixtures)}</option>
             {events.map(e => <option key={e} value={e}>{e}</option>)}
           </select>
@@ -68,7 +71,7 @@ export default function Matches() {
             <EmptyState
               title={COPY.noMatchesScheduled}
               line={events[0] ? `Next known event: ${events[0]}.` : "No event is scheduled yet."}
-              action={event !== "all" ? (
+              action={selectedEvent !== "all" ? (
                 <button type="button" className="btn btn-secondary" onClick={() => setEvent("all")}>
                   Show all {fixtureTierCopy(fixtures)}
                 </button>
@@ -85,7 +88,7 @@ export default function Matches() {
                       {stages.join(" / ")}{stages.length > 0 ? " \u00B7 " : ""}{day.items.length} {day.items.length === 1 ? "match" : "matches"}
                     </span>
                   </h2>
-                  <Stagger className="matches-board" key={`${event}-${day.key}`}>
+                  <Stagger className="matches-board" key={`${selectedEvent}-${day.key}`}>
                     {day.items.map(f => <StaggerItem key={f.match_id} className="stagger-cell"><FixtureCard f={f} /></StaggerItem>)}
                   </Stagger>
                 </section>
