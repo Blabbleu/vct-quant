@@ -10,10 +10,10 @@ import { gapPresentation } from "../../lib/gapPresentation";
  * `favouredLabel` (e.g. "NRG FAVOURED") is an optional caller-supplied read
  * used only in the no-market case, since GapChip itself only sees numbers.
  */
-export default function GapChip({ model, market, spread, favouredLabel }: {
-  model: number; market: number | null | undefined; spread?: number | null; favouredLabel?: string;
+export default function GapChip({ model, market, spread, volume, favouredLabel }: {
+  model: number; market: number | null | undefined; spread?: number | null; volume?: number | null; favouredLabel?: string;
 }) {
-  const presentation = gapPresentation(model, market, spread);
+  const presentation = gapPresentation(model, market, spread, volume);
 
   if (presentation.kind === "no-price") {
     return (
@@ -35,10 +35,11 @@ export default function GapChip({ model, market, spread, favouredLabel }: {
 
   return (
     <span className="gapchip-wrap">
-      <Chip variant={variant === "big" ? "market" : variant === "agree" || wide ? "ghost" : "default"}>
+      <Chip variant={variant === "big" ? "market" : variant === "agree" || wide || variant === "untrusted" ? "ghost" : "default"}>
         <span className="num">{text}</span>{suffix}
       </Chip>
       {wide && <Chip variant="ghost">WIDE SPREAD</Chip>}
+      {variant === "untrusted" && <Chip variant="ghost">{volume != null && volume < 1000 ? "LOW VOLUME" : "UNTRUSTED PRICE"}</Chip>}
     </span>
   );
 }

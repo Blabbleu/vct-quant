@@ -114,11 +114,11 @@ export default function ArenaKit() {
       <section className="arena-kit-section">
         <SectionHead title="Gap chip" />
         <div className="arena-kit-row" style={{ flexDirection: "column", alignItems: "flex-start" }}>
-          <GapChip model={0.505} market={0.5} />
-          <GapChip model={0.588} market={0.5} />
-          <GapChip model={0.72} market={0.56} />
-          <GapChip model={p100tVsT1} market={null} favouredLabel={`${the100t.tag} FAVOURED`} />
-          <GapChip model={wideSpreadFixture.p_a} market={wideSpreadFixture.market} spread={wideSpreadFixture.spread} />
+          <GapChip model={0.505} market={0.5} spread={0.1} volume={1000} />
+          <GapChip model={0.588} market={0.5} spread={0.1} volume={1000} />
+          <GapChip model={0.72} market={0.56} spread={0.1} volume={1000} />
+          <GapChip model={p100tVsT1} market={null} volume={null} favouredLabel={`${the100t.tag} FAVOURED`} />
+          <GapChip model={wideSpreadFixture.p_a} market={wideSpreadFixture.market} spread={wideSpreadFixture.spread} volume={wideSpreadFixture.volume} />
         </div>
       </section>
 
@@ -217,7 +217,7 @@ export default function ArenaKit() {
                   </span>
                 </div>
                 <PipBar pA={f.p_a} market={f.market} />
-                <GapChip model={f.p_a} market={f.market} spread={f.spread} favouredLabel={`${f.p_a >= 0.5 ? (f.tag_a ?? f.team_a) : (f.tag_b ?? f.team_b)} FAVOURED`} />
+                <GapChip model={f.p_a} market={f.market} spread={f.spread} volume={f.volume} favouredLabel={`${f.p_a >= 0.5 ? (f.tag_a ?? f.team_a) : (f.tag_b ?? f.team_b)} FAVOURED`} />
               </div>
             </Panel>
           ))}

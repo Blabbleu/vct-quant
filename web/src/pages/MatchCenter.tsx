@@ -143,7 +143,7 @@ export default function MatchCenter() {
                 <StatCell label="Call" value={hit == null ? "\u2014" : hit ? "HIT" : "MISS"} tone={hit == null ? undefined : "result"} />
               </div>
               <div className="match-hero-gap">
-                <GapChip model={fav.model} market={fav.market} spread={spread} favouredLabel={`${favTag} FAVOURED`} />
+                <GapChip model={fav.model} market={fav.market} spread={spread} volume={f?.volume ?? null} favouredLabel={`${favTag} FAVOURED`} />
                 <span className="muted small">gap on {favTag}</span>
                 {hit === false && <Chip variant="market">UPSET</Chip>}
               </div>

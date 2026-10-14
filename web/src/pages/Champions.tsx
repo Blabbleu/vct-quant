@@ -61,7 +61,7 @@ function PlayoffMatch({ m, unverified }: { m: ChampionsPlayoffMatch; unverified:
         {forecast ? <PipBar pA={a.p_win!} market={m.market?.p_a ?? null} lowData={lowData(a) || lowData(b)} blocks={20} /> : null}
         <div className="champ-po-bottom">
           {result ? <span className="champ-result-label">Verified result</span> : forecast
-            ? <GapChip model={a.p_win!} market={m.market?.p_a ?? null} spread={m.market?.spread ?? null} favouredLabel={`${favTag} FAVOURED`} />
+            ? <GapChip model={a.p_win!} market={m.market?.p_a ?? null} spread={m.market?.spread ?? null} volume={m.market?.volume ?? null} favouredLabel={`${favTag} FAVOURED`} />
             : <span className="champ-ph-line num">Forecast unavailable</span>}
           {m.url && <a className="small" href={m.url} target="_blank" rel="noopener noreferrer">VLR &#8599;</a>}
         </div>

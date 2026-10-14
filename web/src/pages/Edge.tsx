@@ -90,7 +90,7 @@ export default function Edge() {
                     <span className="num edge-item-model">{pct(modelP, 0)}</span>
                     <span className="edge-item-k">model</span>
                   </div>
-                  <GapChip model={f.p_a} market={f.market} spread={f.spread}
+                  <GapChip model={f.p_a} market={f.market} spread={f.spread} volume={f.volume}
                     favouredLabel={`${f.p_a >= 0.5 ? (f.tag_a ?? f.team_a) : (f.tag_b ?? f.team_b)} FAVOURED`} />
                 </div>
               </Link></StaggerItem>
@@ -110,7 +110,7 @@ export default function Edge() {
                       <div className="muted small ellipsis">{f.tag_a ?? f.team_a} vs {f.tag_b ?? f.team_b} &middot; {when(f.start)}</div>
                     </div>
                     <div className="edge-item-nums">
-                      <GapChip model={f.p_a} market={null}
+                      <GapChip model={f.p_a} market={null} volume={null}
                         favouredLabel={`${f.p_a >= 0.5 ? (f.tag_a ?? f.team_a) : (f.tag_b ?? f.team_b)} FAVOURED`} />
                     </div>
                   </Link>

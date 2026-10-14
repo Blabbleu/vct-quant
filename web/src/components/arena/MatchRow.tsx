@@ -73,7 +73,7 @@ export default function MatchRow({ f, detail = true }: { f: Fixture; detail?: bo
   const [open, setOpen] = useState(false);
   const favA = f.p_a >= 0.5;
   const hasMarket = f.market != null;
-  const wideSpread = f.spread != null && f.spread > WIDE_SPREAD;
+  const trustedMarket = f.spread != null && f.spread <= WIDE_SPREAD && f.volume != null && f.volume >= 1000;
   const lowDataA = f.matches_a < LOW_DATA_MATCHES;
   const lowDataB = f.matches_b < LOW_DATA_MATCHES;
   const anyLowData = lowDataA || lowDataB;
@@ -122,12 +122,12 @@ export default function MatchRow({ f, detail = true }: { f: Fixture; detail?: bo
           {hasMarket && (
             <span className="num small match-row-market">
               MKT{" "}
-              <span className={wideSpread ? "muted" : "match-row-market-value"}>{pct1(f.market as number)}</span>
+              <span className={trustedMarket ? "match-row-market-value" : "muted"}>{pct1(f.market as number)}</span>
               {" \u00B7 "}
-              <span className={wideSpread ? "muted" : "match-row-market-value"}>{pct1(1 - (f.market as number))}</span>
+              <span className={trustedMarket ? "match-row-market-value" : "muted"}>{pct1(1 - (f.market as number))}</span>
             </span>
           )}
-          <GapChip model={f.p_a} market={f.market} spread={f.spread} favouredLabel={`${favTag} FAVOURED`} />
+          <GapChip model={f.p_a} market={f.market} spread={f.spread} volume={f.volume} favouredLabel={`${favTag} FAVOURED`} />
         </div>
 
         {lowDataSide && (
