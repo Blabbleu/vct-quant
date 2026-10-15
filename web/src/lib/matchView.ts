@@ -19,6 +19,16 @@ export interface SideView {
 
 export function favouriteSide(pA: number): Side { return pA >= 0.5 ? "a" : "b"; }
 
+/** Caption for the Team A probability chart, oriented to the favourite above. */
+export function movementChartCaption(pA: number, teamA: string): string {
+  const orientation = pA > 0.5
+    ? `Chart values match ${teamA}'s favourite values above.`
+    : pA < 0.5
+      ? `Compare the favourite values above with 100 percent minus the chart values.`
+      : `The chart directly shows ${teamA}'s chance; the call is even.`;
+  return `Chance of ${teamA} winning. ${orientation} Dots are logged forecast refreshes, not a live market price feed.`;
+}
+
 export function sideView(pA: number, marketA: number | null | undefined, side: Side): SideView {
   const model = side === "a" ? pA : 1 - pA;
   const market = marketA == null ? null : side === "a" ? marketA : 1 - marketA;

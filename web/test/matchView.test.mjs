@@ -1,6 +1,28 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { favouriteSide, sideView, spreadLabels } from "../src/lib/matchView.ts";
+import { favouriteSide, movementChartCaption, sideView, spreadLabels } from "../src/lib/matchView.ts";
+import { readFile } from "node:fs/promises";
+
+test("movement chart caption matches the favourite orientation and explains logged dots", () => {
+  const cases = [
+    [0.611, "Team A", /match Team A's favourite values above/i],
+    [0.438, "Team A", /compare .*100 percent minus the chart values/i],
+    [0.5, "Team A", /directly shows Team A's chance.*even/i],
+  ];
+  for (const [pA, teamA, orientation] of cases) {
+    const caption = movementChartCaption(pA, teamA);
+    assert.match(caption, orientation);
+    assert.match(caption, /dots are logged forecast refreshes, not a live market price feed/i);
+  }
+  assert.doesNotMatch(movementChartCaption(0.611, "Team A"), /100 percent minus/i);
+});
+
+test("MatchCenter builds the movement caption from raw Team A probability p", async () => {
+  const source = await readFile(new URL("../src/pages/MatchCenter.tsx", import.meta.url), "utf8");
+  assert.match(source, /const p = f\?\.p_a \?\? last\?\.elo \?\? 0\.5/);
+  assert.match(source, /movementChartCaption\(p, teamA\)/);
+  assert.doesNotMatch(source, /favourite.s numbers above are 100% minus these/);
+});
 
 test("match 753448: favourite T1 with model 62.0 and market 53.5 gives a +8.5 gap on the T1 side", () => {
   const pA = 0.37960206697389304, marketA = 0.465;

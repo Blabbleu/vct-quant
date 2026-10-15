@@ -17,7 +17,7 @@ import StatCell from "../components/arena/StatCell";
 import Banner, { type BannerKind } from "../components/arena/Banner";
 import { Failure, Loading } from "../components/ui";
 import { PageFade } from "../lib/motion";
-import { favouriteSide, sideView } from "../lib/matchView";
+import { favouriteSide, movementChartCaption, sideView } from "../lib/matchView";
 import "./MatchCenter.css";
 
 const dayFmt = (iso: string) => new Date(iso).toLocaleDateString(undefined,
@@ -168,7 +168,7 @@ export default function MatchCenter() {
             <section>
               <SectionHead title="How the odds moved" right={<span className="muted small">{m.points.length} refreshes</span>} />
               <LineChart points={m.points} teamLabel={teamA} />
-              <p className="muted small chart-caption">Chance of {teamA} winning (lines read from {teamA}&rsquo;s side, so the favourite&rsquo;s numbers above are 100% minus these). Dots are refreshes of our forecast log, not a live price feed.</p>
+              <p className="muted small chart-caption">{movementChartCaption(p, teamA)}</p>
               <details>
                 <summary>All {m.points.length} snapshots</summary>
                 <div className="scroll"><table>
