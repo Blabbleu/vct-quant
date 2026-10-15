@@ -20,3 +20,36 @@ The offline scorer ran against the copied worker snapshot after the freeze artif
 | Later rows | 0 | 0 | — | — | — | — | — |
 
 **Verdict: PENDING.** The 150-row gate has not been reached. Production is unchanged.
+
+## 2026-10-15 power review and prospective amendment
+
+**Guard before amendment.** Running `research/asof_form_holdout.py` on the copied worker snapshot returned **0** decisive Tier-1 rows completed strictly after 2026-10-15T07:00:00Z (`eligible_rows: 0`, `verdict: PENDING`). This count is the proof that the following rule was registered before any post-freeze outcome was scored. The original first-150 rule above is superseded by this section; the frozen JSON, two weights, form scale, and cutoff are unchanged.
+
+The hypothesis remains that the frozen Elo plus as-of form forecast improves per-series log loss over production Elo on identical future matches. Paired log loss (Elo minus candidate) is primary; Brier, accuracy, and ten-bin ECE are secondary. No model was fit or retuned here. For power planning only, the previously consulted 2025 and 2026 decisive Tier-1 differences were recomputed using the frozen weights:
+
+| Previously consulted rows | n | Mean paired log-loss gain | Paired SD | Mean / SD |
+| --- | ---: | ---: | ---: | ---: |
+| 2025 | 504 | 0.004195 | 0.044800 | 0.09364 |
+| 2026 | 618 | 0.004444 | 0.042110 | 0.10555 |
+| Pooled | 1,122 | 0.004333 | 0.043319 | 0.10001 |
+
+The power study resamples individual paired differences with replacement (50,000 simulations, seed 20261015). The full scenario uses the observed pooled differences; the half scenario subtracts half their mean from every difference; the zero scenario centers them at zero. The null therefore preserves the observed spread and shape. These are planning estimates from previously consulted data, not a new holdout result. **ECE is ignored in every power simulation**, so actual WIN probabilities can be lower.
+
+| Single look at 150, t > 2 | Estimated probability |
+| --- | ---: |
+| Full observed effect | 19.014% |
+| Half effect | 6.280% |
+| Zero effect (false WIN before ECE) | 1.370% |
+
+A fixed-seed bootstrap grid search estimates **779 rows** for 80% power under the full effect and **3,179 rows** under the half effect at the single-look t > 2 bar. These approximate sample sizes exceed the original 150-row gate substantially.
+
+**Amended decision rule.** Use the first eligible rows ordered by UTC `completed_at`, then `match_id`, at cumulative looks of **150, 300, 450, and 600**. At look index *k* (1 through 4), WIN only when cumulative paired t is strictly greater than `2.145578186160249 × sqrt(4/k)` **and** candidate ECE is no worse than Elo ECE on those same rows. Check looks in order and retain an earlier terminal verdict. From the 300-row look onward, REJECTED for futility if cumulative t is zero or negative. If no WIN or futility decision occurs by the 600-row look, the verdict is NOT PROVEN. Below 150 rows and between looks, the verdict is PENDING. The scorer continues to report the original first-150 statistics and separate later-row statistics, alongside the reached look and its cumulative statistics. No production behavior changes automatically.
+
+| Cumulative look | Registered t boundary |
+| ---: | ---: |
+| 150 | 4.291156372320498 |
+| 300 | 3.034305769999690 |
+| 450 | 2.477500286694018 |
+| 600 | 2.145578186160249 |
+
+The constant was chosen by zero-effect resampling with the registered futility stops to keep the chance of any false WIN across four looks no higher than the original one-look t > 2 chance (about 2.3% under an ideal t null; 1.37% in this empirical null). A separate fixed-seed 50,000-run check estimates **1.206%** overall false WIN before ECE. Estimated power before ECE is **63.114%** under the full effect and **16.704%** under the half effect. The rule, boundary constant, and four numeric thresholds are stored in `research/asof_form_holdout_design.json`. This 2026-10-15 amendment replaces the underpowered one-time 150-row decision while the guard count was zero; it does not turn the retrospective years into clean validation evidence. The prospective verdict remains **PENDING** on this snapshot.

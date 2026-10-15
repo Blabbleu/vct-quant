@@ -16,6 +16,7 @@ import stack_ensemble as stack
 from vct_quant import db
 
 FROZEN_PATH = Path(__file__).with_name("asof_form_holdout_frozen.json")
+DESIGN_PATH = Path(__file__).with_name("asof_form_holdout_design.json")
 FREEZE_TIME = "2026-10-15T07:00:00Z"
 DOCUMENTED_WEIGHTS = np.array([0.87296870, 0.07737623])
 DOCUMENTED_SCALE = 0.09254274
@@ -51,7 +52,7 @@ def _events(frame: pd.DataFrame) -> pd.DataFrame:
         ids = con.execute("SELECT match_id, event_id FROM match").df()
     finally:
         con.close()
-    return frame.merge(ids, on="match_id", validate="one_to_one", sort=False)
+    return frame.merge(ids, on="match_id", how="left", validate="one_to_one", sort=False)
 
 
 def _score(part: pd.DataFrame, weights: np.ndarray, scale: float) -> dict | None:
@@ -63,6 +64,8 @@ def _score(part: pd.DataFrame, weights: np.ndarray, scale: float) -> dict | None
     x = np.column_stack((stack.logits(elo), form / scale))
     candidate = stack.predict(x, weights)
     scored = stack.metrics(y, candidate, elo)
+    scored = {key: (None if isinstance(value, (float, np.floating)) and not np.isfinite(value)
+                    else value) for key, value in scored.items()}
     scored["distinct_events"] = int(part.event_id.nunique())
     scored["candidate_reliability"] = [
         [bin_id, n, p if n else None, actual if n else None]
@@ -77,12 +80,35 @@ def verdict(primary: dict | None, total: int) -> str:
     if total < 150:
         return "PENDING"
     assert primary is not None
-    if primary["t"] > 2 and primary["ece"] <= primary["elo_ece"]:
+    if primary["t"] is not None and primary["t"] > 2 and primary["ece"] <= primary["elo_ece"]:
         return "WIN"
-    return "NOT PROVEN" if primary["t"] > 0 else "REJECTED"
+    return "NOT PROVEN" if primary["t"] is None or primary["t"] > 0 else "REJECTED"
 
 
-def evaluate(frame: pd.DataFrame, frozen: dict) -> dict:
+def sequential_verdict(part: pd.DataFrame, weights: np.ndarray, scale: float,
+                       design: dict) -> tuple[int | None, dict | None, str]:
+    looks = design["looks"]
+    limits = design["boundaries"]
+    if looks != [150, 300, 450, 600] or len(limits) != 4:
+        raise ValueError("invalid registered holdout looks")
+    reached = None
+    current = None
+    for index, (look, boundary) in enumerate(zip(looks, limits)):
+        if len(part) < look:
+            break
+        reached = look
+        current = _score(part.iloc[:look], weights, scale)
+        t = current["t"]
+        if t is not None and t > boundary and current["ece"] <= current["elo_ece"]:
+            return reached, current, "WIN"
+        if index >= 1 and t is not None and t <= 0:
+            return reached, current, "REJECTED"
+    if reached == looks[-1]:
+        return reached, current, "NOT PROVEN"
+    return reached, current, "PENDING"
+
+
+def evaluate(frame: pd.DataFrame, frozen: dict, design: dict | None = None) -> dict:
     """Score only post-freeze decisive Tier-1 rows; no fitting happens here."""
     cutoff = pd.Timestamp(frozen["freeze_time"])
     completed = pd.to_datetime(frame.completed_at, utc=True)
@@ -101,11 +127,16 @@ def evaluate(frame: pd.DataFrame, frozen: dict) -> dict:
     first = part.iloc[:150]
     later = part.iloc[150:]
     primary = _score(first, weights, scale)
+    if design is None:
+        design = json.loads(DESIGN_PATH.read_text())
+    look_reached, look_stats, decision = sequential_verdict(part, weights, scale, design)
     return {
         "eligible_rows": len(part),
         "primary": primary,
         "later_rows": _score(later, weights, scale),
-        "verdict": verdict(primary, len(part)),
+        "look_reached": look_reached,
+        "look_stats": look_stats,
+        "verdict": decision,
     }
 
 

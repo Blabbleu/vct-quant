@@ -1,0 +1,21 @@
+{
+  "registered_at_utc": "2026-10-15",
+  "freeze_time": "2026-10-15T07:00:00Z",
+  "guard_eligible_rows": 0,
+  "looks": [
+    150,
+    300,
+    450,
+    600
+  ],
+  "boundary_family": "constant * sqrt(4 / look_index)",
+  "constant": 2.145578186160249,
+  "boundaries": [
+    4.291156372320498,
+    3.0343057699996896,
+    2.4775002866940175,
+    2.145578186160249
+  ],
+  "simulation_seed": 20261015,
+  "simulation_count": 50000
+}
