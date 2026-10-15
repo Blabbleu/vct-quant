@@ -1,0 +1,14 @@
+{
+  "freeze_time": "2026-10-15T07:00:00Z",
+  "fit_years": [
+    2023,
+    2024
+  ],
+  "fit_row_count": 769,
+  "git_commit": "2d5fbea",
+  "weights": [
+    0.8729687004463025,
+    0.0773762343491615
+  ],
+  "form_difference_scale": 0.09254273750428352
+}
