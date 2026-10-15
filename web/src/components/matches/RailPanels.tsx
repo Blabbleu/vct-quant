@@ -14,7 +14,7 @@ import { localShort } from "../../lib/format";
 import type { ChampionsPlayoffs, Fixture, Ranking, ResultRow, ResultsList } from "../../lib/types";
 import "./RailPanels.css";
 
-type Async<T> = { data: T | null; error: string | null; loading: boolean };
+export type Async<T> = { data: T | null; error: string | null; loading: boolean };
 
 /** One rail panel: cut-corner frame, section head with a link, staggered reveal. */
 export function RailPanel({ title, link, to, index = 0, children }: {

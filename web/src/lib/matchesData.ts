@@ -155,15 +155,13 @@ export function verifiedNewestFirst(rows: ResultRow[]): ResultRow[] {
     .sort((a, b) => b.scheduled_at.localeCompare(a.scheduled_at) || b.match_id - a.match_id);
 }
 
-/** Newest verified results: everything inside `hours` of the latest one, but never fewer than `min` or more than `max`. */
-export function justFinished(rows: ResultRow[], { hours = 48, min = 4, max = 6 } = {}): ResultRow[] {
+/** Verified results scheduled within `hours` of now, newest first. */
+export function justFinished(rows: ResultRow[], { hours = 48, max = 6, now = Date.now() } = {}): ResultRow[] {
   const v = verifiedNewestFirst(rows);
-  if (v.length === 0) return [];
-  const newest = new Date(v[0].scheduled_at).getTime();
-  const recent = v.filter(r => newest - new Date(r.scheduled_at).getTime() <= hours * 3_600_000);
-  let n = Math.min(max, Math.max(min, recent.length));
-  if (n % 2 === 1 && n < max && n < v.length) n += 1; // even count: the two-column grid never ends on a hole
-  return v.slice(0, n);
+  return v.filter(r => {
+    const age = now - new Date(r.scheduled_at).getTime();
+    return age >= 0 && age <= hours * 3_600_000;
+  }).slice(0, max);
 }
 
 /** The model's worst verified calls by log loss (misses first). */

@@ -81,23 +81,26 @@ test("pickHit compares the model's side (>= 50%) with the verified winner", () =
   assert.equal(pickHit({ p_a: 0.6, result: { status: "unverified", winner: null } }), null);
 });
 
-test("justFinished takes the last 48h of results, within [min, max], and an even count", () => {
+test("justFinished uses the current 48-hour window without padding", () => {
+  const now = Date.parse("2026-10-15T12:00:00Z");
   const rows = [
-    row(1, "2026-10-04T11:00:00Z", 0.6, "a"), row(2, "2026-10-04T09:00:00Z", 0.6, "a"),
-    row(3, "2026-10-03T11:00:00Z", 0.6, "a"), row(4, "2026-10-03T09:00:00Z", 0.6, "a"),
-    row(5, "2026-10-02T12:00:00Z", 0.6, "a"), row(6, "2026-10-01T12:00:00Z", 0.6, "a"),
-    row(7, "2026-09-30T12:00:00Z", 0.6, "a"), row(8, "2026-09-29T12:00:00Z", 0.6, "a"),
+    row(1, "2026-10-14T11:00:00Z", 0.6, "a"), row(2, "2026-10-14T09:00:00Z", 0.6, "a"),
+    row(3, "2026-10-11T11:00:00Z", 0.6, "a"), row(4, "2026-10-11T09:00:00Z", 0.6, "a"),
   ];
-  // 5 rows fall inside 48h of the newest (47h for #5); the count is then rounded up to an even 6.
-  assert.deepEqual(justFinished(rows).map(r => r.match_id), [1, 2, 3, 4, 5, 6]);
-  assert.deepEqual(justFinished(rows, { hours: 24 }).map(r => r.match_id), [1, 2, 3, 4]);
-  assert.deepEqual(justFinished(rows, { hours: 200, min: 4, max: 6 }).map(r => r.match_id), [1, 2, 3, 4, 5, 6]);
-  assert.deepEqual(justFinished(rows.slice(0, 3), { min: 4 }).map(r => r.match_id), [1, 2, 3]);
+  assert.deepEqual(justFinished(rows, { now }).map(r => r.match_id), [1, 2]);
+  assert.deepEqual(justFinished(rows, { now: now + 3 * 86_400_000 }), []);
   assert.deepEqual(justFinished([]), []);
-  const odd = justFinished(rows, { hours: 60, min: 3, max: 7 });
-  assert.equal(odd.length, 6);
-  // nothing left to pad with: an odd list stays odd rather than inventing a row
-  assert.equal(justFinished(rows.slice(0, 5), { hours: 60, min: 3, max: 7 }).length, 5);
+  assert.equal(justFinished([rows[0]], { now }).length, 1);
+});
+
+test("justFinished includes the exact 48-hour boundary and excludes one millisecond older", () => {
+  const now = Date.parse("2026-10-15T12:00:00Z");
+  const rows = [
+    row(1, "2026-10-15T11:59:00Z", 0.6, "a"),
+    row(2, "2026-10-13T12:00:00Z", 0.6, "a"),
+    row(3, "2026-10-13T11:59:59.999Z", 0.6, "a"),
+  ];
+  assert.deepEqual(justFinished(rows, { now }).map(r => r.match_id), [1, 2]);
 });
 
 test("biggestMisses lists only wrong picks, worst log loss first", () => {

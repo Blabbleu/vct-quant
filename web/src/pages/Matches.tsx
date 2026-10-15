@@ -1,15 +1,13 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { useChampionsStatus, useResults, useSnapshot } from "../lib/api";
 import FixtureCard from "../components/FixtureCard";
 import EventHero from "../components/matches/EventHero";
-import FinishedCard from "../components/matches/FinishedCard";
+import JustFinished from "../components/matches/JustFinished";
 import { BracketMini, ModelRecord, PowerRanks, RecentResults } from "../components/matches/RailPanels";
-import SectionHead from "../components/arena/SectionHead";
 import { LoadingBlocks, ErrorPanel, EmptyState } from "../components/arena/States";
 import { COPY } from "../lib/constants";
 import { fixtureTierCopy } from "../lib/homeCopy";
-import { eventContext, groupByDay, justFinished, selectFixtures, stageParts, stageTimeline } from "../lib/matchesData";
+import { eventContext, groupByDay, selectFixtures, stageParts, stageTimeline } from "../lib/matchesData";
 import { PageFade, Stagger, StaggerItem } from "../lib/motion";
 import "./Matches.css";
 
@@ -39,7 +37,6 @@ export default function Matches() {
   const ctx = eventContext(shown, dayLabel);
   const isChampions = ctx != null && /champions/i.test(ctx.event);
   const timeline = isChampions ? stageTimeline(champions.data?.playoffs, ctx.next.series) : [];
-  const finished = results.data ? justFinished(results.data.rows, { hours: 48, min: 6, max: 8 }) : [];
   const playoffs = champions.data?.playoffs;
 
   return (
@@ -96,24 +93,7 @@ export default function Matches() {
             })
           )}
 
-          <section className="matches-day matches-finished">
-            <SectionHead title="Just finished" right={<Link to="/results" className="num small">All results &rarr;</Link>} />
-            {results.loading ? (
-              <div className="matches-board" aria-busy="true" aria-label="Loading results">
-                {Array.from({ length: 4 }, (_, i) => (
-                  <div key={i} className="loading-card cut-l"><div className="loading-line loading-line-wide" /><div className="loading-line loading-line-narrow" /></div>
-                ))}
-              </div>
-            ) : results.error ? (
-              <p className="muted small">Results unavailable right now ({results.error}).</p>
-            ) : finished.length === 0 ? (
-              <p className="muted small">No graded matches yet.</p>
-            ) : (
-              <Stagger className="matches-board">
-                {finished.map(r => <StaggerItem key={r.match_id} className="stagger-cell"><FinishedCard r={r} /></StaggerItem>)}
-              </Stagger>
-            )}
-          </section>
+          <JustFinished results={results} />
         </div>
 
         <aside className="matches-rail" aria-label="Context">
