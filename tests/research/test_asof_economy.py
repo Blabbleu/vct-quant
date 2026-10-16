@@ -75,3 +75,12 @@ def test_mismatches_reported_and_incomplete_series_does_not_update():
 def test_rejects_unsorted_match_ids():
     with pytest.raises(ValueError, match="increase strictly"):
         replay(matches().iloc[[1, 0]], economy())
+
+
+def test_id_mismatch_falls_back_only_for_name_keyed_sequence_side():
+    e = pd.DataFrame([dict(match_id=10, team_id=99, team_name=" BLUE ",
+                           full_buy_win_pct=0.4, pistol_win_pct=0.5)])
+    f, failures = replay(matches(), e)
+    assert failures.empty
+    assert f.loc[1, "prior_economy_rows_b"] == 1
+    assert f.loc[1, "full_buy_win_pct_b"] == 0.4

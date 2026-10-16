@@ -46,6 +46,12 @@ def resolve(matches: pd.DataFrame, economy: pd.DataFrame) -> tuple[dict, pd.Data
             key = str(int(row.team_id))
             hits = [n for n, (side_key, _) in enumerate(pair) if side_key == key]
             reason = "team_id_mismatch"
+            # Sequence sides can be name-keyed when their canonical ID is absent.
+            # A stale economy ID must not prevent an otherwise exact name join.
+            if not hits:
+                name = _name(row.team_name)
+                hits = [n for n, (side_key, side_name) in enumerate(pair)
+                        if side_key.startswith("name:") and side_name == name]
         else:
             name = _name(row.team_name)
             hits = [n for n, (_, side_name) in enumerate(pair) if side_name == name]
