@@ -20,6 +20,28 @@ def _norm(value: object) -> str:
     return str(value).strip().lower()
 
 
+def match_id_bridge(ids: pd.DataFrame, key: list[str]) -> pd.Series:
+    """Unique candidate Match IDs for each Kaggle name key, retaining ambiguity."""
+    return ids[key + ["Match ID"]].drop_duplicates().groupby(key, dropna=False)["Match ID"].agg(
+        lambda s: tuple(sorted(set(s.dropna().astype(int)))))
+
+
+def sequence_pairs(matches: pd.DataFrame) -> dict:
+    """The ordered sequence sides and their normalized source names."""
+    return {int(r.match_id): ((r.team_a, _norm(r.team_a_name)),
+                              (r.team_b, _norm(r.team_b_name)))
+            for r in matches.itertuples(index=False)}
+
+
+def matched_side(pair: tuple, name: object) -> tuple[int | None, str | None]:
+    """Resolve a Kaggle team name to exactly one sequence side, or a reason."""
+    hits = [side for side, (_, normalized) in enumerate(pair)
+            if normalized == _norm(name)]
+    if len(hits) != 1:
+        return None, "ambiguous_team" if hits else "team_name_mismatch"
+    return hits[0], None
+
+
 def load_raw(raw: Path = RAW) -> tuple[pd.DataFrame, pd.DataFrame]:
     eco, ids = [], []
     for year in range(2021, 2027):
