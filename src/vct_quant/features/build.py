@@ -370,11 +370,16 @@ def predict_upcoming(
     # Shadow forecasts are logged beside Elo so live results can grade them.
     # They are official-pool models only; the Game Changers pool is untuned.
     if "tier" in history and not history.tier.eq(3).any():
-        from ..models.shadow import shadow_columns
+        from ..models.shadow import PROMOTE_ENSEMBLE, shadow_columns
 
         out = shadow_columns(
             out, history, np.array([row["p_a_win"] for row in replay]), rosters
         )
+        if PROMOTE_ENSEMBLE:
+            promoted = out.p_team_a_win_ensemble.notna()
+            out["p_team_a_win_elo"] = out.p_team_a_win
+            out.loc[promoted, "p_team_a_win"] = out.loc[promoted, "p_team_a_win_ensemble"]
+            out.loc[promoted, "p_team_b_win"] = 1 - out.loc[promoted, "p_team_a_win"]
     elif "tier" in history and history.tier.eq(3).all():
         # GC pool: its own shadow, behind a flag (off by default; A74).
         from ..models.shadow import gc_shadow_columns

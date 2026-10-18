@@ -12,6 +12,7 @@ import pandas as pd
 from vct_quant.config import PROCESSED_DIR
 from vct_quant.eval.metrics import brier_score, calibration_table, log_loss
 from vct_quant.live_grading import graded_forecasts
+from vct_quant.live_checkpoint import elo_baseline
 
 MAX_SPREAD = 0.10
 # Walk-forward production Elo (scripts/benchmark_elo.py) after the 2026-09-24 team-ID fix.
@@ -46,7 +47,7 @@ def _print_shadow_scores(scored: pd.DataFrame, column: str, label: str) -> None:
         print(f"\n{label}: {len(both)} graded so far")
     else:
         yy = both.y.to_numpy()
-        base = _loss(yy, both.p_team_a_win.to_numpy())
+        base = _loss(yy, elo_baseline(both).to_numpy())
         shadow = _loss(yy, both[column].to_numpy())
         print(f"\n{label}, n = {len(both)}")
         print(f"elo    {base.mean():.4f}")
@@ -60,7 +61,7 @@ def _print_shadow_scores(scored: pd.DataFrame, column: str, label: str) -> None:
             print(f"  {year}: n = {n} (paired t unavailable)")
             continue
         yy = cohort.y.to_numpy()
-        base = _loss(yy, cohort.p_team_a_win.to_numpy())
+        base = _loss(yy, elo_baseline(cohort).to_numpy())
         shadow = _loss(yy, cohort[column].to_numpy())
         print(f"  {year}: n = {n}, elo {base.mean():.4f}, shadow {shadow.mean():.4f}, "
               f"paired t = {_paired_t(base - shadow):+.2f}")

@@ -2,8 +2,28 @@
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from vct_quant import live_checkpoint as lc
+
+
+def test_elo_baseline_uses_raw_elo_and_falls_back_per_row():
+    scored = pd.DataFrame({"p_team_a_win": [0.6, 0.4], "p_team_a_win_elo": [0.7, np.nan]})
+    assert lc.elo_baseline(scored).tolist() == pytest.approx([0.7, 0.4])
+    assert lc.elo_baseline(scored.drop(columns="p_team_a_win_elo")).tolist() == pytest.approx([0.6, 0.4])
+
+
+def test_checkpoint_status_matches_equivalent_promoted_log():
+    elo_log = _scored(8)
+    elo_log.loc[7, "p_team_a_win_ensemble"] = np.nan
+    promoted = elo_log.copy()
+    promoted["p_team_a_win_elo"] = promoted.p_team_a_win
+    promoted.loc[4:6, "p_team_a_win"] = promoted.loc[4:6, "p_team_a_win_ensemble"]
+    unpromoted = elo_log.copy()
+    left = lc.checkpoint_status(promoted, final_id=754737)
+    right = lc.checkpoint_status(unpromoted, final_id=754737)
+    assert left["checkpoint_1"]["diff"] == pytest.approx(right["checkpoint_1"]["diff"])
+    assert left["checkpoint_1"]["t"] == pytest.approx(right["checkpoint_1"]["t"])
 
 
 def _scored(n, ens_better=True, final_id=None, extra_after=0):

@@ -37,6 +37,15 @@ def paired_t(diff: np.ndarray) -> float | None:
     return float(diff.mean() / (sd / np.sqrt(len(diff)))) if sd > 0 else 0.0
 
 
+def elo_baseline(scored: pd.DataFrame) -> pd.Series:
+    """Return raw Elo where available, falling back to the primary forecast."""
+    primary = scored.p_team_a_win.copy()
+    if "p_team_a_win_elo" in scored:
+        elo = scored.p_team_a_win_elo
+        return elo.where(elo.notna(), primary)
+    return primary
+
+
 def grand_final_id(event_id: int = CHAMPIONS_2026_EVENT) -> int:
     spec = load_bracket_spec(event_id)
     finals = [s["match_id"] for s in spec["playoffs"] if s["stage"] == "Grand Final"]
@@ -76,7 +85,7 @@ def checkpoint_status(scored: pd.DataFrame, final_id: int,
     else:
         cohort = rows
     y = cohort.y.to_numpy()
-    diff = per_match_loss(y, cohort[column].to_numpy()) - per_match_loss(y, cohort.p_team_a_win.to_numpy())
+    diff = per_match_loss(y, cohort[column].to_numpy()) - per_match_loss(y, elo_baseline(cohort).to_numpy())
     out["checkpoint_1"] = {
         "n": int(len(cohort)),
         "diff": float(diff.mean()) if len(diff) else None,  # shadow minus Elo; negative = shadow better

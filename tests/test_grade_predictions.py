@@ -37,3 +37,18 @@ def test_shadow_report_exposes_empty_year_without_inventing_a_score(capsys):
     assert "2026: n = 1" in report
     assert "2027: n = 0" in report
     assert "2027: n = 0 (paired t unavailable)" in report
+
+
+def test_shadow_report_is_identical_for_promoted_and_elo_logs(capsys):
+    promoted = pd.DataFrame({
+        "scheduled_at": pd.to_datetime(["2026-09-25T00:00:00Z", "2026-09-26T00:00:00Z"]),
+        "y": [1, 0], "p_team_a_win": [0.7, 0.3],
+        "p_team_a_win_elo": [0.6, 0.4],
+        "p_team_a_win_ensemble": [0.7, 0.3],
+    })
+    unpromoted = promoted.drop(columns="p_team_a_win_elo").copy()
+    unpromoted["p_team_a_win"] = [0.6, 0.4]
+    grader._print_shadow_scores(promoted, "p_team_a_win_ensemble", "fast/slow ensemble")
+    promoted_report = capsys.readouterr().out
+    grader._print_shadow_scores(unpromoted, "p_team_a_win_ensemble", "fast/slow ensemble")
+    assert capsys.readouterr().out == promoted_report

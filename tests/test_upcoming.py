@@ -1,13 +1,17 @@
 import duckdb
+import numpy as np
 import pandas as pd
+import pytest
 
 from vct_quant.etl import events
 from vct_quant.etl.normalize import official_match_details, official_upcoming
 from vct_quant.features.build import (
     add_map_predictions,
+    add_score_predictions,
     current_rankings,
     predict_upcoming,
 )
+from vct_quant.models import shadow
 
 
 def test_official_upcoming_filters_and_resolves_ids():
@@ -130,6 +134,41 @@ def test_predict_upcoming_replays_existing_elo():
     assert (out.p_team_a_win + out.p_team_b_win).eq(1).all()
     assert out.ratings_through_match_id.tolist() == [1, 1]
     assert out.score_probabilities.map(lambda scores: abs(sum(scores.values()) - 1)).lt(1e-12).all()
+
+
+def test_official_ensemble_promotion_switch_keeps_elo_and_recomputes_scores(monkeypatch):
+    history = pd.DataFrame({
+        "match_id": [1, 2], "tier": [1, 1], "team_a": ["a", "b"],
+        "team_b": ["b", "a"], "maps_a": [2, 0], "maps_b": [0, 2],
+        "score_a": [1.0, 0.0],
+    })
+    fixtures = pd.DataFrame({
+        "team_a_key": ["a", "a"], "team_b_key": ["b", "new"],
+        "best_of": [3, 3],
+    })
+    monkeypatch.setattr(shadow, "PROMOTE_ENSEMBLE", False)
+    baseline = predict_upcoming(fixtures, history)
+    assert "p_team_a_win_elo" not in baseline
+    pd.testing.assert_frame_equal(baseline, predict_upcoming(fixtures, history))
+
+    monkeypatch.setattr(shadow, "ensemble_probability", lambda frame, hist: pd.Series([0.8, np.nan], index=frame.index))
+    monkeypatch.setattr(shadow, "PROMOTE_ENSEMBLE", True)
+    promoted = predict_upcoming(fixtures, history)
+    assert promoted.loc[0, "p_team_a_win"] == pytest.approx(0.8)
+    assert promoted.loc[0, "p_team_a_win_elo"] == pytest.approx(baseline.loc[0, "p_team_a_win"])
+    assert promoted.loc[0, "p_team_b_win"] == pytest.approx(0.2)
+    direct_fixture = fixtures.iloc[[0]].copy()
+    direct_fixture["p_team_a_win"] = 0.8
+    direct_fixture["p_team_b_win"] = 0.2
+    direct = add_score_predictions(direct_fixture)
+    assert promoted.loc[0, "p_sweep"] == pytest.approx(direct.loc[0, "p_sweep"])
+    assert promoted.loc[0, "score_probabilities"] == direct.loc[0, "score_probabilities"]
+    assert promoted.loc[1, "p_team_a_win"] == pytest.approx(baseline.loc[1, "p_team_a_win"])
+    assert promoted.loc[1, "p_team_a_win_elo"] == pytest.approx(baseline.loc[1, "p_team_a_win"])
+
+    gc_history = history.assign(tier=3)
+    gc_fixture = fixtures.iloc[[0]].assign(tier=3)
+    assert "p_team_a_win_elo" not in predict_upcoming(gc_fixture, gc_history)
 
 
 def test_current_rankings_only_includes_latest_tier_one_season():

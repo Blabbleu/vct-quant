@@ -145,11 +145,12 @@ def graded_log() -> dict:
             continue
         has = scored[column].notna().to_numpy()
         if has.sum():
-            base = live_checkpoint.per_match_loss(y[has], p[has])
+            baseline = live_checkpoint.elo_baseline(scored).to_numpy()
+            base = live_checkpoint.per_match_loss(y[has], baseline[has])
             shadow = live_checkpoint.per_match_loss(y[has], scored[column].to_numpy()[has])
             shadows[name] = {
                 "n": int(has.sum()),
-                "elo": float(metrics.log_loss(y[has], p[has])),
+                "elo": float(metrics.log_loss(y[has], baseline[has])),
                 "shadow": float(metrics.log_loss(y[has], scored[column].to_numpy()[has])),
                 "t": live_checkpoint.paired_t(base - shadow),  # positive = shadow better
             }
