@@ -26,6 +26,21 @@ export function championOf(playoffs: Pick<ChampionsPlayoffs, "schedule" | "unver
   return { team_id: winner.team_id, name: winner.name, logo: winner.logo, tag: winner.tag, scores: [result.scores[winnerIndex], result.scores[loserIndex]] as [number, number] };
 }
 
+export function finalStandingsOf(playoffs: Pick<ChampionsPlayoffs, "schedule" | "unverified_match_ids"> | null | undefined) {
+  const champion = championOf(playoffs);
+  if (!champion) return null;
+  const final = playoffs?.schedule?.find(row => row.stage === "Grand Final");
+  const runnerUp = final?.sides?.find(side => side && side.team_id !== champion.team_id);
+  if (!runnerUp) return null;
+  return {
+    champion,
+    runnerUp: {
+      team_id: runnerUp.team_id, name: runnerUp.name, logo: runnerUp.logo, tag: runnerUp.tag,
+      scores: [champion.scores[1], champion.scores[0]] as [number, number],
+    },
+  };
+}
+
 export function routingChip(playoffs: Pick<ChampionsPlayoffs, "routing" | "projection">): string {
   const projection = playoffs.projection;
   if (playoffs.routing !== "projected" || !projection || "withheld" in projection || !("slots" in projection)) {

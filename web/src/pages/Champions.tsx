@@ -13,7 +13,7 @@ import { Reveal, Stagger, StaggerItem, PageFade, CountUp } from "../lib/motion";
 import { URLS, loadCached, store, useChampionsStatus } from "../lib/api";
 import { LOW_DATA_MATCHES } from "../lib/constants";
 import { openingSectionCopy } from "../lib/championsCopy";
-import { championOf, isEliminated, playoffsNoteCopy, titleTable } from "../lib/championsProjection";
+import { championOf, finalStandingsOf, isEliminated, playoffsNoteCopy, titleTable } from "../lib/championsProjection";
 import { playedDate, utc, utcShort } from "../lib/format";
 import type { ChampionsGroup, ChampionsPlayoffMatch, ChampionsPlayoffs, ChampionsQualificationTeam } from "../lib/types";
 import "./Champions.css";
@@ -22,6 +22,49 @@ const ORDER = ["opening_1", "opening_2", "winners", "elimination", "decider"] as
 const LABELS = ["Opening 1", "Opening 2", "Winner's", "Elimination", "Decider"];
 
 type TeamMeta = { tag: string | null; logo: string | null };
+
+export function Standings({ playoffs, oddsRows, names }: {
+  playoffs: ChampionsPlayoffs;
+  oddsRows: ReturnType<typeof titleTable>;
+  names: Record<number, { name: string; logo: string | null; tag: string | null }>;
+}) {
+  const champion = championOf(playoffs);
+  const standings = finalStandingsOf(playoffs);
+  if (champion) {
+    if (!standings) return null;
+    const rows = [
+      { ...standings.champion, place: "Champion", caption: "Won Grand Final" },
+      { ...standings.runnerUp, place: "Runner-up", caption: "Lost Grand Final" },
+    ];
+    return <section className="champ-title-odds" aria-label="Final standings">
+      <SectionHead title="Final standings" right={<Chip variant="ghost">FINAL</Chip>} />
+      <ol className="champ-odds-list" aria-label="Final standings">
+        {rows.map(row => <li className="champ-odds-row" key={row.team_id}>
+          <LogoSlot src={row.logo} name={row.name} tag={row.tag} size={34} />
+          <Link to={`/team/${row.team_id}`} className="champ-team-link champ-odds-name"><TeamLabel name={row.name} tag={row.tag} mode="auto" /></Link>
+          <span className="champ-odds-stat"><b>{row.place}</b><small>{row.caption} {row.scores[0]}–{row.scores[1]}</small></span>
+        </li>)}
+      </ol>
+    </section>;
+  }
+  if (oddsRows.length === 0) return null;
+  return <section className="champ-title-odds" aria-label="Title odds">
+    <SectionHead title="Title odds" right={<Chip variant="ghost">PROJECTED</Chip>} />
+    <ul className="champ-odds-list" aria-label="Projected title odds">
+      {oddsRows.map(row => {
+        const meta = names[row.team_id];
+        const name = meta?.name ?? `Team ${row.team_id}`;
+        const eliminated = isEliminated(row);
+        return <li className={`champ-odds-row${eliminated ? " is-out" : ""}`} key={row.team_id}>
+          <LogoSlot src={meta?.logo ?? null} name={name} tag={meta?.tag ?? null} size={34} />
+          <Link to={`/team/${row.team_id}`} className="champ-team-link champ-odds-name"><TeamLabel name={name} tag={meta?.tag ?? null} mode="auto" /></Link>
+          <span className="champ-odds-stat"><b className="num">{eliminated ? "Eliminated" : `${(row.p_title * 100).toFixed(1)}%`}</b><small>P(title)</small></span>
+          <span className="champ-odds-stat"><b className="num">{eliminated ? "—" : `${(row.p_grand_final * 100).toFixed(1)}%`}</b><small>P(reach Grand Final)</small></span>
+        </li>;
+      })}
+    </ul>
+  </section>;
+}
 
 /** One verified Upper Quarterfinal: kick-off, both sides with model %, and the market read (or none). */
 function PlayoffMatch({ m, unverified }: { m: ChampionsPlayoffMatch; unverified: boolean }) {
@@ -278,8 +321,7 @@ export default function Champions() {
 
   const playoffs = data.playoffs && data.playoffs.opening.length > 0 ? data.playoffs : null;
   const champion = championOf(playoffs);
-  const finalMatch = champion ? playoffs?.schedule.find(m => m.stage === "Grand Final") : null;
-  const runnerUp = champion && finalMatch?.sides ? finalMatch.sides.find(s => s.team_id !== champion.team_id) : null;
+  const standings = finalStandingsOf(playoffs);
   const groupsDone = letters.every(l => data.groups[l].qualifiers.length === 2 && data.groups[l].unverified_match_ids.length === 0);
   const recordedOpening = playoffs?.opening.filter(m => m.result && !(playoffs.unverified_match_ids ?? []).includes(m.match_id)).length ?? 0;
   const namedLater = playoffs?.schedule.some(s => s.sides?.length === 2) ?? false;
@@ -295,8 +337,8 @@ export default function Champions() {
       <header className="champ-head">
         <h1 className="champ-title">{champion ? `Champions 2026: ${champion.name}` : playoffs ? "Playoffs" : "Group stage"}</h1>
         <p className="champ-lede">
-          {champion && runnerUp
-            ? `${champion.name} beat ${runnerUp.name} ${champion.scores[0]}–${champion.scores[1]} in the Grand Final.`
+          {standings
+            ? `${standings.champion.name} beat ${standings.runnerUp.name} ${standings.champion.scores[0]}–${standings.champion.scores[1]} in the Grand Final.`
             : playoffs
             ? `${recordedOpening ? `${recordedOpening} opening series ${recordedOpening === 1 ? "has" : "have"} recorded results` : "Opening Upper Quarterfinals are drawn"}; named later-round sides are shown when supplied, with Elo forecasts only for unplayed series.`
             : "Recorded best-of-three results, confirmed advancement, and each team's chance to leave its group under the primary Elo forecast."}
@@ -313,22 +355,7 @@ export default function Champions() {
       </p>
 
       {playoffs && <Bracket playoffs={playoffs} />}
-      {oddsRows.length > 0 && <section className="champ-title-odds" aria-label={champion ? "Final standings" : "Title odds"}>
-        <SectionHead title={champion ? "Final standings" : "Title odds"} right={<Chip variant="ghost">{champion ? "FINAL" : "PROJECTED"}</Chip>} />
-        <ul className="champ-odds-list" aria-label={champion ? "Final standings" : "Projected title odds"}>
-          {oddsRows.map(row => {
-            const meta = names[row.team_id];
-            const name = meta?.name ?? `Team ${row.team_id}`;
-            const eliminated = isEliminated(row);
-            return <li className={`champ-odds-row${eliminated ? " is-out" : ""}`} key={row.team_id}>
-              <LogoSlot src={meta?.logo ?? null} name={name} tag={meta?.tag ?? null} size={34} />
-              <Link to={`/team/${row.team_id}`} className="champ-team-link champ-odds-name"><TeamLabel name={name} tag={meta?.tag ?? null} mode="auto" /></Link>
-              <span className="champ-odds-stat"><b className="num">{isEliminated(row) ? "Eliminated" : `${(row.p_title * 100).toFixed(1)}%`}</b><small>P(title)</small></span>
-              <span className="champ-odds-stat"><b className="num">{eliminated ? "—" : `${(row.p_grand_final * 100).toFixed(1)}%`}</b><small>P(reach Grand Final)</small></span>
-            </li>;
-          })}
-        </ul>
-      </section>}
+      {playoffs && <Standings playoffs={playoffs} oddsRows={oddsRows} names={names} />}
       {playoffs && <PlayoffsSection playoffs={playoffs} />}
 
       {playoffs && (
