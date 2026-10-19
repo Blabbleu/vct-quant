@@ -4,6 +4,7 @@ import pandas as pd
 from vct_quant.features.build import elo_k, margin_signal, predict_upcoming
 from vct_quant.features.carryover import carryover_elo, carryover_probability
 from vct_quant.features.ratings import compute_elo
+from vct_quant.models import shadow
 
 P = [f"p{i}" for i in range(15)]
 
@@ -72,7 +73,8 @@ def test_en_bloc_rule_blocks_inheriting_from_a_team_that_kept_playing():
     assert carryover_elo(h, rosters, en_bloc=False)[2] == [(3, "new", "old")]
 
 
-def test_upcoming_fixture_uses_the_new_teams_latest_lineup():
+def test_upcoming_fixture_uses_the_new_teams_latest_lineup(monkeypatch):
+    monkeypatch.setattr(shadow, "PROMOTE_ENSEMBLE", False)
     # "new" has only played Tier 2 (e.g. an open qualifier) with old's roster.
     h = _history().iloc[:2]
     h = pd.concat([h, pd.DataFrame({
@@ -90,7 +92,8 @@ def test_upcoming_fixture_uses_the_new_teams_latest_lineup():
     assert abs(out.p_team_a_win_carryover.iloc[1] - predict_upcoming(fixtures, h).p_team_a_win.iloc[1]) < 1e-12
 
 
-def test_predict_upcoming_logs_carryover_equal_to_elo_without_rosters():
+def test_predict_upcoming_logs_carryover_equal_to_elo_without_rosters(monkeypatch):
+    monkeypatch.setattr(shadow, "PROMOTE_ENSEMBLE", False)
     h = _history()
     fixtures = pd.DataFrame({"team_a_key": ["old", "brand_new"], "team_b_key": ["rival", "rival"]})
     out = predict_upcoming(fixtures, h)

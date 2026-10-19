@@ -11,6 +11,7 @@ from vct_quant.features.build import (
     current_rankings,
     predict_upcoming,
 )
+from vct_quant.features.ratings import expected_score
 from vct_quant.models import shadow
 
 
@@ -134,6 +135,27 @@ def test_predict_upcoming_replays_existing_elo():
     assert (out.p_team_a_win + out.p_team_b_win).eq(1).all()
     assert out.ratings_through_match_id.tolist() == [1, 1]
     assert out.score_probabilities.map(lambda scores: abs(sum(scores.values()) - 1)).lt(1e-12).all()
+
+
+def test_official_ensemble_is_promoted_by_default(monkeypatch):
+    history = pd.DataFrame({
+        "match_id": [1, 2], "tier": [1, 1], "team_a": ["a", "b"],
+        "team_b": ["b", "a"], "maps_a": [2, 0], "maps_b": [0, 2],
+        "score_a": [1.0, 0.0],
+    })
+    fixtures = pd.DataFrame({"team_a_key": ["a"], "team_b_key": ["b"]})
+    assert shadow.PROMOTE_ENSEMBLE is True
+
+    monkeypatch.setattr(
+        shadow, "ensemble_probability",
+        lambda frame, hist: pd.Series([0.73], index=frame.index),
+    )
+    promoted = predict_upcoming(fixtures, history)
+
+    assert promoted.loc[0, "p_team_a_win"] == pytest.approx(0.73)
+    assert promoted.loc[0, "p_team_a_win_elo"] == pytest.approx(
+        expected_score(promoted.loc[0, "elo_a"], promoted.loc[0, "elo_b"])
+    )
 
 
 def test_official_ensemble_promotion_switch_keeps_elo_and_recomputes_scores(monkeypatch):

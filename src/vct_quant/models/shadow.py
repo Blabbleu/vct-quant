@@ -96,8 +96,8 @@ def calibrated_probability(p: pd.Series, a: float) -> pd.Series:
 # it (A74), enabled after approval. This adds only a shadow column; primary
 # forecasts, Elo, and Tier-1 shadows are unchanged.
 GC_SIDE_SHADOW = True
-# Checkpoint 1 promotion requires separate owner approval.
-PROMOTE_ENSEMBLE = False
+# Checkpoint 1 promoted the ensemble on 2026-10-19 under owner approval A7 (n 32, 0.6209 vs 0.6212); checkpoint 2 at 300 graded matches can demote it.
+PROMOTE_ENSEMBLE = True
 GC_SIDE_K = 192.0
 GC_SIDE_H = 30.0
 
