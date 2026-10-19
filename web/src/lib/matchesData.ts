@@ -7,6 +7,11 @@ import type { ChampionsPlayoffMatch, ChampionsPlayoffSlot, ChampionsPlayoffs, Fi
 
 export interface FixtureSelection { event: string; fixtures: Fixture[] }
 
+/** Match only the canonical Valorant Champions event title with a four digit year. */
+export function isChampionsEvent(event: string | null | undefined): boolean {
+  return typeof event === "string" && /^Valorant Champions \d{4}$/.test(event);
+}
+
 /** Keep a selected event only while it exists in the current slate. */
 export function selectFixtures(fixtures: Fixture[], selectedEvent: string): FixtureSelection {
   const events = new Set(fixtures.map(f => f.event));

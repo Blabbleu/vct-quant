@@ -58,7 +58,7 @@ test('Champions quick link uses current playoffs copy', async () => {
 });
 
 test('Matches derives tier labels from the displayed fixture selection', async () => {
-  const matches = await readFile(new URL('../src/pages/Matches.tsx', import.meta.url), 'utf8');
+  const matches = await readFile(new URL('../src/components/matches/MatchesView.tsx', import.meta.url), 'utf8');
   assert.match(matches, /fixtureTierCopy\(shown\)/);
   assert.match(matches, /All \{fixtureTierCopy\(fixtures\)\}/);
   assert.match(matches, /Show all \{fixtureTierCopy\(fixtures\)\}/);

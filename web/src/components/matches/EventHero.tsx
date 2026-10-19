@@ -7,6 +7,7 @@ import { useNow } from "../../lib/useNow";
 import { m, useInitial, EASE_OUT, D_BASE } from "../../lib/motion";
 import type { Fixture } from "../../lib/types";
 import { stageSpan } from "../../lib/format";
+import { fixtureTierCopy } from "../../lib/homeCopy";
 
 const tagOf = (f: Fixture, side: "a" | "b") => ((side === "a" ? f.tag_a ?? f.team_a : f.tag_b ?? f.team_b)).toUpperCase();
 
@@ -14,8 +15,8 @@ const tagOf = (f: Fixture, side: "a" | "b") => ((side === "a" ? f.tag_a ?? f.tea
  * Event context strip at the top of Matches: event + phase, a live-ticking countdown to the
  * next kick-off, the slate size, and (when the Champions feed is in) the stage tracker.
  */
-export default function EventHero({ ctx, timeline, timelineLoading }: {
-  ctx: EventContext; timeline: TimelineStage[]; timelineLoading: boolean;
+export default function EventHero({ ctx, fixtures, timeline, timelineLoading }: {
+  ctx: EventContext; fixtures: Fixture[]; timeline: TimelineStage[]; timelineLoading: boolean;
 }) {
   const now = useNow(1000);
   const init = useInitial("hidden");
@@ -33,7 +34,7 @@ export default function EventHero({ ctx, timeline, timelineLoading }: {
             <span><b>{ctx.matches}</b> {ctx.matches === 1 ? "match" : "matches"}</span>
             <span><b>{ctx.days}</b> {ctx.days === 1 ? "day" : "days"}</span>
             {ctx.bestOf.length > 0 && <span>{ctx.bestOf.map(b => `Bo${b}`).join(" / ")}</span>}
-            <span>Tier 1</span>
+            <span>{fixtureTierCopy(fixtures)}</span>
           </div>
         </div>
 
