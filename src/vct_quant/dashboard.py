@@ -32,7 +32,7 @@ from .live_grading import graded_forecasts
 
 MAX_SPREAD = 0.10
 
-# Every experiment that has been run and settled; see CLAUDE.md for the detail.
+# Experiments settled in CLAUDE.md and docs/research.
 LEDGER = [
     {"name": "Margin-aware Elo (map share, K=48)", "holdout": "walk-forward Tier 1",
      "score": "0.6567", "verdict": "shipped"},
@@ -63,6 +63,28 @@ LEDGER = [
     {"name": "Inactivity decay (calendar days)", "holdout": "2025+26", "score": "t=+0.00",
      "verdict": "rejected"},
     {"name": "Best-of-aware map Elo", "holdout": "2025+26", "score": "t=-4.24",
+     "verdict": "rejected"},
+    {"name": "Round-share series model", "holdout": "2025+26", "score": "t=-1.80/-1.04",
+     "verdict": "rejected"},
+    {"name": "Lineup player-skill model (ADF)", "holdout": "2025+26", "score": "t=-1.19/-2.68",
+     "verdict": "rejected"},
+    {"name": "Stacked ensemble (Elo + round-share + lineup)", "holdout": "2025+26", "score": "t=+1.66/+1.29",
+     "verdict": "not proven"},
+    {"name": "Batch Bradley-Terry refit", "holdout": "2025+26", "score": "t=-2.09/-1.28",
+     "verdict": "rejected"},
+    {"name": "Gradient-boosted Elo residual", "holdout": "2025+26", "score": "t=+0.00/+0.00",
+     "verdict": "rejected"},
+    {"name": "State-space map-level Bradley-Terry", "holdout": "2025+26", "score": "t=-2.39/-1.96",
+     "verdict": "rejected"},
+    {"name": "Stack plus batch BT input", "holdout": "2025+26", "score": "t=+1.63/+1.22",
+     "verdict": "not proven"},
+    {"name": "Stack with fitted temperature", "holdout": "2025+26", "score": "t=+0.22/+0.85",
+     "verdict": "not proven"},
+    {"name": "Stack plus fast/slow input", "holdout": "2025+26", "score": "t=+1.42/+0.94",
+     "verdict": "not proven"},
+    {"name": "Experience-gated stack", "holdout": "2025+26", "score": "t=+1.55/+0.58",
+     "verdict": "not proven"},
+    {"name": "Stack plus as-of lineup form", "holdout": "2025+26", "score": "t=+2.31/-0.64",
      "verdict": "rejected"},
 ]
 
