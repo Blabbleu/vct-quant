@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import type { Fixture } from "../../lib/types";
-import { LOW_DATA_MATCHES, WIDE_SPREAD } from "../../lib/constants";
+import { LOW_DATA_MATCHES } from "../../lib/constants";
+import { isTrustedQuote } from "../../lib/gapPresentation";
 import LogoSlot from "./LogoSlot";
 import TeamLabel from "./TeamLabel";
 import PipBar from "./PipBar";
@@ -73,7 +74,7 @@ export default function MatchRow({ f, detail = true }: { f: Fixture; detail?: bo
   const [open, setOpen] = useState(false);
   const favA = f.p_a >= 0.5;
   const hasMarket = f.market != null;
-  const trustedMarket = f.spread != null && f.spread <= WIDE_SPREAD && f.volume != null && f.volume >= 1000;
+  const trustedMarket = isTrustedQuote(f.spread, f.volume);
   const lowDataA = f.matches_a < LOW_DATA_MATCHES;
   const lowDataB = f.matches_b < LOW_DATA_MATCHES;
   const anyLowData = lowDataA || lowDataB;

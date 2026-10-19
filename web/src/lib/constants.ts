@@ -16,6 +16,9 @@ export const AGREE_POINTS = 1;
 /** Market spread above this -> WIDE SPREAD, excluded from grading. */
 export const WIDE_SPREAD = 0.1;
 
+/** Minimum traded volume for a market quote to be trusted. */
+export const MIN_TRUSTED_VOLUME = 1000;
+
 /** Payload older than this many hours -> stale note. */
 export const STALE_HOURS = 6;
 

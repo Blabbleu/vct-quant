@@ -1,4 +1,9 @@
-import { AGREE_POINTS, BIG_GAP_POINTS, WIDE_SPREAD } from "./constants.ts";
+import { AGREE_POINTS, BIG_GAP_POINTS, MIN_TRUSTED_VOLUME, WIDE_SPREAD } from "./constants.ts";
+
+/** Whether a quote has both a usable spread and enough traded volume. */
+export function isTrustedQuote(spread: number | null | undefined, volume: number | null | undefined): boolean {
+  return spread != null && spread <= WIDE_SPREAD && volume != null && volume >= MIN_TRUSTED_VOLUME;
+}
 
 export type GapPresentation =
   | { kind: "no-price" }
@@ -12,7 +17,7 @@ export function gapPresentation(model: number, market: number | null | undefined
 
   const gapPoints = (model - market) * 100;
   if (spread != null && spread > WIDE_SPREAD) return { kind: "wide", gapPoints };
-  if (spread == null || volume == null || volume < 1000) return { kind: "untrusted", gapPoints };
+  if (!isTrustedQuote(spread, volume)) return { kind: "untrusted", gapPoints };
 
   const abs = Math.abs(gapPoints);
   return { kind: abs < AGREE_POINTS ? "agree" : abs >= BIG_GAP_POINTS ? "big" : "mid", gapPoints };

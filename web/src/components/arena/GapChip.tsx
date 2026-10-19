@@ -1,5 +1,5 @@
 import { Chip } from "./Chip";
-import { COPY } from "../../lib/constants";
+import { COPY, MIN_TRUSTED_VOLUME } from "../../lib/constants";
 import { gapPresentation } from "../../lib/gapPresentation";
 
 /**
@@ -39,7 +39,7 @@ export default function GapChip({ model, market, spread, volume, favouredLabel }
         <span className="num">{text}</span>{suffix}
       </Chip>
       {wide && <Chip variant="ghost">WIDE SPREAD</Chip>}
-      {variant === "untrusted" && <Chip variant="ghost">{volume != null && volume < 1000 ? "LOW VOLUME" : "UNTRUSTED PRICE"}</Chip>}
+      {variant === "untrusted" && <Chip variant="ghost">{volume != null && volume < MIN_TRUSTED_VOLUME ? "LOW VOLUME" : "UNTRUSTED PRICE"}</Chip>}
     </span>
   );
 }

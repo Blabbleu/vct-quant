@@ -1,3 +1,5 @@
+import { isTrustedQuote } from "./gapPresentation.ts";
+
 export const pct = (p: number | null | undefined, digits = 1) =>
   p == null || !Number.isFinite(p) ? "–" : `${(p * 100).toFixed(digits)}%`;
 
@@ -24,7 +26,7 @@ export const eloWinProbability = (a: number, b: number) => 1 / (1 + Math.pow(10,
 
 /** A market quote worth comparing against: priced, tight and traded. */
 export const liquid = (spread: number | null, volume: number | null) =>
-  spread != null && spread <= 0.1 && (volume ?? 0) >= 1000;
+  isTrustedQuote(spread, volume);
 
 export const logLoss = (p: number, won: boolean) => -Math.log(Math.min(Math.max(won ? p : 1 - p, 1e-9), 1));
 
