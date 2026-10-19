@@ -34,3 +34,20 @@ Join failures below count distinct source series/team/reason records after exact
 | 2026 | team_name_mismatch | 25 |
 
 The 2026 eligibility drop largely reflects that the available draft archive stops before many sequence results in the copied database. Coverage is an archive snapshot, not a forecast score. **No model was fitted or scored.**
+
+## Frozen trial scoring plan
+
+`research/asof_veto_stack.py` applies the PRE-REGISTERED later trial above unchanged: it fits once on eligible 2023–2024 decisive Tier-1 rows, freezes that fit, and scores 2025 and 2026 separately against production Elo on identical matches with Elo fallback for ineligible rows. Log loss and the paired per-series gain are primary; Brier, accuracy, and ten-bin ECE are secondary. The verdict uses exactly the stated t, ECE, and mean-gain thresholds.
+
+## Results
+
+One scikit-learn `LogisticRegression` fit (library defaults, version 1.9.1) used **697** eligible decisive Tier-1 rows from 2023–2024. Input order was production Elo logit, then `veto_edge`. The fitted intercept was **0.015802**; coefficients were **0.912115** and **−0.078778**, respectively. The fit was frozen for both test years. All decisive Tier-1 rows were scored, with Elo fallback where ineligible. The current copied data snapshot has 622 decisive 2026 rows, four more than the earlier coverage audit's snapshot.
+
+| Year | n total | n eligible | Log loss trial | Log loss Elo | Brier trial | Brier Elo | Accuracy trial | Accuracy Elo | ECE trial | ECE Elo | Mean Elo − trial log loss | Paired t |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 2025 | 504 | 486 | 0.639644 | 0.641353 | 0.224776 | 0.225489 | 0.640873 | 0.636905 | 0.061789 | 0.042336 | +0.001709 | +1.178119 |
+| 2026 | 622 | 331 | 0.663012 | 0.663315 | 0.234869 | 0.234920 | 0.610932 | 0.609325 | 0.050027 | 0.062688 | +0.000303 | +0.339052 |
+
+**Verdict: NOT PROVEN.** Mean log-loss gain is positive in both years, but neither paired t exceeds 2, and 2025 ECE is worse than Elo's.
+
+Both 2025 and 2026 were consulted in earlier research, so even a WIN needs a clean later holdout before any promotion.
